@@ -32,17 +32,17 @@ export const partial = "askmukthiguru-8119b0e8";
 
 // ---- Owner decisions that gate parts of this file -------------------------
 //
-// Owner decision 2026-11-20: production posture is the truth: v12_shadow serving
-// (first_person_v12_shadow), relevance min score 2, scorer anthropic/claude-haiku-5.5,
+// Owner decisions 2026-11-20/21: repository production posture is v13_shadow
+// (first_person_v13_shadow), promoted from v12 on 2026-11-21 after corpus-gap
+// teachings were added. Relevance min score 2, scorer anthropic/claude-haiku-5.5,
 // answerability gate on. Single source: PRODUCTION_POSTURE in
 // backend/services/first_person_serving_contract.py (drift guard:
 // backend/tests/test_production_posture_drift_2026_11_20.py).
-// History, D-14 decided 2026-11-07: v10-only. The serving collection was first_person_v10
-// with the context harness and terminal flags on (config.py
-// resolve_first_person_active_collection fills both slots from the one active
-// name). The posture is read back from the "Serving posture:" startup log line
-// (backend/app/main.py). "v8_bridge" stays as the rollback value.
-// "v10_only" stays as a selectable posture; "v12_shadow" was promoted 2026-11-20.
+// History, D-14 decided 2026-11-07: v10-only; v12_shadow remains selectable as a
+// prior baseline. The posture is read back from the "Serving posture:" startup
+// log line (backend/app/main.py). "v8_bridge" stays as the rollback value.
+// The checked-in IaC is intended configuration, not proof of the live Railway
+// environment; verify the deployed service's startup log before claiming parity.
 // test_railway_iac.py pins this.
 type ServingPosture = "unset" | "v10_only" | "v12_shadow" | "v13_shadow" | "v8_bridge";
 const SERVING_POSTURE: ServingPosture = "v13_shadow";

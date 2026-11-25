@@ -5,6 +5,21 @@
 
 This report is the clean handoff for the next engineering agent. It separates what is structurally verified from what is not yet proven. It does not authorize Qdrant writes, alias changes, environment changes, or deployment.
 
+## Current posture clarification (2026-11-26)
+
+This report's detailed B1–B7 findings below are the historical v10 / fp-context
+audit and are not a fresh audit of the later v13 shadow collection. The current
+repository production contract and checked-in Railway IaC select
+`v13_shadow` on `first_person_v13_shadow`; the v13 posture was promoted on
+2026-11-21 after corpus-gap teachings were added.
+
+The 2026-11-25 owner decision to enable the context harness is a serving
+configuration decision, not public-release authorization. Public release still
+requires separately evidenced quality and human-review gates. The repository
+configuration does not establish the live Railway state: verify the deployed
+service's `Serving posture:` startup log and collection counts before claiming
+that the v13 posture is live.
+
 ## Executive summary
 
 The first-person v10 collection and fp-context-v1 contract are structurally healthy: the strict audit reports 0 contract violations across 2,737 children and 1,460 parents, no topology defects, and complete archived ASR artifact hashes. The serving path also passed local correctness, safety, snapshot/restore, rollback, and bounded-load checks. Those results are necessary but not sufficient for public release.

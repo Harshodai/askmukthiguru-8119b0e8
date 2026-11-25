@@ -112,8 +112,9 @@ def check_human_review_gates() -> tuple[bool, str]:
 
 
 def check_production_no_go() -> tuple[bool, str]:
-    # Production NO-GO: First-person public context harness must NOT be enabled in prod config
-    # Invariant X5/X6
+    # Public release authorization remains separate from controlled v13 serving.
+    # The context harness may be enabled for evaluation; X5/X6 require an explicit
+    # owner authorization before a public-production release.
     prod_allowed = os.getenv("FIRST_PERSON_PUBLIC_RELEASE_AUTHORIZED", "false").lower() == "true"
     if prod_allowed:
         return True, "Owner authorized public release"
@@ -124,14 +125,14 @@ def check_data_quality_qdrant() -> tuple[bool, str]:
     try:
         import httpx
         qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
-        r = httpx.get(f"{qdrant_url}/collections/first_person_v12_shadow", timeout=5.0)
+        r = httpx.get(f"{qdrant_url}/collections/first_person_v13_shadow", timeout=5.0)
         if r.status_code != 200:
-            return False, f"first_person_v12_shadow collection HTTP {r.status_code}"
+            return False, f"first_person_v13_shadow collection HTTP {r.status_code}"
         data = r.json()
         count = data.get("result", {}).get("points_count", 0)
         if count < 4000:
-            return False, f"v12_shadow point count low: {count}"
-        return True, f"first_person_v12_shadow active ({count} points, verified ratio ~51.3%)"
+            return False, f"v13_shadow point count low: {count}"
+        return True, f"first_person_v13_shadow exists ({count} points; live serving must be confirmed from the startup posture log)"
     except Exception as exc:
         return False, f"Qdrant connection failed: {exc}"
 
@@ -230,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
     checks = [
         ("Script Parity (X1/X2)", check_script_parity),
         ("Lessons Line Ceiling (<1500)", check_lessons_ceiling),
-        ("Serving Contract (V12 Shadow)", check_serving_contract),
+        ("Serving Contract (V13 Shadow)", check_serving_contract),
         ("Human Review Gates (X41)", check_human_review_gates),
         ("Qdrant Data Quality", check_data_quality_qdrant),
         ("Harness Architecture", check_harness_architecture),
