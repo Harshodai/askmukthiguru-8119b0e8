@@ -114,6 +114,7 @@ def test_process_lock_rejects_a_second_concurrent_run(tmp_path):
 @pytest.mark.asyncio
 async def test_safe_insert_false_is_retried_before_marking_success(monkeypatch):
     monkeypatch.setattr(INGEST, "chunk_sentences", lambda _text: ["A sufficiently long teaching chunk."])
+    monkeypatch.setattr(INGEST.asyncio, "sleep", AsyncMock())
     svc = SimpleNamespace(safe_ainsert=AsyncMock(side_effect=[False, True]))
     point = SimpleNamespace(
         id="point-1",
@@ -131,6 +132,7 @@ async def test_safe_insert_false_is_retried_before_marking_success(monkeypatch):
 @pytest.mark.asyncio
 async def test_persistent_safe_insert_false_is_marked_retryable_failure(monkeypatch):
     monkeypatch.setattr(INGEST, "chunk_sentences", lambda _text: ["A sufficiently long teaching chunk."])
+    monkeypatch.setattr(INGEST.asyncio, "sleep", AsyncMock())
     svc = SimpleNamespace(safe_ainsert=AsyncMock(return_value=False))
     point = SimpleNamespace(
         id="point-2",
