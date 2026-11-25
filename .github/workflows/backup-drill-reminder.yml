@@ -38,12 +38,12 @@ jobs:
             Run the procedure in [docs/runbooks/BACKUP_RESTORE_DRILL.md](../blob/main/docs/runbooks/BACKUP_RESTORE_DRILL.md) and post the result log as a comment below.
 
             ### Checklist
-            - [ ] Local Postgres schema/data backup and isolated restore, or mark NOT COVERED
-            - [ ] Hosted Supabase roles/schema/data artifact and isolated restore, or mark NOT COVERED
+            - [ ] Local Postgres schema/data backup and isolated restore, or record NOT COVERED
+            - [ ] Hosted Supabase roles/schema/data artifact and isolated restore, or record NOT COVERED
             - [ ] Qdrant snapshots for each active collection and isolated restore
             - [ ] Memgraph dump/checksum and isolated graph restore
             - [ ] Redis RDB/checksum and isolated Redis restore
-            - [ ] Railway Qdrant/Memgraph/Redis off-host backup coverage verified, or mark NOT COVERED
+            - [ ] Railway Qdrant/Memgraph/Redis off-host backup coverage verified, or record NOT COVERED
             - [ ] Smoke tests pass against the isolated restored stack
             - [ ] Backup freshness and off-host copy verified
             - [ ] Evidence log appended to this issue

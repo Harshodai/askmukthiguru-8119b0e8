@@ -7,11 +7,31 @@ Validates that:
 4. Acute crisis (self-harm, suicide) is classified as acute_crisis and pre-empted with emergency contacts.
 """
 
+import json
 import time
+
 import pytest
 
 from app.intake.safety_kernel import FastSafetyKernel
 from app.route_taxonomy import SafetyDisposition, classify_safety_disposition
+
+
+def test_fast_crisis_response_has_terminal_verification_contract():
+    """Intake preemption must not drop the public verification envelope."""
+    from app.api.chat import _fast_crisis_response
+
+    response = _fast_crisis_response("Call Tele-MANAS at 14416.", "end my life")
+    body = json.loads(response.body)
+
+    assert response.status_code == 200
+    assert body["grounding_state"] == "safety_redirect"
+    assert body["route_decision"] == "fast_safety_kernel_preemption"
+    assert body["citations_verified"] is False
+    assert body["verification"] == {
+        "passed": True,
+        "method": "fast_safety_kernel_preemption",
+        "citations_verified": False,
+    }
 
 
 def test_fast_prompt_injection_detection_latency_and_verdict():
@@ -104,8 +124,9 @@ def test_safety_disposition_classifier():
 async def test_input_guardrail_fast_injection_preemption():
     """Verify InputGuardrailStage preempts prompt injection before retrieval."""
     from unittest.mock import MagicMock
-    from app.pipeline.stages.guardrail_stage import InputGuardrailStage
+
     from app.pipeline.stages.context import PipelineContext
+    from app.pipeline.stages.guardrail_stage import InputGuardrailStage
 
     container = MagicMock()
     container.translation = MagicMock()
