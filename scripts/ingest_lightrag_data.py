@@ -58,8 +58,6 @@ if "host.docker.internal" in os.getenv("SUPABASE_URL", ""):
 CHECKPOINT_FILE = Path(
     os.getenv("LIGHTRAG_CHECKPOINT_FILE", str(PROJECT_ROOT / "data" / "lightrag_checkpoint.json"))
 )
-CHECKPOINT_FILE.parent.mkdir(parents=True, exist_ok=True)
-
 LIGHTRAG_PIECE_SIZE = 1500
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?\u0964\n])\s+")
 _CONTEXT_HEADER_RE = re.compile(r"^(\[Context:[^\]]+\]\s*)", re.DOTALL)
@@ -164,7 +162,7 @@ def load_checkpoint(
     """Load only a v2 checkpoint proven to belong to this exact source/target."""
     path = checkpoint_file or CHECKPOINT_FILE
     if not path.exists():
-        return None, {"processed": 0, "success": 0, "skipped": 0, "rejected": 0, "failed": 0}
+        return None, {"processed": 0, "success": 0, "skipped": 0, "rejected": 0, "failed": 0}, False
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
