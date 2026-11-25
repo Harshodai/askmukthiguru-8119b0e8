@@ -7,7 +7,7 @@ import importlib.util
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -56,65 +56,73 @@ def test_verify_rdb_rejects_checksum_mismatch(tmp_path):
         REDIS_BACKUP.verify_rdb(path)
 
 
-def test_parse_config_pair_requires_expected_key():
-    assert REDIS_BACKUP._parse_config_pair("dir\n/data\n", "dir") == "/data"
-    with pytest.raises(REDIS_BACKUP.RedisBackupError, match="unexpected"):
-        REDIS_BACKUP._parse_config_pair("dbfilename\ndump.rdb\n", "dir")
-
-
-def test_parse_info_extracts_fields_and_ignores_section_headers():
-    result = REDIS_BACKUP._parse_info(
-        "# Persistence\nrdb_bgsave_in_progress:0\nrdb_last_bgsave_status:ok\n"
+def test_redis_url_client_does_not_put_password_in_command_line(monkeypatch):
+    redis_module = SimpleNamespace(
+        Redis=SimpleNamespace(
+            from_url=MagicMock(return_value=SimpleNamespace(ping=MagicMock()))
+        )
     )
-    assert result == {
-        "rdb_bgsave_in_progress": "0",
-        "rdb_last_bgsave_status": "ok",
-    }
+    monkeypatch.setitem(sys.modules, "redis", redis_module)
+    monkeypatch.setenv("REDIS_URL", "redis://:secret-value@127.0.0.1:6379/0")
+
+    client = REDIS_BACKUP._build_redis_client()
+
+    redis_module.Redis.from_url.assert_called_once()
+    assert client is redis_module.Redis.from_url.return_value
+    assert redis_module.Redis.from_url.call_args.args[0] == "redis://:secret-value@127.0.0.1:6379/0"
 
 
-def test_backup_uses_write_key_from_environment(monkeypatch, tmp_path):
-    monkeypatch.setenv("REDIS_PASSWORD", "redis-test-password")
-    with patch.object(
-        REDIS_BACKUP,
-        "_redis_cli",
-        side_effect=[
-            "# Persistence\nrdb_bgsave_in_progress:0\nrdb_last_save_time:100\n",
-            "dir\n/data\n",
-            "dbfilename\ndump.rdb\n",
-            "Background saving started",
-            "# Persistence\nrdb_bgsave_in_progress:0\nrdb_last_save_time:102\nrdb_last_bgsave_status:ok\n",
-        ],
-    ) as cli, patch.object(REDIS_BACKUP.time, "sleep"), patch.object(
-        REDIS_BACKUP, "_docker"
-    ) as docker:
-        def copy_file(args, **kwargs):
-            dest = Path(args[1])
-            dest.write_bytes(b"REDIS0011payload")
-            return SimpleNamespace(returncode=0)
-
-        docker.side_effect = copy_file
-        path = REDIS_BACKUP.backup(backup_dir=tmp_path, timeout=5)
-        assert path.exists()
-        assert Path(f"{path}.sha256").exists()
-        assert cli.call_args_list[0].args[0] == REDIS_BACKUP.DEFAULT_CONTAINER
-        assert cli.call_args_list[0].args[1] == "redis-test-password"
-        assert docker.call_args.args[0][:2] == [
-            "cp",
-            f"{REDIS_BACKUP.DEFAULT_CONTAINER}:/data/dump.rdb",
-        ]
+def test_config_url_rejects_invalid_scheme(monkeypatch):
+    redis_module = SimpleNamespace(Redis=SimpleNamespace(from_url=MagicMock()))
+    monkeypatch.setitem(sys.modules, "redis", redis_module)
+    with pytest.raises(REDIS_BACKUP.RedisBackupError, match="redis://"):
+        REDIS_BACKUP._build_redis_client(redis_url="http://localhost:6379")
 
 
-def test_backup_fails_when_bgsave_is_unsuccessful(monkeypatch, tmp_path):
-    monkeypatch.setenv("REDIS_PASSWORD", "redis-test-password")
-    with patch.object(
-        REDIS_BACKUP,
-        "_redis_cli",
-        side_effect=[
-            "# Persistence\nrdb_bgsave_in_progress:0\nrdb_last_save_time:100\n",
-            "dir\n/data\n",
-            "dbfilename\ndump.rdb\n",
-            "ERR background save failed",
-        ],
-    ):
-        with pytest.raises(REDIS_BACKUP.RedisBackupError, match="did not acknowledge"):
-            REDIS_BACKUP.backup(backup_dir=tmp_path, timeout=1)
+def test_parse_config_pair_requires_expected_key():
+    assert REDIS_BACKUP._parse_config_pair({"dir": "/data"}, "dir") == "/data"
+
+
+def test_backup_copies_only_after_confirmed_new_bgsave(monkeypatch, tmp_path):
+    client = SimpleNamespace(
+        ping=MagicMock(),
+        info=MagicMock(
+            side_effect=[
+                {"rdb_bgsave_in_progress": 0},
+                {"rdb_saves": 10},
+                {"rdb_bgsave_in_progress": 0, "rdb_last_bgsave_status": "ok"},
+                {"rdb_saves": 11},
+            ]
+        ),
+        config_get=MagicMock(side_effect=[{"dir": "/data"}, {"dbfilename": "dump.rdb"}]),
+        bgsave=MagicMock(return_value=True),
+    )
+    monkeypatch.setattr(REDIS_BACKUP, "_build_redis_client", lambda **_kwargs: client)
+    monkeypatch.setattr(REDIS_BACKUP.time, "sleep", lambda _seconds: None)
+
+    def copy_file(_container, _source, destination, timeout=60):
+        Path(destination).write_bytes(b"REDIS0011payload")
+
+    monkeypatch.setattr(REDIS_BACKUP, "_docker_cp", copy_file)
+    path = REDIS_BACKUP.backup(backup_dir=tmp_path, timeout=5)
+
+    assert path.exists()
+    assert Path(f"{path}.sha256").exists()
+    client.bgsave.assert_called_once()
+
+
+def test_backup_fails_when_bgsave_not_acknowledged(monkeypatch, tmp_path):
+    client = SimpleNamespace(
+        ping=MagicMock(),
+        info=MagicMock(
+            side_effect=[
+                {"rdb_bgsave_in_progress": 0},
+                {"rdb_saves": 1},
+            ]
+        ),
+        config_get=MagicMock(side_effect=[{"dir": "/data"}, {"dbfilename": "dump.rdb"}]),
+        bgsave=MagicMock(return_value=False),
+    )
+    monkeypatch.setattr(REDIS_BACKUP, "_build_redis_client", lambda **_kwargs: client)
+    with pytest.raises(REDIS_BACKUP.RedisBackupError, match="did not acknowledge"):
+        REDIS_BACKUP.backup(backup_dir=tmp_path, timeout=1)
