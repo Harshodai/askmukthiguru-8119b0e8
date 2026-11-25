@@ -8,7 +8,6 @@ Railway deployment command is permitted.
 """
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import sys
@@ -206,25 +205,9 @@ def check_conversation_auto_title() -> tuple[bool, str]:
         return False, f"Conversation auto-title check failed: {exc}"
 
 
-def readiness_exit_code(scope: str, staging_ready: bool, production_authorized: bool) -> int:
-    """Return the process contract for the requested readiness scope."""
-    if scope == "production":
-        return 0 if staging_ready and production_authorized else 1
-    return 0 if staging_ready else 1
-
-
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--scope",
-        choices=("staging", "production"),
-        default="staging",
-        help="readiness scope; production also requires explicit release authorization",
-    )
-    args = parser.parse_args(argv)
+def main() -> int:
     print("=" * 80)
     print("RAILWAY DEPLOYMENT READINESS & DATA QUALITY CHECKLIST")
-    print(f"REQUESTED SCOPE: {args.scope}")
     print("=" * 80)
 
     checks = [
@@ -260,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"PRODUCTION READINESS: {'ELIGIBLE' if prod_ready and all_passed_for_staging else 'BLOCKED (Production NO-GO is binding per X5/X6)'}")
     print("=" * 80)
 
-    return readiness_exit_code(args.scope, all_passed_for_staging, prod_ready)
+    return 0 if all_passed_for_staging else 1
 
 
 if __name__ == "__main__":

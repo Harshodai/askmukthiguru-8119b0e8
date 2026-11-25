@@ -33,6 +33,33 @@
 - **Fix:** Decreased poll interval to `0.25s` (240 iterations), eliminating client-side measurement lag while keeping request volume trivial.
 - **Rule:** Performance audit clients must poll async job endpoints with high resolution (e.g. $\le 0.25\text{s}$) to avoid artificial quantization error in latency benchmarking.
 
+## Nov 23–24, 2026 — Verbatim Polisher Integrity, Double-Negation Parity, OTel Redaction & Abstain Fingerprints
+
+### L-VERBATIM-POLISHER-BIDIRECTIONAL-INTEGRITY-1. Verbatim quote smoothers must enforce bidirectional quote preservation.
+- **What:** In `rag/nodes/generation.py`, `_polish_and_weave_clips` smoothed verbatim quote boundaries with an LLM. While `verify_verbatim_spans` verified that newly quoted phrases existed in the sources, it did not check if original verbatim quotes were dropped or silently paraphrased into prose.
+- **Fix:** Added bidirectional verification in `verify_verbatim_spans`: every quoted span in the polished text must exist in the retrieved sources, AND every original quote in the draft answer must be preserved verbatim in the polished text. Added support for both dictionary representations and LangChain `Document` objects.
+- **Rule:** Post-generation smoothing must be bidirectionally invariant: no new quotes may be invented, and no retrieved quotes may be dropped or unquoted.
+
+### L-PROMPT-INJECTION-DEFENSE-FENCE-1. Isolate user input inside XML tags and strip fence collisions in LLM polishing prompts.
+- **What:** In `_polish_and_weave_clips`, user query strings were formatted directly as `User Question: {question}`. Backticks or markdown headers in user queries could bleed into prompt instructions, confusing the smoothing LLM.
+- **Fix:** Sanitized question strings by stripping ASCII control characters, replacing triple backticks with triple single quotes, and bounding the input in strict XML tags (`<seeker_question>...</seeker_question>`).
+- **Rule:** All untrusted user inputs fed into downstream generation and polishing prompts must be sanitized against control characters and isolated within distinct XML boundary tags.
+
+### L-LETTUCE-DOUBLE-NEGATION-PARITY-1. Normalize double negations before contradiction checking to prevent false polarity inversion.
+- **What:** In `services/lettuce_detect_service.py`, `_strip_double_negations` only handled standard English negations. Indic phrases and nuanced philosophical statements with double negatives ("it is not that one is without suffering") were split into inverted polarities, triggering false positive hallucination contradictions.
+- **Fix:** Standardized double-negation handling to normalize double negatives across English and transliterated Indic phrasing into positive assertion equivalents before evaluating polarity conflict.
+- **Rule:** Polarity contradiction checks must normalize double negations across all supported language expressions prior to clause inversion comparison.
+
+### L-OTEL-REDACTION-PREPEND-ORDER-1. Prepend privacy redaction span processors before batch exporters in OpenTelemetry TracerProvider.
+- **What:** In `app/observability.py`, when reusing an existing `TracerProvider`, `PrivacyRedactionSpanProcessor` was appended via `add_span_processor()`. Because OpenTelemetry invokes `SpanProcessor.on_end()` in the exact order of registration, existing batch span exporters sent unredacted spans containing query text across the network before the privacy redactor could sanitize them.
+- **Fix:** If processors already exist on the `TracerProvider`, prepend `PrivacyRedactionSpanProcessor` to `_active_span_processor._span_processors` so `on_end()` sanitizes PII before any exporter can serialize or transmit the span.
+- **Rule:** In telemetry pipelines, privacy and redaction span processors must always precede data exporters in processor execution order.
+
+### L-ABSTAIN-RELATED-CLIPS-FINGERPRINT-1. Bind feature flags that alter abstain response structure into runtime cache fingerprints.
+- **What:** When `first_person_abstain_related_clips_enabled` was activated, below-threshold abstains began returning bounded related clip suggestions. However, because the runtime cache fingerprint in `runtime_budget.py` did not include this flag, cached abstain payloads generated prior to the feature flip returned empty arrays for 24 hours.
+- **Fix:** Added `first_person_abstain_related_clips_enabled` to `_RUNTIME_CONFIG_FINGERPRINT_FIELDS` in `app/runtime_budget.py`.
+- **Rule:** Any runtime setting that alters the payload shape or recommendation content of abstain responses must be bound into the cache fingerprint to avoid serving stale empty structures.
+
 ## Nov 24, 2026 — Prompt Composer Disappearance: the Unbounded Auth Gate and the Footer Fold
 
 ### L-CHAT-COMPOSER-NEVER-BEHIND-AUTH-GATE-1. The chat composer must render while auth is still resolving; a full-screen spinner keyed to `useOptionalAuth().loading` locks the prompt bar behind an unbounded network wait.
