@@ -327,6 +327,10 @@ class DistressStage(Stage):
             logger.info("De-escalating existential burnout to MILD (Query A17)")
             assessment.level = DistressLevel.MILD
             assessment.recommended_response_type = "compassionate"
+        # NOTE: no bereavement-based SEVERE->MODERATE downgrade. A lexical grief intent
+        # cannot rule out passive ideation ("I wish I could disappear", "want to be with
+        # her" all downgraded in a 2026-11-26 audit). Any de-escalation of SEVERE needs
+        # clinician review first; until then SEVERE stays SEVERE.
 
         ctx.assessment = assessment
         if assessment is not None:
