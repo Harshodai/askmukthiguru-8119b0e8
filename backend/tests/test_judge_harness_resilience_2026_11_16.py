@@ -198,9 +198,13 @@ def test_concurrency_never_exceeds_four(armed, monkeypatch):
         return FAIL
 
     monkeypatch.setattr(settings, "first_person_context_max_spans", 16, raising=False)
+    # The default evaluated-context cap is 4 (and Memgraph sizing picks its own k), which would make "more calls than the
+    # concurrency limit" impossible; raise it so the semaphore is what bounds the peak.
+    monkeypatch.setattr(settings, "first_person_max_evaluated_contexts", 8, raising=False)
+    monkeypatch.setattr(settings, "first_person_memgraph_sizing_enabled", False, raising=False)
     llm = _fake_llm(h)
     store = Mock()
-    store.retrieve.return_value = _contexts(3) * 3  # 9 contexts, 3 distinct texts
+    store.retrieve.return_value = _contexts(6) * 2  # 12 contexts, 6 distinct texts
     pipe = FirstPersonPipeline(
         store=Mock(), serene_mind_engine=Mock(), context_store=store, llm_service=llm
     )
