@@ -64,5 +64,8 @@ async def test_default_reasoning_cap_is_unchanged(monkeypatch):
 @pytest.mark.asyncio
 async def test_unknown_effort_value_is_ignored(monkeypatch):
     monkeypatch.setattr(settings, "openrouter_generation_model", "deepseek/deepseek-chat")
+    monkeypatch.setattr(
+        settings, "openrouter_generation_model_fallback", "meta-llama/llama-3.3-70b-instruct"
+    )  # must differ from the primary
     payload, _ = await _payload_for(monkeypatch, max_tokens=800, reasoning_effort="ultra")
     assert "reasoning" not in payload

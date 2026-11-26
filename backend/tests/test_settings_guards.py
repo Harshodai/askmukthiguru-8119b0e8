@@ -211,10 +211,16 @@ def _env_read_sites() -> set[str]:
     return sites
 
 
+def _is_declared(name: str) -> bool:
+    """A field or a class-level attribute (property, method). Checked on the class so a
+    property that raises for the current environment (for example a leaked
+    LLM_PROVIDER=ollama) cannot turn a declaration check into an error."""
+    return name in Settings.model_fields or hasattr(Settings, name)
+
+
 def test_getattr_names_are_declared():
-    s = Settings()
     new_undeclared = sorted(
-        n for n in _getattr_literals() if not hasattr(s, n) and n not in _GETATTR_DEBT_BASELINE
+        n for n in _getattr_literals() if not _is_declared(n) and n not in _GETATTR_DEBT_BASELINE
     )
     assert not new_undeclared, f"NEW undeclared getattr(settings, ...) names: {new_undeclared}"
 

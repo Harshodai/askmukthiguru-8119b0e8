@@ -30,6 +30,7 @@ from domain.evidence_contract import (
     make_evidence_id,
     make_source_id,
 )
+from services.guru_registry import founder_ids
 
 logger = logging.getLogger(__name__)
 
@@ -200,10 +201,12 @@ class IngestionQualityValidator:
             speaker_role = str(seg.get("speaker_role") or "").strip().lower()
             teacher_id = seg.get("teacher_id") or source.default_teacher_id
             speaker_verified = bool(seg.get("speaker_verified", False))
-            if speaker_role in {"audience", "host", "interviewer", "moderator"} and teacher_id in {
-                "preethaji",
-                "krishnaji",
-            }:
+            founders = founder_ids()
+            # Fail closed: if the registry is unavailable (no founders), a non-teacher
+            # role must still be rejected rather than attributed to any teacher id.
+            if speaker_role in {"audience", "host", "interviewer", "moderator"} and (
+                not founders or teacher_id in founders
+            ):
                 rejections.append(
                     QualityRejection(
                         rejection_id=str(uuid.uuid4()),

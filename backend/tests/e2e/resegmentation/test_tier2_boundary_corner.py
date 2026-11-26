@@ -699,22 +699,33 @@ def test_b14_headroom_fraction_constant_70_pct():
     assert HEADROOM_WARN_FRACTION == 0.70
 
 
-def test_b14_budget_under_70_pct_no_warnings():
+def _pin_budget_caps(monkeypatch) -> None:
+    """These cases assume a $10 daily / $300 monthly cap. The real settings (and a local
+    .env) differ, so pin them instead of depending on the environment."""
+    monkeypatch.setattr(settings, "openrouter_budget_guard_enabled", True)
+    monkeypatch.setattr(settings, "openrouter_daily_budget_usd", 10.0)
+    monkeypatch.setattr(settings, "openrouter_monthly_budget_usd", 300.0)
+
+
+def test_b14_budget_under_70_pct_no_warnings(monkeypatch):
     """B14.2: Monthly spend under 70% of cap produces zero headroom warnings."""
+    _pin_budget_caps(monkeypatch)
     # Monthly cap is $300.00; $150.00 is 50%
     warnings = budget_cap_warnings(settings, spent_day=5.0, spent_month=150.0)
     assert len(warnings) == 0
 
 
-def test_b14_budget_over_70_pct_warns():
+def test_b14_budget_over_70_pct_warns(monkeypatch):
     """B14.3: Monthly spend >= 70% of cap ($210.00 of $300.00) triggers headroom warning."""
+    _pin_budget_caps(monkeypatch)
     warnings = budget_cap_warnings(settings, spent_day=10.0, spent_month=220.0)
     assert len(warnings) >= 1
     assert any("is at 73% of the" in w or "refused by our own guard" in w for w in warnings)
 
 
-def test_b14_budget_100_pct_cap_guard_attribution():
+def test_b14_budget_100_pct_cap_guard_attribution(monkeypatch):
     """B14.4: Spend at 100% of cap explicitly attributes refusal to our own guard."""
+    _pin_budget_caps(monkeypatch)
     warnings = budget_cap_warnings(settings, spent_day=10.0, spent_month=300.0)
     assert len(warnings) >= 1
     cap_msg = warnings[0]

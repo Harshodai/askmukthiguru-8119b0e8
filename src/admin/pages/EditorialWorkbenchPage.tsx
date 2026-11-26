@@ -90,7 +90,7 @@ export default function EditorialWorkbenchPage() {
   const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
   const [scriptText, setScriptText] = useState("");
   const [blockType, setBlockType] = useState<ScriptBlock["block_type"]>("exact_quote");
-  const [attributedTeacher, setAttributedTeacher] = useState("preethaji");
+  const [attributedTeacher, setAttributedTeacher] = useState("");
   const [selectedEvidenceId, setSelectedEvidenceId] = useState("");
   const [factCheck, setFactCheck] = useState<FactCheckResponse | null>(null);
   const [activeProject, setActiveProject] = useState<EditorialProject | null>(null);
@@ -142,6 +142,10 @@ export default function EditorialWorkbenchPage() {
 
   const runFactCheck = async () => {
     if (!dossier) return;
+    if (blockType === "exact_quote" && !attributedTeacher.trim()) {
+      setError("Attributed teacher is required for an exact quote.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -195,6 +199,10 @@ export default function EditorialWorkbenchPage() {
 
   const attachAndApproveProject = async () => {
     if (!activeProject || !dossier) return;
+    if (blockType === "exact_quote" && !attributedTeacher.trim()) {
+      setError("Attributed teacher is required for an exact quote.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -266,7 +274,7 @@ export default function EditorialWorkbenchPage() {
               <div className="grid gap-3 md:grid-cols-3">
                 <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Editorial topic" />
                 <Input value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="Editorial objective" />
-                <Input value={teacherScope} onChange={(e) => setTeacherScope(e.target.value)} placeholder="Teacher scope (optional: preethaji | krishnaji)" />
+                <Input value={teacherScope} onChange={(e) => setTeacherScope(e.target.value)} placeholder="Teacher scope (optional teacher id)" />
               </div>
               <Button onClick={runResearch} disabled={loading}>
                 <Sparkles className="h-4 w-4 mr-2" />
@@ -371,7 +379,7 @@ export default function EditorialWorkbenchPage() {
                   <option value="ai_explanation">AI Explanation</option>
                   <option value="proposed_connection">Proposed Connection</option>
                 </select>
-                <Input value={attributedTeacher} onChange={(e) => setAttributedTeacher(e.target.value)} placeholder="Attributed teacher" />
+                <Input value={attributedTeacher} onChange={(e) => setAttributedTeacher(e.target.value)} placeholder="Attributed teacher id (required for quotes)" />
                 <Input value={selectedEvidenceId} onChange={(e) => setSelectedEvidenceId(e.target.value)} placeholder="Evidence ID" />
               </div>
               <Textarea

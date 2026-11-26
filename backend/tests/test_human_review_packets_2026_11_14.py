@@ -58,6 +58,10 @@ def test_rights_packet_is_one_row_per_registered_asset(tmp_path) -> None:
 
 
 def test_gold_packet_keeps_the_machine_labels_and_asks_for_human_ones(tmp_path) -> None:
+    if not hpp.GOLD_A.is_file():
+        import pytest
+
+        pytest.skip("gold annotator sheets are gitignored and not present on this machine")
     assert hpp.gold_packet(tmp_path) == 303
     rows = _rows(tmp_path / "05-gold-labels.csv")
     assert all(r["machine_relevance_0_3"] for r in rows)

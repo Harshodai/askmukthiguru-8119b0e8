@@ -351,6 +351,10 @@ class TestPromptCachingAndCostSuite:
         monkeypatch.setattr(settings, "openrouter_api_key", "sk-mock-key")
         monkeypatch.setattr(settings, "openrouter_model_preset", "")
         monkeypatch.setattr(settings, "openrouter_generation_model", "deepseek/deepseek-chat")
+        # The policy validator requires a fallback that differs from the primary.
+        monkeypatch.setattr(
+            settings, "openrouter_generation_model_fallback", "meta-llama/llama-3.3-70b-instruct"
+        )
         monkeypatch.setattr(
             settings, "openrouter_classify_model", "meta-llama/llama-3.1-8b-instruct"
         )

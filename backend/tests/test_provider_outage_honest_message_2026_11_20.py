@@ -46,6 +46,13 @@ class _FailingLLM:
 def _pipeline(mock_store, mock_redis, monkeypatch, llm):  # noqa: F811
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", True)
     monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
+    # Same stub the sibling first-person suites use: the fixture video is not in the
+    # curated rights register, and without this the clip is dropped as
+    # no_verified_clips before any provider failure can happen.
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
     mock_store.search_hybrid.return_value = [
         _clip_with(
             "Suffering is resistance to what is. When you stop arguing with this moment, "

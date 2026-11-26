@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -42,61 +43,72 @@ def get_editorial_service(container: ServiceContainer) -> EditorialIntelligenceS
     if _EDITORIAL_SINGLETON is not None:
         return _EDITORIAL_SINGLETON
 
+    def _guarded(name: str, lane_errors: list[str], fn: Callable[[], Any]) -> Any:
+        """Run one retrieval lane; a failure is logged and surfaced in lane_errors, never hidden."""
+        try:
+            return fn()
+        except Exception as exc:
+            logger.warning("[EditorialAPI] %s lane failed: %s", name, exc, exc_info=True)
+            lane_errors.append(_lane_err(name, exc))
+            return None
+
     def _search_fn(topic: str, teacher_scope: str | None, limit: int) -> list[EvidenceCandidate]:
         ranked: dict[str, list[EvidenceCandidate]] = {}
         lane_errors: list[str] = []
         q_vec: list[float] = []
         embedding = getattr(container, "embedding", None)
         if embedding is not None:
-            try:
-                q_vec = list(embedding.encode([topic])[0])
-            except Exception as exc:
-                logger.warning("[EditorialAPI] embedding lane failed: %s", exc, exc_info=True)
-                lane_errors.append(_lane_err("embedding", exc))
+            q_vec = (
+                _guarded("embedding", lane_errors, lambda: list(embedding.encode([topic])[0])) or []
+            )
         else:
             lane_errors.append("embedding: service unavailable")
 
         qdrant_client = getattr(container, "qdrant_client", None)
         if q_vec and qdrant_client is not None:
-            try:
-                col = settings.first_person_context_collection or settings.first_person_collection
-                ranked["qdrant"] = QdrantEvidenceAdapter(qdrant_client, col).search(
+            col = settings.first_person_context_collection or settings.first_person_collection
+            hits = _guarded(
+                "qdrant",
+                lane_errors,
+                lambda: QdrantEvidenceAdapter(qdrant_client, col).search(
                     query_dense=q_vec,
                     teacher_id=teacher_scope,
                     limit=limit,
                     raise_on_error=True,
-                )
-            except Exception as exc:
-                logger.warning("[EditorialAPI] qdrant lane failed: %s", exc, exc_info=True)
-                lane_errors.append(_lane_err("qdrant", exc))
+                ),
+            )
+            if hits is not None:
+                ranked["qdrant"] = hits
         elif q_vec:
             lane_errors.append("qdrant: client unavailable")
 
         if getattr(container, "memgraph_driver", None):
-            try:
-                terms = [w for w in topic.split() if len(w) > 3][:5]
-                ranked["memgraph"] = MemgraphEvidenceAdapter(
-                    container.memgraph_driver
-                ).discover_by_concepts(
+            terms = [w for w in topic.split() if len(w) > 3][:5]
+            hits = _guarded(
+                "memgraph",
+                lane_errors,
+                lambda: MemgraphEvidenceAdapter(container.memgraph_driver).discover_by_concepts(
                     terms or [topic], limit=limit, teacher_id=teacher_scope, raise_on_error=True
-                )
-            except Exception as exc:
-                logger.warning("[EditorialAPI] memgraph lane failed: %s", exc, exc_info=True)
-                lane_errors.append(_lane_err("memgraph", exc))
+                ),
+            )
+            if hits is not None:
+                ranked["memgraph"] = hits
         else:
             lane_errors.append("memgraph: driver unavailable")
 
         if q_vec:
-            try:
-                ranked["okf"] = OKFEvidenceAdapter().search(
+            hits = _guarded(
+                "okf",
+                lane_errors,
+                lambda: OKFEvidenceAdapter().search(
                     query_dense=q_vec,
                     teacher_id=teacher_scope,
                     limit=min(5, limit),
                     raise_on_error=True,
-                )
-            except Exception as exc:
-                logger.warning("[EditorialAPI] okf lane failed: %s", exc, exc_info=True)
-                lane_errors.append(_lane_err("okf", exc))
+                ),
+            )
+            if hits is not None:
+                ranked["okf"] = hits
 
         return LaneResults(EvidenceFusionEngine().fuse(ranked, limit=limit), lane_errors)
 

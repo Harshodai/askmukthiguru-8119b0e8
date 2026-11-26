@@ -18,6 +18,7 @@ from qdrant_client.http.models import (
 
 from domain.evidence_contract import EvidenceCandidate, content_sha256, make_source_id
 from services.first_person_rights import source_is_authoritatively_licensed
+from services.guru_registry import neutral_voice_id
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class QdrantEvidenceAdapter:
         if teacher_id and teacher_id.strip().lower() not in {"", "both", "all"}:
             tid = teacher_id.strip().lower()
             must_conditions.append(
-                FieldCondition(key="guru_id", match=MatchAny(any=[tid, "preethaji_krishnaji"]))
+                FieldCondition(key="guru_id", match=MatchAny(any=[tid, neutral_voice_id()]))
             )
         if source_types:
             must_conditions.append(

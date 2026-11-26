@@ -19,6 +19,8 @@ from typing import Any, Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
+from services.guru_registry import get_gurus
+
 logger = logging.getLogger(__name__)
 
 IntentDomain = Literal[
@@ -56,6 +58,8 @@ _QUOTATION_REQUEST_RE = re.compile(
 )
 
 # Multilingual & colloquial semantic prototypes (embedding-matched, never exact-keyword gated)
+_NAME_A, _NAME_B = ([g.label for g in get_gurus()] + ["the teachers"] * 2)[:2]
+
 DEFAULT_INTENT_PROTOTYPES: dict[IntentDomain, list[str]] = {
     "spiritual_teaching": [
         "What is the beautiful state and how does suffering dissolve?",
@@ -81,8 +85,8 @@ DEFAULT_INTENT_PROTOTYPES: dict[IntentDomain, list[str]] = {
         "How do I cope with mourning the death of a loved one?",
     ],
     "comparative_teachers": [
-        "Compare what Sri Preethaji and Sri Krishnaji teach about fear and suffering.",
-        "How do Sri Krishnaji's perspective and Sri Preethaji's perspective differ on relationships?",
+        f"Compare what {_NAME_A} and {_NAME_B} teach about fear and suffering.",
+        f"How do {_NAME_B}'s perspective and {_NAME_A}'s perspective differ on relationships?",
     ],
     "source_lookup": [
         "What does the book The Four Sacred Secrets say about the Warring Self?",
@@ -104,11 +108,6 @@ DEFAULT_INTENT_PROTOTYPES: dict[IntentDomain, list[str]] = {
         "What is the current stock price of Apple or weather forecast today?",
         "What is the capital city of France and who won the cricket match?",
     ],
-}
-
-_TEACHER_HINTS = {
-    "preethaji": ("preethaji", "preetha"),
-    "krishnaji": ("krishnaji", "krishna ji"),
 }
 
 
@@ -207,15 +206,13 @@ class SemanticUnderstandingEngine:
 
     @staticmethod
     def _detect_teacher_scope(text: str) -> tuple[str | None, bool]:
-        low = (text or "").lower()
-        has_p = any(tok in low for tok in _TEACHER_HINTS["preethaji"])
-        has_k = any(tok in low for tok in _TEACHER_HINTS["krishnaji"])
-        if has_p and has_k:
+        # unbounded alias search (substring, like the original token match)
+        low = text or ""
+        hits = [g.id for g in get_gurus() if any(re.search(a, low, re.I) for a in g.aliases)]
+        if len(hits) > 1:
             return "both", True
-        if has_p:
-            return "preethaji", False
-        if has_k:
-            return "krishnaji", False
+        if hits:
+            return hits[0], False
         return None, False
 
     def interpret(
