@@ -10,8 +10,16 @@ def _write(tmp_path, name, sql):
 
 
 def test_if_not_exists_keeps_the_first_definition_and_alter_adds(tmp_path):
-    _write(tmp_path, "001_a.sql", "CREATE TABLE IF NOT EXISTS public.t (id uuid PRIMARY KEY, a text, CONSTRAINT c CHECK (a <> ''));")
-    _write(tmp_path, "002_b.sql", "-- other shape\nCREATE TABLE IF NOT EXISTS public.t (zzz int);\nALTER TABLE public.t ADD COLUMN IF NOT EXISTS tenant_id text;")
+    _write(
+        tmp_path,
+        "001_a.sql",
+        "CREATE TABLE IF NOT EXISTS public.t (id uuid PRIMARY KEY, a text, CONSTRAINT c CHECK (a <> ''));",
+    )
+    _write(
+        tmp_path,
+        "002_b.sql",
+        "-- other shape\nCREATE TABLE IF NOT EXISTS public.t (zzz int);\nALTER TABLE public.t ADD COLUMN IF NOT EXISTS tenant_id text;",
+    )
     _write(tmp_path, "003_c.sql", "ALTER TABLE t DROP COLUMN a;")
     assert drift.migration_columns(tmp_path) == {"t": {"id", "tenant_id"}}
 

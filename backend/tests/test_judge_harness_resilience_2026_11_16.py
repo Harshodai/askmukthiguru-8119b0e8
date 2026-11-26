@@ -100,9 +100,7 @@ def test_retry_never_exceeds_total_budget():
     loop = asyncio.new_event_loop()
     t0 = loop.time()
     out = loop.run_until_complete(
-        judge.judge_select_async(
-            "q", [{"verbatim_text": "c"}], llm, minimum=3, timeout_s=0.3
-        )
+        judge.judge_select_async("q", [{"verbatim_text": "c"}], llm, minimum=3, timeout_s=0.3)
     )
     elapsed = loop.time() - t0
     loop.close()

@@ -5,9 +5,8 @@ policy text that a real migration applies. It complements the cross-user proof
 for the original owner-scoped table.
 """
 
-from pathlib import Path
 import re
-
+from pathlib import Path
 
 MIGRATION = (
     Path(__file__).resolve().parents[2]

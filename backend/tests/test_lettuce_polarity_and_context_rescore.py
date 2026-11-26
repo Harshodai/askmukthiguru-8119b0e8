@@ -21,7 +21,7 @@ def test_detect_contradiction_allows_independent_of_phrasing():
 
 def test_detect_contradiction_allows_not_from_but_from_and_cannot_replace():
     ctx_not_but = (
-        'Lasting happiness and freedom from suffering come not from external achievements '
+        "Lasting happiness and freedom from suffering come not from external achievements "
         'but from cultivating an inner "Beautiful State" of joy, peace.'
     )
     contradicted1, r1 = _detect_contradiction(
@@ -77,7 +77,9 @@ def test_context_store_hybrid_rescores_dense_similarity_above_noisy_rrf():
     groups = store._query_groups(
         q_vec,
         query_sparse={"indices": [1, 2], "values": [0.8, 0.6]},
-        query_filter=Filter(must=[FieldCondition(key="record_type", match=MatchValue(value="source_span"))]),
+        query_filter=Filter(
+            must=[FieldCondition(key="record_type", match=MatchValue(value="source_span"))]
+        ),
         limit_parents=4,
         spans_per_parent=2,
     )

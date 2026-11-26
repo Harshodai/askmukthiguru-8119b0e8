@@ -70,15 +70,22 @@ def test_inline_200_reply_is_a_real_answer(monkeypatch):
 
 
 def test_served_requires_non_empty_response():
-    assert smoke.served({"route_decision": "first_person_bridge", "citations": [{"url": "x"}], "response": "valid"})
-    assert not smoke.served({"route_decision": "first_person_bridge", "citations": [{"url": "x"}], "response": ""})
-    assert not smoke.served({"route_decision": "first_person_bridge", "citations": [{"url": "x"}], "response": "   "})
+    assert smoke.served(
+        {"route_decision": "first_person_bridge", "citations": [{"url": "x"}], "response": "valid"}
+    )
+    assert not smoke.served(
+        {"route_decision": "first_person_bridge", "citations": [{"url": "x"}], "response": ""}
+    )
+    assert not smoke.served(
+        {"route_decision": "first_person_bridge", "citations": [{"url": "x"}], "response": "   "}
+    )
 
 
 def test_transport_url_error_recorded(monkeypatch):
     import urllib.error
 
     client = smoke.Client("https://api.test", "https://askmukthiguru.lovable.app")
+
     def _fail(*a, **k):
         raise urllib.error.URLError("connection refused")
 
@@ -92,6 +99,7 @@ def test_transport_url_error_recorded(monkeypatch):
 
 def test_client_reads_faculty_code_from_settings(monkeypatch):
     from app.config import settings
+
     monkeypatch.delenv("FACULTY_ACCESS_CODE", raising=False)
     monkeypatch.setattr(settings, "faculty_access_code", "test-faculty-code")
     client = smoke.Client("https://api.test", "https://askmukthiguru.lovable.app")
@@ -105,15 +113,19 @@ def test_system_unavailable_causes_provider_outage_failure():
         "response": "I couldn't finish checking the teachings for this question just now.",
         "verification": {"passed": False, "abstain_cause": "system_unavailable"},
     }
+
     class _OutageClient(smoke.Client):
         def __init__(self):
             super().__init__("https://api.test", "https://askmukthiguru.lovable.app")
+
         def call(self, method, path, body=None, headers=None):
             if method == "OPTIONS":
                 return 200, {"access-control-allow-origin": self.origin}, {}
             return 200, {}, {}
+
         def session(self):
             return "s"
+
         def ask(self, session, text, history):
             if text == smoke.CRISIS:
                 return {"response": "Tele-MANAS 14416", "citations": []}
@@ -135,15 +147,19 @@ def test_genuine_abstain_reported_with_cause():
         "response": "I stay with the teachings.",
         "verification": {"passed": False, "abstain_cause": "no_evidence"},
     }
+
     class _AbstainClient(smoke.Client):
         def __init__(self):
             super().__init__("https://api.test", "https://askmukthiguru.lovable.app")
+
         def call(self, method, path, body=None, headers=None):
             if method == "OPTIONS":
                 return 200, {"access-control-allow-origin": self.origin}, {}
             return 200, {}, {}
+
         def session(self):
             return "s"
+
         def ask(self, session, text, history):
             if text == smoke.CRISIS:
                 return {"response": "Tele-MANAS 14416", "citations": []}
@@ -156,5 +172,3 @@ def test_genuine_abstain_reported_with_cause():
     table = report.table()
     assert "no_evidence" in table
     assert "PROVIDER OUTAGE" not in table
-
-

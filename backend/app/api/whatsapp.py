@@ -20,8 +20,6 @@ from __future__ import annotations
 
 import collections
 import logging
-import os
-import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
@@ -36,7 +34,6 @@ from services.whatsapp_service import (
     clean_phone,
     clear_whatsapp_session,
     create_link_challenge,
-    format_whatsapp_message,
     get_account_link_by_phone,
     get_link_status,
     hash_phone,
@@ -80,24 +77,34 @@ def _is_duplicate_event(event_id: str) -> bool:
 # Request / Response Schemas
 # ---------------------------------------------------------------------------
 
+
 class LinkStartRequest(BaseModel):
     phone: str = Field(..., description="E.164 phone number to link")
 
 
 class LinkVerifyRequest(BaseModel):
     code: str = Field(..., description="Single-use challenge token from WhatsApp")
-    sync_history_consent: bool | None = Field(None, description="DPDP consent for chat history sync")
-    memory_write_consent: bool | None = Field(None, description="DPDP consent for long-term spiritual memory")
+    sync_history_consent: bool | None = Field(
+        None, description="DPDP consent for chat history sync"
+    )
+    memory_write_consent: bool | None = Field(
+        None, description="DPDP consent for long-term spiritual memory"
+    )
 
 
 class LinkConsentRequest(BaseModel):
-    sync_history_consent: bool | None = Field(None, description="DPDP consent for chat history sync")
-    memory_write_consent: bool | None = Field(None, description="DPDP consent for long-term spiritual memory")
+    sync_history_consent: bool | None = Field(
+        None, description="DPDP consent for chat history sync"
+    )
+    memory_write_consent: bool | None = Field(
+        None, description="DPDP consent for long-term spiritual memory"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Meta Cloud API Webhook Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get("/webhook")
 async def meta_webhook_verification(
@@ -138,8 +145,12 @@ async def meta_webhook_receiver(
             logger.warning("Meta signature validation failed — rejecting request")
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature")
     elif getattr(settings, "is_production", False):
-        logger.error("META_APP_SECRET is not configured in production — rejecting unverified webhook")
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Signature verification required")
+        logger.error(
+            "META_APP_SECRET is not configured in production — rejecting unverified webhook"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Signature verification required"
+        )
 
     try:
         payload = await request.json()
@@ -154,7 +165,11 @@ async def meta_webhook_receiver(
             val = change.get("value") or {}
             phone_number_id = (val.get("metadata") or {}).get("phone_number_id", "")
             configured_phone_id = getattr(settings, "meta_phone_number_id", "").strip()
-            if configured_phone_id and phone_number_id and str(phone_number_id).strip() != configured_phone_id:
+            if (
+                configured_phone_id
+                and phone_number_id
+                and str(phone_number_id).strip() != configured_phone_id
+            ):
                 logger.warning(
                     "Mismatched phone_number_id rejected: received=%s, configured=%s",
                     phone_number_id,
@@ -210,13 +225,23 @@ async def meta_webhook_receiver(
                 text_body = ""
                 if msg_type == "interactive":
                     interactive_obj = msg.get("interactive") or {}
-                    reply_obj = interactive_obj.get("button_reply") or interactive_obj.get("list_reply") or {}
+                    reply_obj = (
+                        interactive_obj.get("button_reply")
+                        or interactive_obj.get("list_reply")
+                        or {}
+                    )
                     text_body = (reply_obj.get("id") or reply_obj.get("title") or "").strip()
-                    logger.info("WhatsApp interactive reply received: %s from %s", text_body, mask_phone(from_number))
+                    logger.info(
+                        "WhatsApp interactive reply received: %s from %s",
+                        text_body,
+                        mask_phone(from_number),
+                    )
                 elif msg_type == "text":
                     text_body = ((msg.get("text") or {}).get("body") or "").strip()
                 else:
-                    logger.info("Non-text WhatsApp message (%s) from %s", msg_type, mask_phone(from_number))
+                    logger.info(
+                        "Non-text WhatsApp message (%s) from %s", msg_type, mask_phone(from_number)
+                    )
                     continue
 
                 if not text_body:
@@ -228,16 +253,21 @@ async def meta_webhook_receiver(
 
                 # A. Immediate Privacy & Coexistence Commands
                 db = getattr(container, "supabase_client", None)
-                base_url = getattr(settings, "whatsapp_link_base_url", "https://askmukthiguru.com").rstrip("/")
+                base_url = getattr(
+                    settings, "whatsapp_link_base_url", "https://askmukthiguru.com"
+                ).rstrip("/")
 
                 if upper_body in ("LINK", "CONNECT"):
                     # Generate single-use linking challenge
                     try:
                         token = None
                         if db:
-                            token, _ = await create_link_challenge(db, clean_from, confirmed_whatsapp=True)
+                            token, _ = await create_link_challenge(
+                                db, clean_from, confirmed_whatsapp=True
+                            )
                         if not token:
                             from services.whatsapp_service import generate_link_token
+
                             token = generate_link_token()
 
                         link_url = f"{base_url}/link-whatsapp#code={token}"
@@ -250,6 +280,7 @@ async def meta_webhook_receiver(
                             "You can review and control chat sync and memory preferences in your Profile."
                         )
                         from tasks.whatsapp_tasks import _send_meta_outbound
+
                         _send_meta_outbound(phone_number_id, clean_from, link_msg)
                         continue
                     except Exception as e:
@@ -268,6 +299,7 @@ async def meta_webhook_receiver(
                         "No further automated messages will be sent. Send START at any time to resume."
                     )
                     from tasks.whatsapp_tasks import _send_meta_outbound
+
                     _send_meta_outbound(phone_number_id, clean_from, stop_msg)
                     continue
 
@@ -275,6 +307,7 @@ async def meta_webhook_receiver(
                     clear_whatsapp_session(p_hash)
                     reset_msg = "🧹 Fresh page. Your WhatsApp conversation context has been reset. What would you like to ask?"
                     from tasks.whatsapp_tasks import _send_meta_outbound
+
                     _send_meta_outbound(phone_number_id, clean_from, reset_msg)
                     continue
 
@@ -287,21 +320,24 @@ async def meta_webhook_receiver(
                         "To resume automated wisdom guidance sooner at any point, simply send *RESUME*."
                     )
                     from tasks.whatsapp_tasks import _send_meta_outbound
+
                     _send_meta_outbound(phone_number_id, clean_from, human_msg)
                     continue
 
                 if upper_body in ("RESUME", "BTN_RESUME"):
                     resume_whatsapp_ai(p_hash)
-                    resume_msg = (
-                        "🙏 Welcome back! Automated guidance has been resumed. What reflection or inquiry is on your mind?"
-                    )
+                    resume_msg = "🙏 Welcome back! Automated guidance has been resumed. What reflection or inquiry is on your mind?"
                     from tasks.whatsapp_tasks import _send_meta_outbound
+
                     _send_meta_outbound(phone_number_id, clean_from, resume_msg)
                     continue
 
                 # If AI is currently paused for human coexistence, ignore inbound turns
                 if is_whatsapp_ai_paused(p_hash):
-                    logger.info("WhatsApp AI paused for human coexistence on %s; ignoring turn", mask_phone(clean_from))
+                    logger.info(
+                        "WhatsApp AI paused for human coexistence on %s; ignoring turn",
+                        mask_phone(clean_from),
+                    )
                     continue
 
                 if upper_body in ("HELP", "INFO"):
@@ -315,6 +351,7 @@ async def meta_webhook_receiver(
                         "For urgent crisis support, call Tele-MANAS at *14416* (24/7, toll-free India)."
                     )
                     from tasks.whatsapp_tasks import _send_meta_outbound
+
                     _send_meta_outbound(phone_number_id, clean_from, help_msg)
                     continue
 
@@ -332,6 +369,7 @@ async def meta_webhook_receiver(
                         buttons=buttons,
                     )
                     from tasks.whatsapp_tasks import _send_meta_interactive
+
                     _send_meta_interactive(phone_number_id, btn_payload)
                     continue
 
@@ -340,6 +378,7 @@ async def meta_webhook_receiver(
 
                     prompt_msg = f"Please type any question you have on meditation, relationships, stress, or spiritual teachings from {default_founders_label(' and ')}."
                     from tasks.whatsapp_tasks import _send_meta_outbound
+
                     _send_meta_outbound(phone_number_id, clean_from, prompt_msg)
                     continue
 
@@ -348,8 +387,12 @@ async def meta_webhook_receiver(
 
                 # B. Crisis Preemption
                 if likely_crisis(text_body):
-                    logger.warning("Crisis detected in WhatsApp message from %s; preempting", mask_phone(clean_from))
+                    logger.warning(
+                        "Crisis detected in WhatsApp message from %s; preempting",
+                        mask_phone(clean_from),
+                    )
                     from tasks.whatsapp_tasks import _send_meta_outbound
+
                     _send_meta_outbound(phone_number_id, clean_from, CRISIS_HELPLINE_COPY)
                     continue
 
@@ -361,18 +404,26 @@ async def meta_webhook_receiver(
                         if link_row and link_row.get("status") == "active":
                             is_linked = True
                     except Exception as exc:
-                        logger.warning("Error checking account link for %s: %s", mask_phone(clean_from), exc)
+                        logger.warning(
+                            "Error checking account link for %s: %s", mask_phone(clean_from), exc
+                        )
 
                 if not is_linked:
-                    logger.info("Unlinked user %s attempted conversation; issuing web auth challenge", mask_phone(clean_from))
+                    logger.info(
+                        "Unlinked user %s attempted conversation; issuing web auth challenge",
+                        mask_phone(clean_from),
+                    )
                     token = None
                     if db:
                         try:
-                            token, _ = await create_link_challenge(db, clean_from, confirmed_whatsapp=True)
+                            token, _ = await create_link_challenge(
+                                db, clean_from, confirmed_whatsapp=True
+                            )
                         except Exception as exc:
                             logger.exception("Failed generating link challenge: %s", exc)
                     if not token:
                         from services.whatsapp_service import generate_link_token
+
                         token = generate_link_token()
 
                     from services.guru_registry import default_founders_label
@@ -388,6 +439,7 @@ async def meta_webhook_receiver(
                         "Once you sign in and confirm on our website, you will be automatically returned to WhatsApp to begin your conversation!"
                     )
                     from tasks.whatsapp_tasks import _send_meta_outbound
+
                     _send_meta_outbound(phone_number_id, clean_from, auth_prompt_msg)
                     continue
 
@@ -414,12 +466,14 @@ async def meta_webhook_receiver(
                         buttons=buttons,
                     )
                     from tasks.whatsapp_tasks import _send_meta_interactive
+
                     _send_meta_interactive(phone_number_id, welcome_btn_payload)
                     continue
 
                 # E. Dispatch to Celery for Durable Execution
                 try:
                     from tasks.whatsapp_tasks import process_whatsapp_turn_task
+
                     process_whatsapp_turn_task.delay(
                         channel="meta",
                         phone=clean_from,
@@ -430,6 +484,7 @@ async def meta_webhook_receiver(
                 except Exception as exc:
                     logger.warning("Celery dispatch unavailable (%s); executing inline", exc)
                     from tasks.whatsapp_tasks import process_whatsapp_turn_task
+
                     process_whatsapp_turn_task(
                         channel="meta",
                         phone=clean_from,
@@ -444,6 +499,7 @@ async def meta_webhook_receiver(
 # Account Linking & DPDP Consent Endpoints (Web App)
 # ---------------------------------------------------------------------------
 
+
 @router.post("/link/start")
 async def start_account_link(
     body: LinkStartRequest,
@@ -455,10 +511,10 @@ async def start_account_link(
         raise HTTPException(status_code=501, detail="Database unavailable")
 
     try:
-        raw_token, challenge = await create_link_challenge(
-            db, body.phone, confirmed_whatsapp=False
+        raw_token, challenge = await create_link_challenge(db, body.phone, confirmed_whatsapp=False)
+        base_url = getattr(settings, "whatsapp_link_base_url", "https://askmukthiguru.com").rstrip(
+            "/"
         )
-        base_url = getattr(settings, "whatsapp_link_base_url", "https://askmukthiguru.com").rstrip("/")
         return {
             "token": raw_token,
             "masked_phone": challenge["phone_number_masked"],
@@ -508,7 +564,9 @@ async def verify_account_link(
             memory_consent = bool(link.get("memory_write_consent", False))
 
         waba_phone = getattr(settings, "meta_phone_number", "").strip().lstrip("+")
-        return_url = f"https://wa.me/{waba_phone}?text=START" if waba_phone else "https://wa.me/?text=START"
+        return_url = (
+            f"https://wa.me/{waba_phone}?text=START" if waba_phone else "https://wa.me/?text=START"
+        )
 
         return {
             "success": True,

@@ -18,9 +18,8 @@ def purge_launch_subscribers(
 ) -> int:
     """Call the service_role-only SQL purge for launch-update emails older than `months`."""
     if client is None:
-        from supabase import create_client
-
         from app.config import settings
+        from supabase import create_client
 
         client = create_client(
             settings.supabase_url, settings.supabase_service_key or settings.supabase_key
@@ -30,9 +29,7 @@ def purge_launch_subscribers(
 
 
 @celery_app.task(name="tasks.retention_tasks.cleanup_retention_data")
-def cleanup_retention_data(
-    days_retention: int = 90, days_inactivity: int = 365
-) -> dict[str, int]:
+def cleanup_retention_data(days_retention: int = 90, days_inactivity: int = 365) -> dict[str, int]:
     """Run every scheduled retention surface documented in ``RETENTION.md``.
 
     Each surface is isolated so one unavailable dependency does not prevent the
@@ -44,8 +41,8 @@ def cleanup_retention_data(
     from scripts.ops.cleanup_inactive_user_data import (
         cleanup_anonymous_session_summaries,
         cleanup_redis_keys,
-        cleanup_stale_qdrant_memories,
         cleanup_staging_quality_queue,
+        cleanup_stale_qdrant_memories,
         cleanup_telemetry_logs,
     )
     from services.compliance_logger import cleanup_compliance_audit_files

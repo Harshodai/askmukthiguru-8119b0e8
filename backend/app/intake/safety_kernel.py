@@ -241,6 +241,7 @@ _HELPLINE_MESSAGE = (
     "emergency services immediately."
 )
 
+
 def _injection_refusal_message() -> str:
     from services.guru_registry import default_founders_label
 

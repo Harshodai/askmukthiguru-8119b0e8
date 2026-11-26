@@ -72,7 +72,9 @@ def validate_chapter_coverage(
 
     # Check start
     if sorted_ch[0].start_time > tolerance_s:
-        gaps.append({"start": 0.0, "end": sorted_ch[0].start_time, "duration": sorted_ch[0].start_time})
+        gaps.append(
+            {"start": 0.0, "end": sorted_ch[0].start_time, "duration": sorted_ch[0].start_time}
+        )
         errors.append(f"Gap at start of video: 0.0s to {sorted_ch[0].start_time}s")
 
     # Check contiguous intervals
@@ -83,7 +85,9 @@ def validate_chapter_coverage(
 
         # Target chapter duration validation (2–5 minutes = 120s – 300s, with boundary tolerance)
         if ch.duration < 15.0:
-            errors.append(f"Chapter {ch.index} '{ch.title}' is unusually short ({ch.duration:.1f}s)")
+            errors.append(
+                f"Chapter {ch.index} '{ch.title}' is unusually short ({ch.duration:.1f}s)"
+            )
 
         if i < len(sorted_ch) - 1:
             next_ch = sorted_ch[i + 1]
@@ -92,13 +96,19 @@ def validate_chapter_coverage(
                 gaps.append({"start": ch.end_time, "end": next_ch.start_time, "duration": diff})
                 errors.append(f"Gap between chapters {ch.index} and {next_ch.index}: {diff:.1f}s")
             elif diff < -tolerance_s:
-                overlaps.append({"start": next_ch.start_time, "end": ch.end_time, "duration": abs(diff)})
-                errors.append(f"Overlap between chapters {ch.index} and {next_ch.index}: {abs(diff):.1f}s")
+                overlaps.append(
+                    {"start": next_ch.start_time, "end": ch.end_time, "duration": abs(diff)}
+                )
+                errors.append(
+                    f"Overlap between chapters {ch.index} and {next_ch.index}: {abs(diff):.1f}s"
+                )
 
     # Check end
     last_end = sorted_ch[-1].end_time
     if total_duration > 0 and (total_duration - last_end) > tolerance_s:
-        gaps.append({"start": last_end, "end": total_duration, "duration": total_duration - last_end})
+        gaps.append(
+            {"start": last_end, "end": total_duration, "duration": total_duration - last_end}
+        )
         errors.append(f"Gap at end of video: {last_end}s to {total_duration}s")
 
     coverage_ratio = (covered_duration / total_duration) if total_duration > 0 else 1.0
@@ -208,7 +218,9 @@ def batch_translate_cues(
                     if len(translated_texts) == len(texts):
                         break
                 except Exception as e:
-                    logger.warning("Subtitle translation batch failed attempt %d: %s", attempt + 1, e)
+                    logger.warning(
+                        "Subtitle translation batch failed attempt %d: %s", attempt + 1, e
+                    )
                     if attempt == max_retries - 1:
                         raise RuntimeError(
                             f"Subtitle translation batch failed after {max_retries} attempts: {e}"
@@ -332,7 +344,7 @@ def generate_chapter_summary_md(chapter: Chapter, video_title: str) -> str:
 
 **Source Video:** {video_title}  
 **Time Range:** {start_str} – {end_str} ({duration_str})  
-**Keywords:** {', '.join(chapter.keywords)}  
+**Keywords:** {", ".join(chapter.keywords)}  
 
 ---
 
@@ -428,14 +440,18 @@ def process_chapter(
         # 4. Burn subtitles if requested
         if options.burn_subtitles:
             if not active_srt.exists() or active_srt.stat().st_size == 0:
-                raise RuntimeError(f"Subtitle file missing or empty for chapter {chapter.index}; cannot burn subtitles.")
+                raise RuntimeError(
+                    f"Subtitle file missing or empty for chapter {chapter.index}; cannot burn subtitles."
+                )
             subtitled_mp4 = chapter_dir / f"{base_name}_subtitled.mp4"
             if not burn_subtitles_libass(
                 clip_mp4, active_srt, subtitled_mp4, custom_runner=custom_runner
             ):
                 raise RuntimeError(f"FFmpeg failed to burn subtitles for chapter {chapter.index}")
             if not subtitled_mp4.exists() or subtitled_mp4.stat().st_size == 0:
-                raise RuntimeError(f"Subtitled MP4 artifact missing or empty for chapter {chapter.index}")
+                raise RuntimeError(
+                    f"Subtitled MP4 artifact missing or empty for chapter {chapter.index}"
+                )
             created_artifacts.append(subtitled_mp4)
 
         # 5. Summary Markdown
@@ -486,8 +502,12 @@ def process_chapter(
             "files": {
                 "clip_mp4": clip_mp4.name,
                 "srt": srt_path.name if srt_path.exists() else None,
-                "bilingual_srt": bilingual_srt_path.name if bilingual_srt_path and bilingual_srt_path.exists() else None,
-                "subtitled_mp4": subtitled_mp4.name if subtitled_mp4 and subtitled_mp4.exists() else None,
+                "bilingual_srt": bilingual_srt_path.name
+                if bilingual_srt_path and bilingual_srt_path.exists()
+                else None,
+                "subtitled_mp4": subtitled_mp4.name
+                if subtitled_mp4 and subtitled_mp4.exists()
+                else None,
                 "summary_md": summary_md.name if summary_md and summary_md.exists() else None,
             },
             "artifacts": {
@@ -505,25 +525,37 @@ def process_chapter(
                     "file": bilingual_srt_path.name,
                     "sha256": file_hashes[bilingual_srt_path.name],
                     "size_bytes": bilingual_srt_path.stat().st_size,
-                } if bilingual_srt_path else None,
+                }
+                if bilingual_srt_path
+                else None,
                 "subtitled_mp4": {
                     "file": subtitled_mp4.name,
                     "sha256": file_hashes[subtitled_mp4.name],
                     "size_bytes": subtitled_mp4.stat().st_size,
-                } if subtitled_mp4 else None,
+                }
+                if subtitled_mp4
+                else None,
                 "summary_md": {
                     "file": summary_md.name,
                     "sha256": file_hashes[summary_md.name],
                     "size_bytes": summary_md.stat().st_size,
-                } if summary_md else None,
+                }
+                if summary_md
+                else None,
             },
             "environment": {
-                "ffmpeg_version": subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True).stdout.splitlines()[0] if shutil.which("ffmpeg") else "custom_runner",
+                "ffmpeg_version": subprocess.run(
+                    ["ffmpeg", "-version"], capture_output=True, text=True
+                ).stdout.splitlines()[0]
+                if shutil.which("ffmpeg")
+                else "custom_runner",
                 "translation_provider": "external_provider" if translator_func else "none",
                 "target_language": options.target_lang,
             },
             "production_certified": is_production_certified,
-            "certification_status": "CERTIFIED" if is_production_certified else "UNCERTIFIED_OR_TEST",
+            "certification_status": "CERTIFIED"
+            if is_production_certified
+            else "UNCERTIFIED_OR_TEST",
         }
         manifest_path.write_text(json.dumps(manifest_data, indent=2), encoding="utf-8")
         file_hashes[manifest_path.name] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()

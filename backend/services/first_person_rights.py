@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-_NON_VIDEO_SOURCE_TYPES = frozenset({"book", "audio", "podcast", "website", "course_event", "document"})
+_NON_VIDEO_SOURCE_TYPES = frozenset(
+    {"book", "audio", "podcast", "website", "course_event", "document"}
+)
 
 
 def source_is_authoritatively_licensed(

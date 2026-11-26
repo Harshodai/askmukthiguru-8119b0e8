@@ -307,9 +307,7 @@ class RhetoricalResegmentationEngine:
             + rhet_txt[-120:],
             rhetorical_resolution="Cleaned start to 1st seeking at 1239.39s and extended window from 1371.72s to 1568.01s to encompass the complete 4-level enumeration",
             closure_achieved=bool(matching_txt)
-            and bool(
-                re.search(r"fourth\s+(?:seeking|pursuit|aspiration)", rhet_txt, re.IGNORECASE)
-            )
+            and bool(re.search(r"fourth\s+(?:seeking|pursuit|aspiration)", rhet_txt, re.IGNORECASE))
             and self._ends_a_sentence(rhet_txt),
             used_fallback_text=not matching_txt,
         )

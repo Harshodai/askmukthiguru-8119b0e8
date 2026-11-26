@@ -17,6 +17,7 @@ Usage:
 import argparse
 import logging
 import sys
+
 import redis
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -28,6 +29,7 @@ CACHE_PATTERNS = [
     "cache:first_person_exact:*",
     "spiritual_expansion:*",
 ]
+
 
 def purge_stale_cache(redis_url: str) -> int:
     client = redis.from_url(redis_url)
@@ -52,6 +54,7 @@ def purge_stale_cache(redis_url: str) -> int:
     logger.info("Scoped cache purge completed. Total stale keys deleted: %d", total_deleted)
     return total_deleted
 
+
 def main():
     parser = argparse.ArgumentParser(description="Purge stale runtime response caches from Redis.")
     parser.add_argument(
@@ -66,6 +69,7 @@ def main():
     except Exception as e:
         logger.error("Failed to purge Redis cache: %s", e)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

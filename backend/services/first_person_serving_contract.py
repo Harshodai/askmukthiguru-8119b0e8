@@ -781,7 +781,11 @@ def _check_declared_posture(
         )
     elif serving_posture == POSTURE_V12_SHADOW:
         slots = (report.legacy_collection, report.context_collection)
-        if context_harness_enabled and context_terminal_enabled and slots == (V12_SHADOW_COLLECTION,) * 2:
+        if (
+            context_harness_enabled
+            and context_terminal_enabled
+            and slots == (V12_SHADOW_COLLECTION,) * 2
+        ):
             return
         problem = (
             f"needs both flags true and both slots on {V12_SHADOW_COLLECTION!r}; got {flags}, "
@@ -789,7 +793,11 @@ def _check_declared_posture(
         )
     elif serving_posture == POSTURE_V13_SHADOW:
         slots = (report.legacy_collection, report.context_collection)
-        if context_harness_enabled and context_terminal_enabled and slots == (V13_SHADOW_COLLECTION,) * 2:
+        if (
+            context_harness_enabled
+            and context_terminal_enabled
+            and slots == (V13_SHADOW_COLLECTION,) * 2
+        ):
             return
         problem = (
             f"needs both flags true and both slots on {V13_SHADOW_COLLECTION!r}; got {flags}, "

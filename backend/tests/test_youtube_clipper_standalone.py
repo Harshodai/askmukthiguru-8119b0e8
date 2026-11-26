@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
 import pytest
 
 from services.youtube_clipper.models import (
@@ -12,8 +13,6 @@ from services.youtube_clipper.models import (
 )
 from services.youtube_clipper.pipeline import (
     batch_translate_cues,
-    burn_subtitles_libass,
-    cut_mp4_clip,
     generate_bilingual_srt,
     generate_chapter_summary_md,
     parse_vtt_cues,
@@ -36,9 +35,30 @@ def test_time_conversion_roundtrip():
 
 def test_validate_chapter_coverage_clean():
     chapters = [
-        Chapter(index=1, title="Intro", start_time=0.0, end_time=150.0, summary="Introduction", keywords=["intro"]),
-        Chapter(index=2, title="Practice", start_time=150.0, end_time=300.0, summary="The Core Practice", keywords=["mind"]),
-        Chapter(index=3, title="Closing", start_time=300.0, end_time=450.0, summary="Q&A and Wrap up", keywords=["qa"]),
+        Chapter(
+            index=1,
+            title="Intro",
+            start_time=0.0,
+            end_time=150.0,
+            summary="Introduction",
+            keywords=["intro"],
+        ),
+        Chapter(
+            index=2,
+            title="Practice",
+            start_time=150.0,
+            end_time=300.0,
+            summary="The Core Practice",
+            keywords=["mind"],
+        ),
+        Chapter(
+            index=3,
+            title="Closing",
+            start_time=300.0,
+            end_time=450.0,
+            summary="Q&A and Wrap up",
+            keywords=["qa"],
+        ),
     ]
     res = validate_chapter_coverage(chapters, total_duration=450.0)
     assert res.is_valid is True
@@ -50,9 +70,30 @@ def test_validate_chapter_coverage_clean():
 def test_validate_chapter_coverage_gaps_and_overlaps():
     # Gap between ch 1 and 2, overlap between 2 and 3
     chapters = [
-        Chapter(index=1, title="Intro", start_time=0.0, end_time=120.0, summary="Intro", keywords=["intro"]),
-        Chapter(index=2, title="Body", start_time=130.0, end_time=250.0, summary="Body", keywords=["body"]),
-        Chapter(index=3, title="Outro", start_time=240.0, end_time=360.0, summary="Outro", keywords=["outro"]),
+        Chapter(
+            index=1,
+            title="Intro",
+            start_time=0.0,
+            end_time=120.0,
+            summary="Intro",
+            keywords=["intro"],
+        ),
+        Chapter(
+            index=2,
+            title="Body",
+            start_time=130.0,
+            end_time=250.0,
+            summary="Body",
+            keywords=["body"],
+        ),
+        Chapter(
+            index=3,
+            title="Outro",
+            start_time=240.0,
+            end_time=360.0,
+            summary="Outro",
+            keywords=["outro"],
+        ),
     ]
     res = validate_chapter_coverage(chapters, total_duration=360.0)
     assert res.is_valid is False
@@ -155,7 +196,9 @@ def test_process_chapter_end_to_end(tmp_path: Path):
         vtt_path=fake_vtt,
         chapter=ch,
         video_title="Spiritual Living",
-        options=ClipperOptions(burn_subtitles=True, translate_bilingual=True, generate_summary=True),
+        options=ClipperOptions(
+            burn_subtitles=True, translate_bilingual=True, generate_summary=True
+        ),
         base_output_dir=out_base,
         custom_runner=fake_ffmpeg_runner,
         translator_func=lambda batch: [f"[ZH] {t}" for t in batch],
@@ -197,7 +240,9 @@ def test_ffmpeg_cut_failure_fails_closed(tmp_path: Path):
     fake_vtt = tmp_path / "source.vtt"
     fake_vtt.write_text("WEBVTT\n\n00:00:01.000 --> 00:00:05.000\nHello", encoding="utf-8")
 
-    ch = Chapter(index=1, title="Cut Fail", start_time=0.0, end_time=10.0, summary="Test", keywords=[])
+    ch = Chapter(
+        index=1, title="Cut Fail", start_time=0.0, end_time=10.0, summary="Test", keywords=[]
+    )
 
     def failing_ffmpeg(cmd):
         return {"returncode": 1}
@@ -221,7 +266,9 @@ def test_process_chapter_burn_subtitles_failure_cleans_up_partial_artifacts(tmp_
     fake_vtt = tmp_path / "source.vtt"
     fake_vtt.write_text("WEBVTT\n\n00:00:01.000 --> 00:00:05.000\nHello", encoding="utf-8")
 
-    ch = Chapter(index=1, title="Burn Fail", start_time=0.0, end_time=10.0, summary="Test", keywords=[])
+    ch = Chapter(
+        index=1, title="Burn Fail", start_time=0.0, end_time=10.0, summary="Test", keywords=[]
+    )
 
     def fail_on_burn(cmd):
         cmd_str = " ".join(cmd)
@@ -260,7 +307,9 @@ def test_process_chapter_translation_cardinality_mismatch_fails_closed(tmp_path:
         encoding="utf-8",
     )
 
-    ch = Chapter(index=1, title="Trans Fail", start_time=0.0, end_time=10.0, summary="Test", keywords=[])
+    ch = Chapter(
+        index=1, title="Trans Fail", start_time=0.0, end_time=10.0, summary="Test", keywords=[]
+    )
 
     def mock_ffmpeg(cmd):
         out_file = Path(cmd[-1])
@@ -269,7 +318,8 @@ def test_process_chapter_translation_cardinality_mismatch_fails_closed(tmp_path:
         return {"returncode": 0}
 
     # Translator returns 1 item for 2 cues
-    bad_translator = lambda batch: ["[ZH] only one line"]
+    def bad_translator(batch):
+        return ["[ZH] only one line"]
 
     out_base = tmp_path / "out"
     with pytest.raises(RuntimeError) as exc_info:
@@ -296,7 +346,9 @@ def test_process_chapter_manifest_sha256_verification(tmp_path: Path):
     fake_vtt = tmp_path / "source.vtt"
     fake_vtt.write_text("WEBVTT\n\n00:00:01.000 --> 00:00:05.000\nHello world", encoding="utf-8")
 
-    ch = Chapter(index=1, title="Manifest Test", start_time=0.0, end_time=10.0, summary="Test", keywords=[])
+    ch = Chapter(
+        index=1, title="Manifest Test", start_time=0.0, end_time=10.0, summary="Test", keywords=[]
+    )
 
     def mock_ffmpeg(cmd):
         out_file = Path(cmd[-1])
@@ -310,13 +362,16 @@ def test_process_chapter_manifest_sha256_verification(tmp_path: Path):
         vtt_path=fake_vtt,
         chapter=ch,
         video_title="Test",
-        options=ClipperOptions(burn_subtitles=True, translate_bilingual=True, generate_summary=True),
+        options=ClipperOptions(
+            burn_subtitles=True, translate_bilingual=True, generate_summary=True
+        ),
         base_output_dir=out_base,
         custom_runner=mock_ffmpeg,
         translator_func=lambda batch: [f"[ZH] {t}" for t in batch],
     )
 
     import hashlib
+
     assert artifacts.manifest_path.exists()
     manifest = json.loads(artifacts.manifest_path.read_text())
 
@@ -326,8 +381,12 @@ def test_process_chapter_manifest_sha256_verification(tmp_path: Path):
 
     # Verify output artifact hashes match disk bytes
     clip_file = artifacts.chapter_dir / manifest["artifacts"]["clip_mp4"]["file"]
-    assert hashlib.sha256(clip_file.read_bytes()).hexdigest() == manifest["artifacts"]["clip_mp4"]["sha256"]
+    assert (
+        hashlib.sha256(clip_file.read_bytes()).hexdigest()
+        == manifest["artifacts"]["clip_mp4"]["sha256"]
+    )
 
     srt_file = artifacts.chapter_dir / manifest["artifacts"]["srt"]["file"]
-    assert hashlib.sha256(srt_file.read_bytes()).hexdigest() == manifest["artifacts"]["srt"]["sha256"]
-
+    assert (
+        hashlib.sha256(srt_file.read_bytes()).hexdigest() == manifest["artifacts"]["srt"]["sha256"]
+    )

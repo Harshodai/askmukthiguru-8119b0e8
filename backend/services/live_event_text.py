@@ -102,8 +102,8 @@ def _ritual_exemption_applies(text: str, instruction: re.Match[str]) -> bool:
         return False
     start = instruction.start()
     previous_break = None
-    for previous_break in _SENTENCE_BREAK_RE.finditer(text, 0, start):
-        pass
+    for match in _SENTENCE_BREAK_RE.finditer(text, 0, start):
+        previous_break = match
     sentence_start = previous_break.end() if previous_break is not None else 0
     next_break = _SENTENCE_BREAK_RE.search(text, start)
     sentence_end = next_break.start() if next_break is not None else len(text)

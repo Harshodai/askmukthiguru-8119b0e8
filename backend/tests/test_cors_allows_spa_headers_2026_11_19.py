@@ -26,11 +26,15 @@ _NOT_OUR_BACKEND = {
 }
 _NAME = r"[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+|Authorization"
 # A key inside a `headers: { ... }` object (any line of it), or headers.set/append('X', ...).
-_KEY_IN_OBJECT = re.compile(rf"""(?:['"]({_NAME})['"]|\b({_NAME})\b)\s*:""")  # every key on the line
+_KEY_IN_OBJECT = re.compile(
+    rf"""(?:['"]({_NAME})['"]|\b({_NAME})\b)\s*:"""
+)  # every key on the line
 _SUBSCRIPT = re.compile(rf"""\[\s*['"]({_NAME})['"]\s*\]\s*=(?!=)""")
 _OPENER = re.compile(r"headers\b[^=\n]*=\s*\{|headers\s*:\s*\{", re.IGNORECASE)
 _SET_CALL = re.compile(rf"""\.(?:set|append)\(\s*['"`]({_NAME})['"`]""")
-_INLINE_KEY = re.compile(rf"""headers\s*:\s*\{{[^}}]*?(?:['"]({_NAME})['"]|\b({_NAME})\b)\s*:""", re.IGNORECASE)
+_INLINE_KEY = re.compile(
+    rf"""headers\s*:\s*\{{[^}}]*?(?:['"]({_NAME})['"]|\b({_NAME})\b)\s*:""", re.IGNORECASE
+)
 _X_LITERAL = re.compile(r"""['"`]([Xx]-[A-Za-z0-9-]+)['"`]""")
 
 
@@ -107,8 +111,15 @@ def test_scan_catches_every_way_a_header_is_written():
     fetch(u, { headers: { 'One-Key': 'a', 'Two-Key': 'b' } });
     """
     assert scan_headers(src) == {
-        "authorization", "content-type", "idempotency-key", "x-brain-unlock", "x-lower-case",
-        "accept-ranges-custom", "last-event-id", "one-key", "two-key",
+        "authorization",
+        "content-type",
+        "idempotency-key",
+        "x-brain-unlock",
+        "x-lower-case",
+        "accept-ranges-custom",
+        "last-event-id",
+        "one-key",
+        "two-key",
     }
 
 
@@ -119,4 +130,6 @@ def test_scan_finds_the_known_headers():
 
 def test_every_spa_header_is_allowed_in_production():
     missing = _spa_headers() - _production_allow_headers()
-    assert not missing, f"add to the production cors_allow_headers in app/main.py: {sorted(missing)}"
+    assert not missing, (
+        f"add to the production cors_allow_headers in app/main.py: {sorted(missing)}"
+    )

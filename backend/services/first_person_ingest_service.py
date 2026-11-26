@@ -260,8 +260,6 @@ def execute_first_person_video_ingestion(
     """
     import asyncio
     import concurrent.futures
-    import os
-    import shutil
     import subprocess
     import tempfile
     from pathlib import Path

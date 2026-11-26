@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
-import pytest
 
 from services.qdrant.searcher import QdrantSearcher
 
@@ -28,7 +27,12 @@ def test_hnsw_ef_search_param_propagation():
     with patch("services.qdrant.searcher.settings") as mock_settings:
         mock_settings.qdrant_quantization = "scalar_int8"
         mock_settings.qdrant_hnsw_ef_search = 64
-        searcher._dense_search([0.1] * 8, 5, None, search_params=searcher._dense_quantization_search_params(hnsw_ef=128))
+        searcher._dense_search(
+            [0.1] * 8,
+            5,
+            None,
+            search_params=searcher._dense_quantization_search_params(hnsw_ef=128),
+        )
         call_kwargs = client.query_points.call_args.kwargs
         params = call_kwargs.get("search_params")
         assert params is not None

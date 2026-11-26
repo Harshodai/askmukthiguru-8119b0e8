@@ -13,14 +13,14 @@ Invariants:
 from __future__ import annotations
 
 import asyncio
-from collections import OrderedDict
-from collections.abc import Sequence
 import hashlib
 import json
 import logging
 import re
 import threading
 import time
+from collections import OrderedDict
+from collections.abc import Sequence
 from typing import Any, Optional
 
 from services.guru_registry import default_founders_label
@@ -48,45 +48,173 @@ Rules:
 
 # Deterministic fallback mappings for core life domains when LLM is unavailable and OKF yields no hits
 _DOMAIN_FALLBACKS: dict[str, list[str]] = {
-    "grief": ["facing sorrow without resistance", "dissolving sorrow inner peace", "nature of suffering"],
-    "sorrow": ["facing sorrow without resistance", "dissolving sorrow inner peace", "nature of suffering"],
+    "grief": [
+        "facing sorrow without resistance",
+        "dissolving sorrow inner peace",
+        "nature of suffering",
+    ],
+    "sorrow": [
+        "facing sorrow without resistance",
+        "dissolving sorrow inner peace",
+        "nature of suffering",
+    ],
     "loss": ["facing sorrow without resistance", "acceptance of impermanence", "dissolving sorrow"],
     "death": ["facing sorrow and loss", "transcending fear of death", "inner peace in grief"],
     "bereavement": ["facing sorrow without resistance", "dissolving grief and pain", "inner peace"],
-    "betrayal": ["dissolving hurt and resentment", "healing emotional hurt relationship", "ending inner conflict"],
-    "resentment": ["dissolving hurt and resentment", "freedom from inner conflict", "healing emotional hurt"],
+    "betrayal": [
+        "dissolving hurt and resentment",
+        "healing emotional hurt relationship",
+        "ending inner conflict",
+    ],
+    "resentment": [
+        "dissolving hurt and resentment",
+        "freedom from inner conflict",
+        "healing emotional hurt",
+    ],
     "hurt": ["dissolving hurt and resentment", "healing emotional pain", "protecting inner state"],
-    "forgiveness": ["dissolving hurt and resentment", "ending inner conflict with reality", "forgiving from beautiful state"],
-    "anger": ["dissolving anger and hurt", "ending inner conflict", "beautiful state vs suffering state"],
+    "forgiveness": [
+        "dissolving hurt and resentment",
+        "ending inner conflict with reality",
+        "forgiving from beautiful state",
+    ],
+    "anger": [
+        "dissolving anger and hurt",
+        "ending inner conflict",
+        "beautiful state vs suffering state",
+    ],
     "angry": ["dissolving anger and hurt", "freedom from reactive state", "witness awareness"],
-    "career": ["dharma and svadharma spiritual right action", "acting from a beautiful state", "inner purpose and calling"],
-    "purpose": ["discovering your svadharma authentic calling", "spiritual right action", "acting from a beautiful state"],
-    "unfulfilled": ["svadharma vs paradharma", "spiritual right action", "inner fulfillment in work"],
+    "career": [
+        "dharma and svadharma spiritual right action",
+        "acting from a beautiful state",
+        "inner purpose and calling",
+    ],
+    "purpose": [
+        "discovering your svadharma authentic calling",
+        "spiritual right action",
+        "acting from a beautiful state",
+    ],
+    "unfulfilled": [
+        "svadharma vs paradharma",
+        "spiritual right action",
+        "inner fulfillment in work",
+    ],
     "job": ["svadharma and right action", "acting from a beautiful state", "inner purpose"],
-    "dharma": ["svadharma vs paradharma authentic nature", "spiritual right action", "discovering authentic calling"],
-    "parenting": ["conscious parenting inner state", "children absorbing parent state", "family connection beautiful state"],
-    "children": ["conscious parenting inner state", "children absorbing parent state", "family connection beautiful state"],
-    "kids": ["conscious parenting inner state", "children absorbing parent state", "family connection"],
-    "marriage": ["cultivating non-egoic relationship", "dissolving hurt in relationship", "connecting from beautiful state"],
-    "spouse": ["cultivating non-egoic relationship", "dissolving hurt in relationship", "connecting from beautiful state"],
-    "partner": ["cultivating non-egoic relationship", "dissolving hurt and resentment", "connecting from beautiful state"],
-    "relationship": ["cultivating non-egoic relationship", "dissolving division and hurt", "connecting from beautiful state"],
-    "lonely": ["transcending loneliness connection", "dissolving division inner state", "universal intelligence connection"],
-    "loneliness": ["transcending loneliness connection", "dissolving division inner state", "universal intelligence connection"],
-    "pain": ["witnessing bodily sensation", "physical sensation without resistance", "serene mind peaceful awareness"],
-    "illness": ["observing sensation without resistance", "peace in the physical body", "serene mind practice"],
+    "dharma": [
+        "svadharma vs paradharma authentic nature",
+        "spiritual right action",
+        "discovering authentic calling",
+    ],
+    "parenting": [
+        "conscious parenting inner state",
+        "children absorbing parent state",
+        "family connection beautiful state",
+    ],
+    "children": [
+        "conscious parenting inner state",
+        "children absorbing parent state",
+        "family connection beautiful state",
+    ],
+    "kids": [
+        "conscious parenting inner state",
+        "children absorbing parent state",
+        "family connection",
+    ],
+    "marriage": [
+        "cultivating non-egoic relationship",
+        "dissolving hurt in relationship",
+        "connecting from beautiful state",
+    ],
+    "spouse": [
+        "cultivating non-egoic relationship",
+        "dissolving hurt in relationship",
+        "connecting from beautiful state",
+    ],
+    "partner": [
+        "cultivating non-egoic relationship",
+        "dissolving hurt and resentment",
+        "connecting from beautiful state",
+    ],
+    "relationship": [
+        "cultivating non-egoic relationship",
+        "dissolving division and hurt",
+        "connecting from beautiful state",
+    ],
+    "lonely": [
+        "transcending loneliness connection",
+        "dissolving division inner state",
+        "universal intelligence connection",
+    ],
+    "loneliness": [
+        "transcending loneliness connection",
+        "dissolving division inner state",
+        "universal intelligence connection",
+    ],
+    "pain": [
+        "witnessing bodily sensation",
+        "physical sensation without resistance",
+        "serene mind peaceful awareness",
+    ],
+    "illness": [
+        "observing sensation without resistance",
+        "peace in the physical body",
+        "serene mind practice",
+    ],
     "sick": ["witnessing bodily sensation", "peace in the physical body", "serene mind practice"],
-    "stress": ["serene mind practice observing breath", "beautiful state vs suffering state", "witness awareness"],
-    "stressed": ["serene mind practice observing breath", "beautiful state vs suffering state", "witness awareness"],
-    "depression": ["facing sorrow without resistance", "nature of suffering state", "dissolving inner heaviness"],
-    "depressed": ["facing sorrow without resistance", "nature of suffering state", "witness awareness"],
-    "jealousy": ["dissolving comparison and jealousy", "nature of suffering state", "inner fulfillment"],
-    "envy": ["dissolving comparison and jealousy", "nature of suffering state", "inner fulfillment"],
-    "meditation": ["soul sync sacred meditation", "six stages breath and humming", "aham still consciousness"],
-    "soul sync": ["soul sync sacred meditation", "six stages breath and humming", "aham still consciousness"],
-    "ego": ["ego self vs universal intelligence", "division vs connected state", "four sacred secrets"],
-    "anxiety": ["serene mind practice observing breath", "beautiful state vs suffering state", "witness awareness"],
-    "fear": ["serene mind practice observing breath", "dissolving fear and anxiety", "beautiful state"],
+    "stress": [
+        "serene mind practice observing breath",
+        "beautiful state vs suffering state",
+        "witness awareness",
+    ],
+    "stressed": [
+        "serene mind practice observing breath",
+        "beautiful state vs suffering state",
+        "witness awareness",
+    ],
+    "depression": [
+        "facing sorrow without resistance",
+        "nature of suffering state",
+        "dissolving inner heaviness",
+    ],
+    "depressed": [
+        "facing sorrow without resistance",
+        "nature of suffering state",
+        "witness awareness",
+    ],
+    "jealousy": [
+        "dissolving comparison and jealousy",
+        "nature of suffering state",
+        "inner fulfillment",
+    ],
+    "envy": [
+        "dissolving comparison and jealousy",
+        "nature of suffering state",
+        "inner fulfillment",
+    ],
+    "meditation": [
+        "soul sync sacred meditation",
+        "six stages breath and humming",
+        "aham still consciousness",
+    ],
+    "soul sync": [
+        "soul sync sacred meditation",
+        "six stages breath and humming",
+        "aham still consciousness",
+    ],
+    "ego": [
+        "ego self vs universal intelligence",
+        "division vs connected state",
+        "four sacred secrets",
+    ],
+    "anxiety": [
+        "serene mind practice observing breath",
+        "beautiful state vs suffering state",
+        "witness awareness",
+    ],
+    "fear": [
+        "serene mind practice observing breath",
+        "dissolving fear and anxiety",
+        "beautiful state",
+    ],
 }
 
 _INTRO_LINE_RE = re.compile(
@@ -233,20 +361,23 @@ class SpiritualConceptExpansion:
                         line,
                         flags=re.IGNORECASE,
                     ).strip()
-                    cleaned_line = re.sub(r"[*_`]", "", cleaned_line).strip().strip("'\"").rstrip(".:;!?,")
-                    if not cleaned_line or _INTRO_LINE_RE.search(cleaned_line) or cleaned_line.endswith(":"):
+                    cleaned_line = (
+                        re.sub(r"[*_`]", "", cleaned_line).strip().strip("'\"").rstrip(".:;!?,")
+                    )
+                    if (
+                        not cleaned_line
+                        or _INTRO_LINE_RE.search(cleaned_line)
+                        or cleaned_line.endswith(":")
+                    ):
                         continue
                     words = cleaned_line.split()
                     if len(words) < 2 or len(words) > 10:
                         continue
-                    if (
-                        cleaned_line.lower() != cleaned_query.lower()
-                        and len(cleaned_line) <= 160
-                    ):
+                    if cleaned_line.lower() != cleaned_query.lower() and len(cleaned_line) <= 160:
                         llm_phrases.append(cleaned_line)
                         if len(llm_phrases) >= 3:
                             break
-            except (TimeoutError, asyncio.TimeoutError):
+            except TimeoutError:
                 logger.info(
                     "[SpiritualConceptExpansion] Fast LLM expansion timed out (>%.2fs); falling back",
                     timeout_budget,

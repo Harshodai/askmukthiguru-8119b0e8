@@ -1217,8 +1217,12 @@ async def test_mild_distress_abstain_uses_compassion_framing(fp_pipeline, monkey
     """De-escalated bereavement/MILD turns receive warm compassion framing rather than cold abstain."""
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
     fp_pipeline.execute.return_value = _fp_result(status="abstained", is_direct=False)
-    ctx = _ctx(_container(), msg="My father passed away and I feel completely empty inside. How do I cope?")
-    ctx.assessment = SimpleNamespace(level=DistressLevel.MILD, recommended_response_type="compassionate")
+    ctx = _ctx(
+        _container(), msg="My father passed away and I feel completely empty inside. How do I cope?"
+    )
+    ctx.assessment = SimpleNamespace(
+        level=DistressLevel.MILD, recommended_response_type="compassionate"
+    )
 
     result = await FirstPersonBridgeStage().run(ctx)
 
@@ -1911,9 +1915,7 @@ async def test_soft_unserved_with_llm_fallback_forwards_eligible_citations_to_st
 
 
 @pytest.mark.asyncio
-async def test_soft_unserved_fails_closed_when_synthesis_disabled(
-    fp_pipeline, monkeypatch
-):
+async def test_soft_unserved_fails_closed_when_synthesis_disabled(fp_pipeline, monkeypatch):
     """When first_person_grounded_synthesis_enabled is False, candidate fallback yields to graph
     but never forwards clips to state for synthesis."""
     monkeypatch.setattr(settings, "first_person_serve_weak_match", False)
@@ -1954,9 +1956,7 @@ async def test_promise_trap_abstains_even_with_fallback_and_synthesis_enabled(
 
 
 @pytest.mark.asyncio
-async def test_crisis_redirect_does_not_forward_clips_to_state(
-    fp_pipeline, monkeypatch
-):
+async def test_crisis_redirect_does_not_forward_clips_to_state(fp_pipeline, monkeypatch):
     """Crisis redirect yields to distress handling but never sets synthesis clips."""
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     monkeypatch.setattr(settings, "first_person_grounded_synthesis_enabled", True)
@@ -1995,4 +1995,3 @@ async def test_soft_unserved_with_unverified_citations_drops_them_from_state(
     res = await FirstPersonBridgeStage().run(context)
     assert res is None  # yields to LangGraph
     assert "first_person_related_clips" not in context.state
-

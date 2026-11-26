@@ -115,9 +115,18 @@ def test_acute_crisis_has_acute_disposition_and_sanitized_helplines():
 def test_safety_disposition_classifier():
     """Verify classify_safety_disposition hierarchy."""
     assert classify_safety_disposition(is_crisis=True) == SafetyDisposition.ACUTE_CRISIS
-    assert classify_safety_disposition(is_crisis=True, is_violence_or_abuse=True) == SafetyDisposition.ACUTE_CRISIS
-    assert classify_safety_disposition(is_crisis=False, is_violence_or_abuse=True) == SafetyDisposition.ELEVATED_SAFETY_SUPPORT
-    assert classify_safety_disposition(is_crisis=False, is_violence_or_abuse=False) == SafetyDisposition.ORDINARY_HARDSHIP
+    assert (
+        classify_safety_disposition(is_crisis=True, is_violence_or_abuse=True)
+        == SafetyDisposition.ACUTE_CRISIS
+    )
+    assert (
+        classify_safety_disposition(is_crisis=False, is_violence_or_abuse=True)
+        == SafetyDisposition.ELEVATED_SAFETY_SUPPORT
+    )
+    assert (
+        classify_safety_disposition(is_crisis=False, is_violence_or_abuse=False)
+        == SafetyDisposition.ORDINARY_HARDSHIP
+    )
 
 
 @pytest.mark.asyncio

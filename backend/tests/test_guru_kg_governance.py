@@ -131,7 +131,6 @@ def test_authorized_user_state_write_is_tenant_and_receipt_scoped() -> None:
     assert params["tenant_id"] == "oneness"
 
 
-
 def test_graph_traversal_requires_tenant_scope_before_opening_driver() -> None:
     class _ExplodingDriver:
         def session(self):
@@ -220,7 +219,6 @@ def test_graph_traversal_uses_tenant_predicates_and_transaction_timeout() -> Non
     assert params["tenant_id"] == "tenant_alpha"
 
 
-
 def test_source_arc_rejects_unverified_speaker_even_when_authorizer_is_present() -> None:
     driver = _Driver()
     service = GuruKGService(
@@ -264,6 +262,7 @@ def test_source_arc_rejects_unlicensed_status_even_when_authorizer_is_present() 
         speaker_verification_reference="speaker-review-123",
     )
     assert driver.calls == []
+
 
 def test_guru_kg_service_import_does_not_eagerly_load_qdrant_backed_guru_brain(monkeypatch):
     import importlib

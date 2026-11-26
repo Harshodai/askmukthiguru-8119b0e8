@@ -34,7 +34,9 @@ def _get_redis_client() -> Optional[Any]:
             client = getattr(container, attr, None)
             if client is not None:
                 return client
-        cache_svc = getattr(container, "cache_service", None) or getattr(container, "exact_cache", None)
+        cache_svc = getattr(container, "cache_service", None) or getattr(
+            container, "exact_cache", None
+        )
         if cache_svc is not None:
             for attr in ("redis_client", "client", "_client", "_redis"):
                 client = getattr(cache_svc, attr, None)
@@ -75,6 +77,7 @@ def _redis_set_concepts(cache_key: str, concepts: list[str]) -> None:
             client.set(f"{_REDIS_KEY_PREFIX}{cache_key}", payload, ex=_REDIS_TTL_SECONDS)
     except (OSError, ValueError, TypeError) as exc:
         logger.debug("[OntologyResolver] Redis set failed (non-fatal): %s", exc)
+
 
 _SYSTEM_PROMPT = (
     "You are an expert ontology concept resolver for a spiritual wisdom archive.\n"
@@ -124,6 +127,7 @@ async def resolve_query_concepts_llm_async(
     if llm_service is None:
         try:
             from app.dependencies import get_container
+
             container = get_container()
             llm_service = getattr(container, "openrouter", None) or getattr(container, "llm", None)
         except Exception:
@@ -140,13 +144,16 @@ async def resolve_query_concepts_llm_async(
         # Use fast model if available
         try:
             from app.config import settings
-            model = getattr(settings, "first_person_relevance_model", None) or getattr(settings, "openrouter_fast_model", "meta-llama/llama-3.1-8b-instruct")
+
+            model = getattr(settings, "first_person_relevance_model", None) or getattr(
+                settings, "openrouter_fast_model", "meta-llama/llama-3.1-8b-instruct"
+            )
             kwargs["model"] = model
         except Exception:
             pass
 
         user_prompt = f"Query: {clean_query}"
-        
+
         generate = llm_service.generate
         loop = asyncio.get_running_loop()
         deadline = loop.time() + max(0.01, float(timeout_s))
@@ -259,14 +266,78 @@ def resolve_query_concepts_llm(
 def _fallback_token_concepts(query: str) -> list[str]:
     """Zero-dependency fallback extracting key Title-case tokens from query."""
     stop_words = {
-        "how", "what", "why", "when", "where", "who", "do", "does", "did", "done",
-        "can", "could", "should", "would", "will", "shall", "may", "might", "must",
-        "the", "this", "that", "these", "those", "there", "here", "then", "than",
-        "are", "was", "were", "been", "being", "have", "has", "had", "for", "and",
-        "with", "about", "into", "from", "according", "teachings", "teach", "guru",
-        "say", "said", "tell", "please", "just", "very", "much", "more", "most",
-        "some", "any", "get", "got", "make", "made", "take", "give", "want", "need",
-        "morning", "evening", "night", "today", "tomorrow", "yesterday", "day",
+        "how",
+        "what",
+        "why",
+        "when",
+        "where",
+        "who",
+        "do",
+        "does",
+        "did",
+        "done",
+        "can",
+        "could",
+        "should",
+        "would",
+        "will",
+        "shall",
+        "may",
+        "might",
+        "must",
+        "the",
+        "this",
+        "that",
+        "these",
+        "those",
+        "there",
+        "here",
+        "then",
+        "than",
+        "are",
+        "was",
+        "were",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "for",
+        "and",
+        "with",
+        "about",
+        "into",
+        "from",
+        "according",
+        "teachings",
+        "teach",
+        "guru",
+        "say",
+        "said",
+        "tell",
+        "please",
+        "just",
+        "very",
+        "much",
+        "more",
+        "most",
+        "some",
+        "any",
+        "get",
+        "got",
+        "make",
+        "made",
+        "take",
+        "give",
+        "want",
+        "need",
+        "morning",
+        "evening",
+        "night",
+        "today",
+        "tomorrow",
+        "yesterday",
+        "day",
     }
     words = re.findall(r"\b[A-Za-z]{3,}\b", query)
     meaningful = [w.capitalize() for w in words if w.lower() not in stop_words]

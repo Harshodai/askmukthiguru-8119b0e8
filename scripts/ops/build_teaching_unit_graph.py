@@ -57,8 +57,13 @@ logger = logging.getLogger("build_teaching_unit_graph")
 try:
     from services.guru_registry import canonical_guru_id, shared_attribution
 except ImportError:
-    canonical_guru_id = lambda g: g.lower().replace("-", "_") if g else g  # type: ignore
-    shared_attribution = lambda: ("preethaji_krishnaji", ["preethaji", "krishnaji"])  # type: ignore
+
+    def canonical_guru_id(g):  # type: ignore
+        return g.lower().replace("-", "_") if g else g
+
+    def shared_attribution():  # type: ignore
+        return ("preethaji_krishnaji", ["preethaji", "krishnaji"])
+
 
 # ---------------------------------------------------------------------------
 # Production guard — must be the first check after logging is up.
@@ -247,8 +252,12 @@ def build_graph(
     span_id_set: set[str] = {p["source_span_id"] for p in valid}
 
     # A1: Compute edge statistics across the scrolled units
-    units_with_topics = sum(1 for p in valid if any(t for t in (p.get("topics") or p.get("topic_ids") or [])))
-    units_with_concepts = sum(1 for p in valid if any(c for c in (p.get("concepts") or p.get("entity_ids") or [])))
+    units_with_topics = sum(
+        1 for p in valid if any(t for t in (p.get("topics") or p.get("topic_ids") or []))
+    )
+    units_with_concepts = sum(
+        1 for p in valid if any(c for c in (p.get("concepts") or p.get("entity_ids") or []))
+    )
     all_topics: set[str] = set()
     all_concepts: set[str] = set()
     total_topic_edges = 0
@@ -418,9 +427,15 @@ def build_graph(
 
             # Collective lineage edge for shared founder tradition
             shared_primary, shared_founders = shared_attribution()
-            if guru_id in shared_founders and shared_primary and "merge_shared_founder_edge" in queries:
+            if (
+                guru_id in shared_founders
+                and shared_primary
+                and "merge_shared_founder_edge" in queries
+            ):
                 _merge_node(
-                    driver, queries["merge_guru"], dict(guru_id=shared_primary, schema_version=schema_version)
+                    driver,
+                    queries["merge_guru"],
+                    dict(guru_id=shared_primary, schema_version=schema_version),
                 )
                 _merge_edge(
                     driver,

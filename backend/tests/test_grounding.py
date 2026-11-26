@@ -310,4 +310,3 @@ def test_first_person_no_match_abstain_is_abstained():
         },
     )
     assert grounding_state_for(result) == "abstained"
-

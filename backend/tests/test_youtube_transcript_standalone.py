@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
 import pytest
 
 from services.youtube_transcript.downloader import (
@@ -11,7 +12,6 @@ from services.youtube_transcript.downloader import (
     clean_vtt_to_text,
     download_transcript,
     extract_video_id,
-    list_subtitles,
     parse_list_subs_output,
     sanitize_filename,
 )
@@ -26,8 +26,6 @@ from services.youtube_transcript.models import (
     WhisperConsentRequiredError,
 )
 from services.youtube_transcript.preflight import (
-    check_ffmpeg_installed,
-    check_ytdlp_installed,
     get_whisper_install_instructions,
     get_ytdlp_install_instructions,
 )
@@ -106,10 +104,14 @@ def test_classify_ytdlp_errors():
     err_priv = classify_ytdlp_error("ERROR: [youtube] dQw4w9WgXcQ: This video is private")
     assert isinstance(err_priv, PrivateVideoError)
 
-    err_age = classify_ytdlp_error("ERROR: Sign in to confirm your age. This video may be inappropriate for some users.")
+    err_age = classify_ytdlp_error(
+        "ERROR: Sign in to confirm your age. This video may be inappropriate for some users."
+    )
     assert isinstance(err_age, AgeRestrictedError)
 
-    err_geo = classify_ytdlp_error("ERROR: The uploader has not made this video available in your country")
+    err_geo = classify_ytdlp_error(
+        "ERROR: The uploader has not made this video available in your country"
+    )
     assert isinstance(err_geo, GeoBlockedError)
 
     err_subs = classify_ytdlp_error("WARNING: video has no subtitles")
@@ -156,7 +158,12 @@ en       English  vtt
         if "--list-subs" in cmd:
             return {"stdout": list_stdout, "stderr": "", "returncode": 0}
         if "--write-sub" in cmd:
-            return {"stdout": "Downloaded sub", "stderr": "", "returncode": 0, "vtt_content": vtt_content}
+            return {
+                "stdout": "Downloaded sub",
+                "stderr": "",
+                "returncode": 0,
+                "vtt_content": vtt_content,
+            }
         return {"stdout": "", "stderr": "", "returncode": 0}
 
     req = TranscriptDownloadRequest(
@@ -191,7 +198,12 @@ en       English  vtt
         if "--list-subs" in cmd:
             return {"stdout": list_stdout, "stderr": "", "returncode": 0}
         if "--write-auto-sub" in cmd:
-            return {"stdout": "Downloaded auto sub", "stderr": "", "returncode": 0, "vtt_content": vtt_content}
+            return {
+                "stdout": "Downloaded auto sub",
+                "stderr": "",
+                "returncode": 0,
+                "vtt_content": vtt_content,
+            }
         return {"stdout": "", "stderr": "", "returncode": 0}
 
     req = TranscriptDownloadRequest(
@@ -217,7 +229,11 @@ def test_download_transcript_whisper_requires_consent(tmp_path: Path):
         if "--list-subs" in cmd:
             return {"stdout": list_stdout, "stderr": "", "returncode": 0}
         if "--dump-json" in cmd:
-            return {"stdout": json.dumps({"duration": 300, "title": "Silence"}), "stderr": "", "returncode": 0}
+            return {
+                "stdout": json.dumps({"duration": 300, "title": "Silence"}),
+                "stderr": "",
+                "returncode": 0,
+            }
         return {"stdout": "", "stderr": "", "returncode": 0}
 
     # Without allow_whisper -> MissingCaptionsError
@@ -243,9 +259,7 @@ def test_download_transcript_whisper_requires_consent(tmp_path: Path):
     # With explicit consent -> succeeds with real Whisper segment VTT formatting
     fake_whisper_output = {
         "text": "Silence is the greatest teaching.",
-        "segments": [
-            {"start": 0.0, "end": 3.5, "text": "Silence is the greatest teaching."}
-        ],
+        "segments": [{"start": 0.0, "end": 3.5, "text": "Silence is the greatest teaching."}],
     }
 
     req_with_consent = TranscriptDownloadRequest(
@@ -257,7 +271,7 @@ def test_download_transcript_whisper_requires_consent(tmp_path: Path):
     res = download_transcript(
         req_with_consent,
         custom_runner=fake_runner,
-        whisper_transcriber=lambda vid, p, l: fake_whisper_output,
+        whisper_transcriber=lambda vid, p, lang: fake_whisper_output,
     )
     assert res.source_type == CaptionSourceType.WHISPER
     assert res.vtt_path.exists()
@@ -277,11 +291,7 @@ def test_download_transcript_manifest_and_fail_closed_cleanup(tmp_path: Path):
         "[info] Available automatic captions for 'Test Video':\n"
     )
 
-    vtt_content = (
-        "WEBVTT\n\n"
-        "00:00:01.000 --> 00:00:05.000\n"
-        "Awareness is stillness.\n"
-    )
+    vtt_content = "WEBVTT\n\n00:00:01.000 --> 00:00:05.000\nAwareness is stillness.\n"
 
     def fake_runner(cmd):
         if "--list-subs" in cmd:

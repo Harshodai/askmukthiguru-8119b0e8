@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from qdrant_client.http.models import SparseVector
 
-from services.first_person_context_store import SPAN_INDEXES
 from services.first_person_batch_pipeline import (
     CHUNKER_VERSION,
     MAX_PARENT_DURATION_MS,
@@ -13,7 +12,7 @@ from services.first_person_batch_pipeline import (
     encode_vectors,
     upsert_video,
 )
-
+from services.first_person_context_store import SPAN_INDEXES
 
 SEGMENTS = [
     {"start_ms": 0, "end_ms": 9000, "text": "Awareness begins when we pause"},
@@ -83,7 +82,11 @@ def test_namespace_has_a_qdrant_payload_index():
 
 def test_parent_groups_are_bounded_not_video_wide():
     segments = [
-        {"start_ms": i * 20_000, "end_ms": (i + 1) * 20_000, "text": f"A complete thought number {i}."}
+        {
+            "start_ms": i * 20_000,
+            "end_ms": (i + 1) * 20_000,
+            "text": f"A complete thought number {i}.",
+        }
         for i in range(6)
     ]
     parents, spans, rejected = build_context_records(
@@ -110,7 +113,9 @@ def test_title_or_source_metadata_cannot_change_shared_attribution():
 
 def test_unlicensed_source_fails_closed():
     try:
-        build_context_records(video_id="video-3", segments=SEGMENTS, rights_resolver=lambda **_: "unverified")
+        build_context_records(
+            video_id="video-3", segments=SEGMENTS, rights_resolver=lambda **_: "unverified"
+        )
     except ValueError as exc:
         assert "not licensed" in str(exc)
     else:
@@ -232,7 +237,8 @@ def test_vector_mapping_uses_named_dense_and_sparse_vectors():
 def test_vector_mapping_rejects_mismatched_rows_and_dimensions():
     _, spans, _ = _build(
         video_id="video-5",
-        segments=SEGMENTS + [{"start_ms": 24_000, "end_ms": 42_000, "text": "A second complete thought."}],
+        segments=SEGMENTS
+        + [{"start_ms": 24_000, "end_ms": 42_000, "text": "A second complete thought."}],
     )
 
     class ShortEncoder:

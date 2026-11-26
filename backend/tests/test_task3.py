@@ -23,7 +23,9 @@ class _MockEmbeddingService:
             "sparse": [{"1": 0.5} for _ in texts],
         }
 
-    async def cascaded_rerank(self, question, docs, colbert_top_k=15, cross_top_k=10, min_score=None):
+    async def cascaded_rerank(
+        self, question, docs, colbert_top_k=15, cross_top_k=10, min_score=None
+    ):
         return docs
 
 

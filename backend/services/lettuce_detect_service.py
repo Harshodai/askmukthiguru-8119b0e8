@@ -604,9 +604,7 @@ def _detect_contradiction(
 
     for c_clause in claim_clauses:
         c_tokens = [w.lower() for w in re.findall(r"\b[a-zA-Z]{2,}\b", c_clause)]
-        c_content = set(
-            w for w in c_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
-        )
+        c_content = set(w for w in c_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS)
         if len(c_content) < 3:
             continue
 
@@ -621,9 +619,7 @@ def _detect_contradiction(
             overlap = c_content & ctx_content
             recall = len(overlap) / len(c_content)
             jaccard = (
-                len(overlap) / len(c_content | ctx_content)
-                if (c_content | ctx_content)
-                else 0.0
+                len(overlap) / len(c_content | ctx_content) if (c_content | ctx_content) else 0.0
             )
 
             # Substantial lexical overlap means both sentences make a claim about the same core entities/predicates
@@ -640,7 +636,9 @@ def _detect_contradiction(
                     ):
                         continue
                     clean_c_clause = re.sub(r"[\"'“”‘’]", "", c_clause).strip().lower()
-                    if clean_c_clause and (clean_c_clause in context.lower() or context.lower() in clean_c_clause):
+                    if clean_c_clause and (
+                        clean_c_clause in context.lower() or context.lower() in clean_c_clause
+                    ):
                         continue
                     _NON_CONTRADICT_RE = (
                         r"\b(?:rather\s+than|instead\s+of|as\s+opposed\s+to|free\s+from|devoid\s+of"
@@ -670,7 +668,9 @@ def _detect_contradiction(
                 w for w in ctx_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
             )
             for ant1, ant2 in _ANTONYM_PAIRS:
-                matched_c = ant1 if ant1 in claim_content else (ant2 if ant2 in claim_content else None)
+                matched_c = (
+                    ant1 if ant1 in claim_content else (ant2 if ant2 in claim_content else None)
+                )
                 matched_ctx = ant2 if matched_c == ant1 else (ant1 if matched_c == ant2 else None)
                 if matched_c and matched_ctx and matched_ctx in ctx_content:
                     rem_c = claim_content - {matched_c}

@@ -198,9 +198,7 @@ class QueuedLLMProvider:
             "generate_fast",
             getattr(self._provider, "_generate_fast", self._provider.generate),
         )
-        return await self._queue.execute(
-            priority, call_fn, *args, operation=operation, **kwargs
-        )
+        return await self._queue.execute(priority, call_fn, *args, operation=operation, **kwargs)
 
     async def generate_stream(self, *args, **kwargs):
         priority = kwargs.pop("priority", LLMPriority.GENERATE)

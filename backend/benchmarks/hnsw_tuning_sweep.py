@@ -143,6 +143,7 @@ def run_hnsw_sweep(
     # Attempt to import hnswlib for native C++ graph benchmarking
     try:
         import hnswlib
+
         has_hnswlib = True
     except ImportError:
         has_hnswlib = False
@@ -189,28 +190,38 @@ def run_hnsw_sweep(
                     recall = calculate_recall(preds_arr, ground_truth, k=k)
                 else:
                     # Deterministic model calibrated to HNSW benchmark curves
-                    recall = min(0.999, 0.82 + (0.05 * np.log2(m / 8)) + (0.04 * np.log2(ef_c / 64)) + (0.06 * np.log2(ef_s / 32)))
+                    recall = min(
+                        0.999,
+                        0.82
+                        + (0.05 * np.log2(m / 8))
+                        + (0.04 * np.log2(ef_c / 64))
+                        + (0.06 * np.log2(ef_s / 32)),
+                    )
                     simulated_base_ms = 0.8 + (m * 0.02) + (ef_s * 0.015)
-                    latencies_ms = [simulated_base_ms * (1.0 + (i % 5) * 0.05) for i in range(len(queries))]
+                    latencies_ms = [
+                        simulated_base_ms * (1.0 + (i % 5) * 0.05) for i in range(len(queries))
+                    ]
 
                 latencies_ms.sort()
                 p50 = round(np.percentile(latencies_ms, 50), 3)
                 p95 = round(np.percentile(latencies_ms, 95), 3)
                 p99 = round(np.percentile(latencies_ms, 99), 3)
 
-                results.append({
-                    "M": m,
-                    "ef_construction": ef_c,
-                    "ef_search": ef_s,
-                    "recall@10": round(float(recall), 4),
-                    "latency_p50_ms": p50,
-                    "latency_p95_ms": p95,
-                    "latency_p99_ms": p99,
-                    "build_time_s": round(build_time, 3),
-                    "memory_mb": memory_mb,
-                    "benchmark_mode": "native_hnswlib" if has_hnswlib else "simulated",
-                    "production_certified": bool(has_hnswlib),
-                })
+                results.append(
+                    {
+                        "M": m,
+                        "ef_construction": ef_c,
+                        "ef_search": ef_s,
+                        "recall@10": round(float(recall), 4),
+                        "latency_p50_ms": p50,
+                        "latency_p95_ms": p95,
+                        "latency_p99_ms": p99,
+                        "build_time_s": round(build_time, 3),
+                        "memory_mb": memory_mb,
+                        "benchmark_mode": "native_hnswlib" if has_hnswlib else "simulated",
+                        "production_certified": bool(has_hnswlib),
+                    }
+                )
 
     return results
 
@@ -220,15 +231,24 @@ def main() -> int:
     parser.add_argument("--num-vectors", type=int, default=1000, help="Number of benchmark vectors")
     parser.add_argument("--dim", type=int, default=1024, help="Vector dimension (default: 1024)")
     parser.add_argument("--queries", type=int, default=50, help="Number of query vectors")
-    parser.add_argument("--out", default="outputs/hnsw_benchmark_matrix.json", help="Output results path")
-    parser.add_argument("--require-native", action="store_true", default=False, help="Require native hnswlib; fail if simulated")
+    parser.add_argument(
+        "--out", default="outputs/hnsw_benchmark_matrix.json", help="Output results path"
+    )
+    parser.add_argument(
+        "--require-native",
+        action="store_true",
+        default=False,
+        help="Require native hnswlib; fail if simulated",
+    )
     args = parser.parse_args()
 
     np.random.seed(42)
     vectors = np.random.randn(args.num_vectors, args.dim).astype(np.float32)
     queries = np.random.randn(args.queries, args.dim).astype(np.float32)
 
-    print(f"Running HNSW benchmark sweep: {args.num_vectors} vectors ({args.dim}d), {args.queries} queries...")
+    print(
+        f"Running HNSW benchmark sweep: {args.num_vectors} vectors ({args.dim}d), {args.queries} queries..."
+    )
     results = run_hnsw_sweep(vectors, queries, require_native=args.require_native)
 
     # Find optimal configuration for recall >= 0.95 and lowest p95 latency
@@ -245,14 +265,13 @@ def main() -> int:
     if is_native:
         try:
             import hnswlib
+
             hnsw_lib_ver = getattr(hnswlib, "__version__", "0.8.0")
         except Exception:
             hnsw_lib_ver = "installed"
 
     # Compare measured evidence against current Qdrant production defaults (M=32, ef_construct=200, ef_search=64)
-    qdrant_default_matches = [
-        r for r in results if r["M"] == 32 and r["ef_search"] == 64
-    ]
+    qdrant_default_matches = [r for r in results if r["M"] == 32 and r["ef_search"] == 64]
     qdrant_evidence = {}
     if qdrant_default_matches:
         q_row = max(qdrant_default_matches, key=lambda x: x["recall@10"])
@@ -262,7 +281,9 @@ def main() -> int:
             "measured_recall": q_row["recall@10"],
             "measured_p95_latency_ms": q_row["latency_p95_ms"],
             "target_recall_threshold": 0.95,
-            "evaluation_verdict": "ACCEPTED_WITH_MEASURED_EVIDENCE" if q_row["recall@10"] >= 0.95 else "ADJUSTMENT_REQUIRED",
+            "evaluation_verdict": "ACCEPTED_WITH_MEASURED_EVIDENCE"
+            if q_row["recall@10"] >= 0.95
+            else "ADJUSTMENT_REQUIRED",
             "justification": (
                 f"Configured M=32, ef_construction=200, ef_search=64 achieves recall@10 = {q_row['recall@10']} "
                 f"(>= 0.95 target) with p95 latency = {q_row['latency_p95_ms']}ms (< 10ms SLO). Accepted based on native benchmark."
@@ -321,11 +342,17 @@ def main() -> int:
     }
     manifest_file.write_text(json.dumps(manifest_data, indent=2))
 
-    print(f"\n[OPTIMAL CONFIGURATION]: M={best['M']}, efConstruction={best['ef_construction']}, efSearch={best['ef_search']}")
-    print(f"  Recall@10: {best['recall@10']} | p95 Latency: {best['latency_p95_ms']}ms | Memory: {best['memory_mb']}MB")
+    print(
+        f"\n[OPTIMAL CONFIGURATION]: M={best['M']}, efConstruction={best['ef_construction']}, efSearch={best['ef_search']}"
+    )
+    print(
+        f"  Recall@10: {best['recall@10']} | p95 Latency: {best['latency_p95_ms']}ms | Memory: {best['memory_mb']}MB"
+    )
     print(f"  Benchmark Mode: {output_payload['benchmark_mode']} (Certified: {is_native})")
     if qdrant_evidence:
-        print(f"  Qdrant Defaults Verdict: {qdrant_evidence['evaluation_verdict']} (Recall: {qdrant_evidence['measured_recall']})")
+        print(
+            f"  Qdrant Defaults Verdict: {qdrant_evidence['evaluation_verdict']} (Recall: {qdrant_evidence['measured_recall']})"
+        )
     print(f"Matrix saved to: {out_file}")
     print(f"Manifest saved to: {manifest_file}")
     return 0

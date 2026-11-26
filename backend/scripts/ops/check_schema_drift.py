@@ -98,7 +98,9 @@ def migration_columns(migrations_dir: Path = MIGRATIONS) -> dict[str, set[str]]:
 def version_drift(applied: set[str], migrations_dir: Path = MIGRATIONS) -> list[str]:
     repo = {p.name.split("_", 1)[0] for p in migrations_dir.glob("*.sql")}
     problems = [f"migration {v} is in the repo but not applied" for v in sorted(repo - applied)]
-    problems += [f"migration {v} is applied but missing from the repo" for v in sorted(applied - repo)]
+    problems += [
+        f"migration {v} is applied but missing from the repo" for v in sorted(applied - repo)
+    ]
     return problems
 
 

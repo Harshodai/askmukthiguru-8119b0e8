@@ -41,7 +41,7 @@ import os
 import re
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 _BACKEND = Path(__file__).resolve().parents[2] / "backend"
@@ -50,11 +50,8 @@ if str(_BACKEND) not in sys.path:
 
 from qdrant_client import QdrantClient  # noqa: E402
 from qdrant_client.http.models import (  # noqa: E402
-    Distance,
     PointStruct,
     SparseVector,
-    SparseVectorParams,
-    VectorParams,
 )
 
 from services.embedding_service import EmbeddingService  # noqa: E402
@@ -123,7 +120,9 @@ def _windows(segments: list[dict]) -> list[dict]:
         # window is never emitted longer than MAX_WINDOW_S. Prefer trimming to
         # the last sentence boundary so the emitted window closes cleanly.
         if cur and (en - start) > MAX_WINDOW_S:
-            cut = next((j for j in range(len(cur) - 1, -1, -1) if _ends_sentence(cur[j]["text"])), None)
+            cut = next(
+                (j for j in range(len(cur) - 1, -1, -1) if _ends_sentence(cur[j]["text"])), None
+            )
             if cut is not None:
                 out.append(_make_window(cur[: cut + 1], start, cur[cut]["end"]))
                 cur = cur[cut + 1 :]
@@ -211,7 +210,12 @@ def main() -> int:
     accepted: list[dict] = []
     for video_id, segs in sources.items():
         if not segs:
-            report[video_id] = {"segments": 0, "windows": 0, "accepted": 0, "note": "no source data"}
+            report[video_id] = {
+                "segments": 0,
+                "windows": 0,
+                "accepted": 0,
+                "note": "no source data",
+            }
             continue
         spans = _existing_spans(client, video_id)
         wins = _windows(segs)
@@ -238,7 +242,16 @@ def main() -> int:
             "rejected": reasons,
         }
 
-    print(json.dumps({"mode": "dry-run" if args.dry_run else "apply", "per_video": report, "accepted_total": len(accepted)}, indent=1))
+    print(
+        json.dumps(
+            {
+                "mode": "dry-run" if args.dry_run else "apply",
+                "per_video": report,
+                "accepted_total": len(accepted),
+            },
+            indent=1,
+        )
+    )
 
     if args.dry_run or not accepted:
         if args.apply:
@@ -250,13 +263,21 @@ def main() -> int:
     dense, sparse = encoded["dense"], encoded["sparse"]
 
     points = []
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     for i, a in enumerate(accepted):
         start_ms, end_ms = int(a["start"] * 1000), int(a["end"] * 1000)
         sv = sparse[i]
         if hasattr(sv, "indices"):
-            idx = [int(x) for x in sv.indices.tolist()] if hasattr(sv.indices, "tolist") else [int(x) for x in sv.indices]
-            val = [float(x) for x in sv.values.tolist()] if hasattr(sv.values, "tolist") else [float(x) for x in sv.values]
+            idx = (
+                [int(x) for x in sv.indices.tolist()]
+                if hasattr(sv.indices, "tolist")
+                else [int(x) for x in sv.indices]
+            )
+            val = (
+                [float(x) for x in sv.values.tolist()]
+                if hasattr(sv.values, "tolist")
+                else [float(x) for x in sv.values]
+            )
         elif isinstance(sv, dict):
             idx = [int(k) for k in sv]
             val = [float(v) for v in sv.values()]
@@ -287,7 +308,10 @@ def main() -> int:
         points.append(
             PointStruct(
                 id=_deterministic_id(a["video_id"], start_ms, end_ms, a["text"]),
-                vector={"passage_dense": [float(x) for x in dense[i]], "passage_sparse": SparseVector(indices=idx, values=val)},
+                vector={
+                    "passage_dense": [float(x) for x in dense[i]],
+                    "passage_sparse": SparseVector(indices=idx, values=val),
+                },
                 payload=payload,
             )
         )

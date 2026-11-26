@@ -36,12 +36,16 @@ def test_sorts_after_the_applied_launch_migrations():
 
 def test_no_rls_loosening_or_anon_table_privileges(sql):
     assert not re.search(r"DISABLE ROW LEVEL SECURITY", sql, re.I)
-    assert not re.search(r"GRANT\s+(SELECT|UPDATE|DELETE|ALL)[^;]*waitlist_entries[^;]*\bTO\s+[^;]*anon", sql, re.I)
-    assert not re.search(r"CREATE POLICY[^;]*waitlist_entries[^;]*FOR\s+(SELECT|ALL|UPDATE)", sql, re.I)
-    assert "ALTER TABLE public.launch_signup_throttle ENABLE ROW LEVEL SECURITY" in sql
-    assert "FROM PUBLIC, anon, authenticated" in sql.split("launch_signup_throttle FROM")[1][:60] or (
-        "REVOKE ALL ON public.launch_signup_throttle FROM PUBLIC, anon, authenticated" in sql
+    assert not re.search(
+        r"GRANT\s+(SELECT|UPDATE|DELETE|ALL)[^;]*waitlist_entries[^;]*\bTO\s+[^;]*anon", sql, re.I
     )
+    assert not re.search(
+        r"CREATE POLICY[^;]*waitlist_entries[^;]*FOR\s+(SELECT|ALL|UPDATE)", sql, re.I
+    )
+    assert "ALTER TABLE public.launch_signup_throttle ENABLE ROW LEVEL SECURITY" in sql
+    assert "FROM PUBLIC, anon, authenticated" in sql.split("launch_signup_throttle FROM")[1][
+        :60
+    ] or ("REVOKE ALL ON public.launch_signup_throttle FROM PUBLIC, anon, authenticated" in sql)
 
 
 def test_admin_delete_policy_needs_admin_role_and_aal2(sql):
@@ -53,9 +57,14 @@ def test_admin_delete_policy_needs_admin_role_and_aal2(sql):
 
 
 def test_token_column_is_unique_and_server_generated(sql):
-    assert "ADD COLUMN IF NOT EXISTS unsubscribe_token uuid NOT NULL DEFAULT pg_catalog.gen_random_uuid()" in sql
+    assert (
+        "ADD COLUMN IF NOT EXISTS unsubscribe_token uuid NOT NULL DEFAULT pg_catalog.gen_random_uuid()"
+        in sql
+    )
     assert "CREATE UNIQUE INDEX IF NOT EXISTS waitlist_entries_unsubscribe_token_key" in sql
-    assert "NEW.unsubscribe_token := pg_catalog.gen_random_uuid()" in _fn(sql, "validate_launch_subscription")
+    assert "NEW.unsubscribe_token := pg_catalog.gen_random_uuid()" in _fn(
+        sql, "validate_launch_subscription"
+    )
 
 
 @pytest.mark.parametrize(
@@ -69,7 +78,9 @@ def test_erase_rpcs_are_definer_pinned_throttled_and_non_disclosing(sql, name):
     assert "launch_client_key()" in body
     assert "RETURN 'accepted'" in body
     assert "DELETE FROM public.waitlist_entries WHERE email_key = v_email" in body
-    assert re.search(rf"GRANT EXECUTE ON FUNCTION public\.{name}\([^)]*\) TO anon, authenticated", sql)
+    assert re.search(
+        rf"GRANT EXECUTE ON FUNCTION public\.{name}\([^)]*\) TO anon, authenticated", sql
+    )
     assert re.search(rf"REVOKE ALL ON FUNCTION public\.{name}\([^)]*\) FROM PUBLIC", sql)
 
 
@@ -82,13 +93,23 @@ def test_purge_is_service_role_only_and_enforces_a_floor(sql):
     assert "p_months integer DEFAULT 12" in body
     assert "p_months < 1" in body
     assert "consented_at < now() - pg_catalog.make_interval(months => p_months)" in body
-    assert "REVOKE ALL ON FUNCTION public.purge_expired_launch_subscribers(integer) FROM PUBLIC, anon, authenticated" in sql
-    assert "GRANT EXECUTE ON FUNCTION public.purge_expired_launch_subscribers(integer) TO service_role" in sql
-    assert not re.search(r"purge_expired_launch_subscribers\(integer\) TO [^;]*(anon|authenticated)", sql)
+    assert (
+        "REVOKE ALL ON FUNCTION public.purge_expired_launch_subscribers(integer) FROM PUBLIC, anon, authenticated"
+        in sql
+    )
+    assert (
+        "GRANT EXECUTE ON FUNCTION public.purge_expired_launch_subscribers(integer) TO service_role"
+        in sql
+    )
+    assert not re.search(
+        r"purge_expired_launch_subscribers\(integer\) TO [^;]*(anon|authenticated)", sql
+    )
 
 
 def test_pg_cron_schedule_is_guarded_by_extension_presence(sql):
-    block = sql[sql.index("DO $$", sql.index("purge_expired_launch_subscribers(integer) TO service_role")) :]
+    block = sql[
+        sql.index("DO $$", sql.index("purge_expired_launch_subscribers(integer) TO service_role")) :
+    ]
     assert "extname = 'pg_cron'" in block.split("cron.schedule")[0]
     assert "cron.schedule('purge-launch-subscribers'" in block
 
@@ -108,7 +129,9 @@ def test_every_existing_signup_protection_is_preserved(sql):
         assert needle in body, needle
     assert "SECURITY DEFINER SET search_path = ''" in body
     # per-source and per-client buckets sit between the global ceiling and the dedupe return
-    order = [body.index(s) for s in (">= 100 THEN", "'signup-src:'", "'signup-client:'", "RETURN NULL")]
+    order = [
+        body.index(s) for s in (">= 100 THEN", "'signup-src:'", "'signup-client:'", "RETURN NULL")
+    ]
     assert order == sorted(order)
 
 
@@ -118,11 +141,16 @@ def test_client_key_falls_back_safely_and_hashes_the_ip(sql):
     assert "x-forwarded-for" in body
     assert "EXCEPTION WHEN others THEN" in body and "RETURN NULL" in body
     assert "sha256" in body  # no raw IP is stored
-    assert "REVOKE ALL ON FUNCTION public.launch_client_key() FROM PUBLIC, anon, authenticated" in sql
+    assert (
+        "REVOKE ALL ON FUNCTION public.launch_client_key() FROM PUBLIC, anon, authenticated" in sql
+    )
 
 
 def test_throttle_helper_is_internal_only(sql):
-    assert "REVOKE ALL ON FUNCTION public.launch_throttle_hit(text, integer) FROM PUBLIC, anon, authenticated" in sql
+    assert (
+        "REVOKE ALL ON FUNCTION public.launch_throttle_hit(text, integer) FROM PUBLIC, anon, authenticated"
+        in sql
+    )
     assert not re.search(r"launch_throttle_hit\(text, integer\) TO", sql)
 
 
@@ -171,7 +199,9 @@ def test_cleanup_task_runs_launch_purge_and_survives_its_failure():
     base = [
         patch("scripts.ops.cleanup_inactive_user_data.cleanup_telemetry_logs", return_value=0),
         patch("services.compliance_logger.cleanup_compliance_audit_files", return_value=0),
-        patch("scripts.ops.cleanup_inactive_user_data.cleanup_staging_quality_queue", return_value=0),
+        patch(
+            "scripts.ops.cleanup_inactive_user_data.cleanup_staging_quality_queue", return_value=0
+        ),
     ]
     for p in base:
         p.start()

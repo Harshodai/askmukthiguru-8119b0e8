@@ -815,7 +815,11 @@ class DataQualityGate:
 
             primary = reasons[0] if reasons else "unknown"
             primary_lower = primary.lower()
-            if "too_short" in primary_lower or "text too short" in primary_lower or "too few words" in primary_lower:
+            if (
+                "too_short" in primary_lower
+                or "text too short" in primary_lower
+                or "too few words" in primary_lower
+            ):
                 reason_label = "too_short"
             elif "high_html_ratio" in primary_lower or "html pollution" in primary_lower:
                 reason_label = "high_html_ratio"

@@ -4,6 +4,7 @@ A @shared_task in a module the worker never imports is "unregistered": the
 producer (e.g. app/api/admin.py -> tasks.web_ingest_tasks.ingest_url_task)
 enqueues it and the worker rejects it. Found by the 2026-11-20 wiring audit.
 """
+
 from pathlib import Path
 
 import celery_config

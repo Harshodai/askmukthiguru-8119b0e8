@@ -1,4 +1,5 @@
 """The launch-subscriber purge RPC is service_role-only, so it must use the service key."""
+
 from unittest.mock import MagicMock, patch
 
 from tasks import retention_tasks

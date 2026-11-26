@@ -74,7 +74,9 @@ class RerankerService:
                 return
 
             if getattr(settings, "reranker_backend", "") == "onnx_int8":
-                logger.info("Reranker backend is onnx_int8; loading ONNX INT8 CrossEncoder directly.")
+                logger.info(
+                    "Reranker backend is onnx_int8; loading ONNX INT8 CrossEncoder directly."
+                )
                 self._load_fallback()
                 return
 

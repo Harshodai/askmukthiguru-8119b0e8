@@ -530,7 +530,6 @@ def test_recommend_next_teachings() -> None:
     assert recs[0]["title"] == "Serene Mind Practice"
 
 
-
 @pytest.mark.parametrize(
     ("field", "value"),
     [

@@ -142,16 +142,39 @@ def classify_ytdlp_error(stderr: str, returncode: int = 1) -> Exception:
     """Classify yt-dlp error output into typed domain exceptions."""
     err_lower = stderr.lower()
     if "private video" in err_lower or "this video is private" in err_lower:
-        return PrivateVideoError("This YouTube video is private and cannot be accessed.", details={"stderr": stderr})
+        return PrivateVideoError(
+            "This YouTube video is private and cannot be accessed.", details={"stderr": stderr}
+        )
     if "age-restricted" in err_lower or "sign in to confirm your age" in err_lower:
-        return AgeRestrictedError("This YouTube video is age-restricted and requires authentication.", details={"stderr": stderr})
-    if "not available in your country" in err_lower or "available in your country" in err_lower or "geo-restricted" in err_lower or "blocked in your country" in err_lower:
-        return GeoBlockedError("This YouTube video is geo-restricted and not available in this region.", details={"stderr": stderr})
+        return AgeRestrictedError(
+            "This YouTube video is age-restricted and requires authentication.",
+            details={"stderr": stderr},
+        )
+    if (
+        "not available in your country" in err_lower
+        or "available in your country" in err_lower
+        or "geo-restricted" in err_lower
+        or "blocked in your country" in err_lower
+    ):
+        return GeoBlockedError(
+            "This YouTube video is geo-restricted and not available in this region.",
+            details={"stderr": stderr},
+        )
     if "no subtitles" in err_lower or "there are no subtitles" in err_lower:
-        return MissingCaptionsError("No subtitles or captions are available for this video.", details={"stderr": stderr})
-    if "urlopen error" in err_lower or "connection refused" in err_lower or "timed out" in err_lower:
-        return TranscriptError(f"Network error communicating with YouTube: {stderr[:200]}", details={"stderr": stderr})
-    return TranscriptError(f"yt-dlp command failed with code {returncode}: {stderr[:300]}", details={"stderr": stderr})
+        return MissingCaptionsError(
+            "No subtitles or captions are available for this video.", details={"stderr": stderr}
+        )
+    if (
+        "urlopen error" in err_lower
+        or "connection refused" in err_lower
+        or "timed out" in err_lower
+    ):
+        return TranscriptError(
+            f"Network error communicating with YouTube: {stderr[:200]}", details={"stderr": stderr}
+        )
+    return TranscriptError(
+        f"yt-dlp command failed with code {returncode}: {stderr[:300]}", details={"stderr": stderr}
+    )
 
 
 def list_subtitles(url: str, custom_runner: Optional[Callable] = None) -> SubtitleListResult:
@@ -164,7 +187,11 @@ def list_subtitles(url: str, custom_runner: Optional[Callable] = None) -> Subtit
 
     if custom_runner:
         res = custom_runner(cmd)
-        stdout, stderr, code = res.get("stdout", ""), res.get("stderr", ""), res.get("returncode", 0)
+        stdout, stderr, code = (
+            res.get("stdout", ""),
+            res.get("stderr", ""),
+            res.get("returncode", 0),
+        )
     else:
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
@@ -190,7 +217,9 @@ def clean_vtt_to_text(vtt_content: str) -> str:
     text_lines: list[str] = []
 
     # Regexes for cleaning
-    timestamp_re = re.compile(r"^\d{2}:\d{2}(?::\d{2})?\.\d{3}\s*-->\s*\d{2}:\d{2}(?::\d{2})?\.\d{3}")
+    timestamp_re = re.compile(
+        r"^\d{2}:\d{2}(?::\d{2})?\.\d{3}\s*-->\s*\d{2}:\d{2}(?::\d{2})?\.\d{3}"
+    )
     tag_re = re.compile(r"<[^>]+>")
 
     for raw_line in lines:
@@ -198,7 +227,12 @@ def clean_vtt_to_text(vtt_content: str) -> str:
         if not line:
             continue
         # Skip WebVTT header lines
-        if line.startswith("WEBVTT") or line.startswith("Kind:") or line.startswith("Language:") or line.startswith("NOTE"):
+        if (
+            line.startswith("WEBVTT")
+            or line.startswith("Kind:")
+            or line.startswith("Language:")
+            or line.startswith("NOTE")
+        ):
             continue
         # Skip cue numbers or timestamps
         if line.isdigit() or timestamp_re.search(line):
@@ -215,7 +249,9 @@ def clean_vtt_to_text(vtt_content: str) -> str:
             continue
 
         # Suppress prefix duplication common in YouTube auto captions
-        if recent_window and (clean.startswith(recent_window[-1]) or recent_window[-1].startswith(clean)):
+        if recent_window and (
+            clean.startswith(recent_window[-1]) or recent_window[-1].startswith(clean)
+        ):
             if len(clean) > len(recent_window[-1]):
                 text_lines[-1] = clean
             continue
@@ -388,7 +424,9 @@ def download_transcript(
             if expected_files:
                 vtt_content = expected_files[0].read_text(encoding="utf-8")
             else:
-                raise MissingCaptionsError("yt-dlp completed successfully but no VTT file was produced.")
+                raise MissingCaptionsError(
+                    "yt-dlp completed successfully but no VTT file was produced."
+                )
     else:
         # Whisper path: use the canonical local implementation instead of creating
         # a placeholder transcript. Consent has already been checked above.
@@ -450,10 +488,14 @@ def download_transcript(
             created_artifacts.append(final_txt_path)
 
         file_hash = hashlib.sha256(vtt_content.encode("utf-8")).hexdigest()
-        txt_hash = hashlib.sha256(cleaned_text.encode("utf-8")).hexdigest() if final_txt_path else None
+        txt_hash = (
+            hashlib.sha256(cleaned_text.encode("utf-8")).hexdigest() if final_txt_path else None
+        )
 
         # Determine certification
-        is_production_certified = bool(custom_runner is None and whisper_transcriber is None and len(cleaned_text) > 0)
+        is_production_certified = bool(
+            custom_runner is None and whisper_transcriber is None and len(cleaned_text) > 0
+        )
 
         # Write deterministic manifest
         manifest_name = f"{clean_title} [{video_id}].manifest.json"
@@ -464,7 +506,11 @@ def download_transcript(
             "source_url": request.url,
             "source_type": source_type.value,
             "language": actual_lang,
-            "created_at": subprocess.run(["date", "-u", "+%Y-%m-%dT%H:%M:%SZ"], capture_output=True, text=True).stdout.strip() if shutil.which("date") else "2026-11-23T00:00:00Z",
+            "created_at": subprocess.run(
+                ["date", "-u", "+%Y-%m-%dT%H:%M:%SZ"], capture_output=True, text=True
+            ).stdout.strip()
+            if shutil.which("date")
+            else "2026-11-23T00:00:00Z",
             "artifacts": {
                 "vtt": {
                     "file": final_vtt_path.name,
@@ -475,13 +521,17 @@ def download_transcript(
                     "file": final_txt_path.name if final_txt_path else None,
                     "sha256": txt_hash,
                     "size_bytes": final_txt_path.stat().st_size if final_txt_path else 0,
-                } if final_txt_path else None,
+                }
+                if final_txt_path
+                else None,
             },
             "character_count": len(cleaned_text),
             "line_count": len(cleaned_text.splitlines()),
             "whisper_backend": "mlx_whisper" if check_whisper_installed() else "none",
             "production_certified": is_production_certified,
-            "certification_status": "CERTIFIED" if is_production_certified else "UNCERTIFIED_OR_TEST",
+            "certification_status": "CERTIFIED"
+            if is_production_certified
+            else "UNCERTIFIED_OR_TEST",
         }
         manifest_path.write_text(json.dumps(manifest_data, indent=2), encoding="utf-8")
         created_artifacts.append(manifest_path)

@@ -218,8 +218,13 @@ def test_run_verification_leak_detection_mocked() -> None:
     assert mock_del_rows.call_count >= 1
 
 
-
-def _dpdp_clients(*, wrong_token_erases=False, email_erase_works=True, anon_purge_allowed=False, throttle_leaks=False):
+def _dpdp_clients(
+    *,
+    wrong_token_erases=False,
+    email_erase_works=True,
+    anon_purge_allowed=False,
+    throttle_leaks=False,
+):
     """Row-aware mocks for _probe_launch_dpdp: the service client sees which rows still exist."""
     from unittest.mock import MagicMock
 
@@ -265,13 +270,17 @@ def _dpdp_clients(*, wrong_token_erases=False, email_erase_works=True, anon_purg
                 if em == params["p_email"]:
                     del rows[rid]
         if name == "purge_expired_launch_subscribers" and not anon_purge_allowed:
-            call.execute.side_effect = Exception("permission denied for function purge_expired_launch_subscribers")
+            call.execute.side_effect = Exception(
+                "permission denied for function purge_expired_launch_subscribers"
+            )
         return call
 
     def reader(leak):
         c = MagicMock()
         tq = MagicMock()
-        tq.select.return_value.limit.return_value.execute.return_value = MagicMock(data=[{"id": 1}] if leak else [])
+        tq.select.return_value.limit.return_value.execute.return_value = MagicMock(
+            data=[{"id": 1}] if leak else []
+        )
         c.table.return_value = tq
         return c
 
@@ -300,4 +309,6 @@ def test_launch_dpdp_probe_catches_each_policy_defect() -> None:
     assert any(f.get("op") == "erase_wrong_token" for f in _run_probe(wrong_token_erases=True)[0])
     assert any(f.get("op") == "erase_by_email" for f in _run_probe(email_erase_works=False)[0])
     assert any(f.get("op") == "purge" for f in _run_probe(anon_purge_allowed=True)[0])
-    assert any(f.get("table") == "launch_signup_throttle" for f in _run_probe(throttle_leaks=True)[0])
+    assert any(
+        f.get("table") == "launch_signup_throttle" for f in _run_probe(throttle_leaks=True)[0]
+    )

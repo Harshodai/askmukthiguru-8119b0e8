@@ -55,6 +55,7 @@ _GATEABLE_GURUS = frozenset({"preethaji", "krishnaji"})
 # Configuration (read through getattr so this module imports on a fresh checkout)
 # ---------------------------------------------------------------------------
 
+
 def _settings():
     from app.config import settings
 
@@ -119,6 +120,7 @@ def max_spans_per_source() -> int:
 # ---------------------------------------------------------------------------
 # Verifier lifecycle
 # ---------------------------------------------------------------------------
+
 
 def guru_for_speaker(*names: Any) -> Optional[str]:
     """Registry teacher id for a speaker label, or None when it is not gateable.
@@ -204,6 +206,7 @@ def set_verifier_for_tests(verifier: Any) -> None:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def status() -> dict[str, Any]:
     """Machine-readable gate state, in the gate's own units.
@@ -317,7 +320,10 @@ def verify(
     except Exception as exc:  # verify_audio_file already swallows; belt and braces
         logger.warning(
             "speaker gate: verification raised for %s [%s-%s] (%s); stamping pending",
-            video_id or Path(str(audio_path)).name, start_ms, end_ms, exc,
+            video_id or Path(str(audio_path)).name,
+            start_ms,
+            end_ms,
+            exc,
         )
         return pending_fields()
 
@@ -329,7 +335,9 @@ def verify(
         logger.error(
             "speaker gate: verifier returned an invalid verified record for %s [%s-%s]; "
             "demoting to pending",
-            video_id or Path(str(audio_path)).name, start_ms, end_ms,
+            video_id or Path(str(audio_path)).name,
+            start_ms,
+            end_ms,
         )
         return pending_fields()
     return fields

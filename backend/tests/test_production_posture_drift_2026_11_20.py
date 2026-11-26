@@ -5,6 +5,7 @@ against `.railway/railway.ts` and `backend/.env.example`. The code defaults in
 `app/config.py` are deliberately NOT compared (min score default stays 3, pinned by
 test_first_person_relevance_calibration); the frozen graded compose is also excluded.
 """
+
 import re
 from pathlib import Path
 
@@ -20,7 +21,9 @@ def _railway_effective() -> dict[str, str]:
     posture = re.search(r'const SERVING_POSTURE: ServingPosture = "(\w+)";', IAC).group(1)
     posture_block = IAC.split(f'SERVING_POSTURE === "{posture}"')[1].split(": SERVING_POSTURE")[0]
     live = IAC.split("const livePosture = {")[1].split("};")[0]
-    backend_env = IAC.split('service("askmukthiguru-8119b0e8"')[1].split("env: {")[1].split("\n    },")[0]
+    backend_env = (
+        IAC.split('service("askmukthiguru-8119b0e8"')[1].split("env: {")[1].split("\n    },")[0]
+    )
     found = {"FIRST_PERSON_SERVING_POSTURE": posture}
     for blob in (posture_block, live, backend_env):
         found.update(re.findall(r'\b([A-Z][A-Z0-9_]+): "([^"]*)"', blob))
@@ -54,9 +57,12 @@ QUALITY_FLAGS_OFF = (
     "first_person_multipart_enabled",
     "first_person_joint_sufficiency_enabled",
 )
-_DEPLOY_SOURCES = [ROOT / ".railway" / "railway.ts", ROOT / "backend" / ".env.example",
-                   *sorted((ROOT / "backend").glob("docker-compose*.yml")),
-                   *sorted(ROOT.glob("docker-compose*.yml"))]
+_DEPLOY_SOURCES = [
+    ROOT / ".railway" / "railway.ts",
+    ROOT / "backend" / ".env.example",
+    *sorted((ROOT / "backend").glob("docker-compose*.yml")),
+    *sorted(ROOT.glob("docker-compose*.yml")),
+]
 
 
 def test_quality_flags_default_off_in_code():

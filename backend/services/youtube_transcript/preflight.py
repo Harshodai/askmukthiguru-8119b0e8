@@ -60,11 +60,13 @@ def check_whisper_installed() -> bool:
         return True
     try:
         import whisper  # noqa: F401
+
         return True
     except ImportError:
         pass
     try:
         import mlx_whisper  # noqa: F401
+
         return True
     except ImportError:
         pass

@@ -503,7 +503,9 @@ def init_observability(app: FastAPI) -> bool:
                 active_proc = getattr(current_provider, "_active_span_processor", None)
                 if active_proc is not None and isinstance(existing_processors, tuple):
                     # Prepend so PrivacyRedactionSpanProcessor.on_end() scrubs BEFORE exporters run
-                    active_proc._span_processors = (PrivacyRedactionSpanProcessor(),) + existing_processors
+                    active_proc._span_processors = (
+                        PrivacyRedactionSpanProcessor(),
+                    ) + existing_processors
                 else:
                     current_provider.add_span_processor(PrivacyRedactionSpanProcessor())
             logger.info(

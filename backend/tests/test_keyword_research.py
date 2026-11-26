@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import pytest
 
 from services.keyword_research.engine import generate_keyword_research
@@ -246,4 +247,3 @@ def test_require_external_provenance_raises_when_unconfigured():
             require_external_provenance=True,
         )
     assert "External keyword research provider is not configured" in str(exc.value)
-

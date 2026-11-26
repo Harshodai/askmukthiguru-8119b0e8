@@ -1,4 +1,5 @@
 """Ingest speaker labels come from the guru registry (T8-02), byte-identical to the old literal map."""
+
 import pytest
 
 from services.first_person_ingest_service import _speaker_label_for

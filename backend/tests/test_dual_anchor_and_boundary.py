@@ -1,6 +1,7 @@
 """Unit tests for dual-anchor concept alignment and relationship safety boundary de-escalation."""
 
 import pytest
+
 from app.config import settings
 from app.pipeline.stages.context import PipelineContext
 from app.pipeline.stages.guardrail_stage import OutputGuardrailStage
@@ -36,6 +37,7 @@ def test_relationship_repair_queries_detected_for_intent(query):
 
 from unittest.mock import AsyncMock, MagicMock
 
+
 def _make_ctx(question: str, answer: str) -> PipelineContext:
     container = MagicMock()
     container.guardrails.check_output = AsyncMock(
@@ -60,7 +62,10 @@ async def test_guardrail_stage_omits_boundary_when_disabled():
         "Forgiving someone and letting go of your hurt is necessary for mental peace.",
     )
     await OutputGuardrailStage().run(ctx)
-    assert ctx.final_answer == "Forgiving someone and letting go of your hurt is necessary for mental peace."
+    assert (
+        ctx.final_answer
+        == "Forgiving someone and letting go of your hurt is necessary for mental peace."
+    )
     assert RELATIONSHIP_SAFETY_BOUNDARY not in ctx.final_answer
 
 
@@ -72,7 +77,9 @@ async def test_guardrail_stage_appends_boundary_when_explicitly_enabled(monkeypa
         "Forgiving someone and letting go of your hurt is necessary for mental peace.",
     )
     await OutputGuardrailStage().run(ctx)
-    assert ctx.final_answer.startswith("Forgiving someone and letting go of your hurt is necessary for mental peace.")
+    assert ctx.final_answer.startswith(
+        "Forgiving someone and letting go of your hurt is necessary for mental peace."
+    )
     assert ctx.final_answer.rstrip().endswith(RELATIONSHIP_SAFETY_BOUNDARY)
 
 
@@ -92,6 +99,7 @@ def test_clean_concept_ids_expands_case_and_tokens():
 
 def test_expand_query_concepts_includes_relational_seeds(monkeypatch):
     from types import SimpleNamespace
+
     from rag.kg_expansion import resolve_concepts_in_query
 
     query = "How do I heal hurt in my relationships?"
@@ -100,7 +108,9 @@ def test_expand_query_concepts_includes_relational_seeds(monkeypatch):
     assert any("hurt" in c.lower() for c in seeds)
 
     # With graph driver present, expand_query_concepts forwards normalized neighbors fail-open.
-    monkeypatch.setattr("app.dependencies.get_container", lambda: SimpleNamespace(neo4j_driver=object()))
+    monkeypatch.setattr(
+        "app.dependencies.get_container", lambda: SimpleNamespace(neo4j_driver=object())
+    )
 
     async def _mock_expand(q, driver, **kwargs):
         return [*resolve_concepts_in_query(q), "Relationship Healing"]

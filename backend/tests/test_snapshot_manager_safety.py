@@ -1,4 +1,5 @@
 """Backup/restore safety tests for Qdrant authentication and Memgraph restore."""
+
 from __future__ import annotations
 
 import hashlib
@@ -8,8 +9,6 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
-
-import pytest
 
 os.environ.setdefault("NEO4J_PASSWORD", "test-only-not-a-real-secret")
 os.environ.setdefault("QDRANT_COLLECTION", "spiritual_wisdom_contextual")
@@ -37,9 +36,7 @@ def _write_graph_backup(path: Path, nodes: int, relationships: int) -> str:
     )
     path.write_text(content, encoding="utf-8")
     checksum = hashlib.sha256(content.encode("utf-8")).hexdigest()
-    path.with_name(path.name + ".sha256").write_text(
-        f"{checksum}  {path.name}\n", encoding="utf-8"
-    )
+    path.with_name(path.name + ".sha256").write_text(f"{checksum}  {path.name}\n", encoding="utf-8")
     return content
 
 
@@ -117,7 +114,6 @@ def test_legacy_graph_manifest_without_relationship_count_remains_readable():
     assert SNAPSHOT._recorded_graph_counts(text) == (17, None)
 
 
-
 def test_backup_graph_writes_count_manifest_and_checksum(tmp_path, monkeypatch):
     path = tmp_path / "backup.cypher"
     monkeypatch.setattr(SNAPSHOT, "NEO4J_BACKUP_PATH", str(path))
@@ -137,9 +133,10 @@ def test_backup_graph_writes_count_manifest_and_checksum(tmp_path, monkeypatch):
     assert SNAPSHOT._recorded_graph_counts(content) == (17, 29)
     checksum_file = Path(f"{path}.sha256")
     assert checksum_file.is_file()
-    assert checksum_file.read_text(encoding="utf-8").split()[0] == hashlib.sha256(
-        content.encode("utf-8")
-    ).hexdigest()
+    assert (
+        checksum_file.read_text(encoding="utf-8").split()[0]
+        == hashlib.sha256(content.encode("utf-8")).hexdigest()
+    )
 
 
 def test_restore_refuses_nonempty_target_instead_of_returning_success(tmp_path, monkeypatch):

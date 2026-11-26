@@ -30,45 +30,90 @@ def _get_clusters_for_seed(seed: str) -> list[tuple[str, str, list[str]]]:
             "Meditation & Mindful Awareness",
             "Mindfulness",
             [
-                "guided meditation", "mindful breathing", "serene mind practice", "vipassana meditation",
-                "morning mindfulness", "meditation for beginners", "body scan technique", "walking meditation",
-                "breath awareness", "calm mind exercise", "daily meditation routine", "deep relaxation technique"
+                "guided meditation",
+                "mindful breathing",
+                "serene mind practice",
+                "vipassana meditation",
+                "morning mindfulness",
+                "meditation for beginners",
+                "body scan technique",
+                "walking meditation",
+                "breath awareness",
+                "calm mind exercise",
+                "daily meditation routine",
+                "deep relaxation technique",
             ],
         ),
         (
             "Inner Peace & Stress Relief",
             "Emotional Balance",
             [
-                "dissolving anxiety", "overcoming stress naturally", "inner stillness practice", "letting go of worry",
-                "stress relief meditation", "healing emotional pain", "peace of mind habits", "managing overwhelm",
-                "release physical tension", "calming racing thoughts", "restoring inner harmony", "workplace burnout relief"
+                "dissolving anxiety",
+                "overcoming stress naturally",
+                "inner stillness practice",
+                "letting go of worry",
+                "stress relief meditation",
+                "healing emotional pain",
+                "peace of mind habits",
+                "managing overwhelm",
+                "release physical tension",
+                "calming racing thoughts",
+                "restoring inner harmony",
+                "workplace burnout relief",
             ],
         ),
         (
             "Awakening & Spiritual Growth",
             "Spiritual Wisdom",
             [
-                "spiritual awakening signs", "higher consciousness shift", "witness consciousness", "dissolving the ego",
-                "living in freedom", "enlightenment journey", "transcending suffering", "spiritual teacher discourse",
-                "sacred wisdom teachings", "oneness realization", "expanding consciousness", "path to liberation"
+                "spiritual awakening signs",
+                "higher consciousness shift",
+                "witness consciousness",
+                "dissolving the ego",
+                "living in freedom",
+                "enlightenment journey",
+                "transcending suffering",
+                "spiritual teacher discourse",
+                "sacred wisdom teachings",
+                "oneness realization",
+                "expanding consciousness",
+                "path to liberation",
             ],
         ),
         (
             "Relationships & Compassionate Living",
             "Conscious Connection",
             [
-                "conscious relationship habits", "healing family hurt", "listening with compassion", "letting go of resentment",
-                "building heart connection", "unconditional love practice", "resolving conflict with peace", "forgiveness meditation",
-                "empathy in relationships", "mindful communication", "deepening intimacy", "spiritual parenting"
+                "conscious relationship habits",
+                "healing family hurt",
+                "listening with compassion",
+                "letting go of resentment",
+                "building heart connection",
+                "unconditional love practice",
+                "resolving conflict with peace",
+                "forgiveness meditation",
+                "empathy in relationships",
+                "mindful communication",
+                "deepening intimacy",
+                "spiritual parenting",
             ],
         ),
         (
             "Life Purpose & Dharma",
             "Purposeful Living",
             [
-                "discovering your dharma", "meaningful life direction", "aligning with soul purpose", "authentic living",
-                "fearless career transition", "fulfilling life choices", "inner purpose vs outer goals", "spiritual clarity",
-                "living without regret", "manifesting through stillness", "overcoming self doubt", "walking your path"
+                "discovering your dharma",
+                "meaningful life direction",
+                "aligning with soul purpose",
+                "authentic living",
+                "fearless career transition",
+                "fulfilling life choices",
+                "inner purpose vs outer goals",
+                "spiritual clarity",
+                "living without regret",
+                "manifesting through stillness",
+                "overcoming self doubt",
+                "walking your path",
             ],
         ),
     ]
@@ -100,9 +145,20 @@ def generate_keyword_research(
     clusters = _get_clusters_for_seed(seed_keyword)
     keywords: list[KeywordItem] = []
 
-    intents = [SearchIntent.INFORMATIONAL, SearchIntent.COMMERCIAL, SearchIntent.TRANSACTIONAL, SearchIntent.NAVIGATIONAL]
+    intents = [
+        SearchIntent.INFORMATIONAL,
+        SearchIntent.COMMERCIAL,
+        SearchIntent.TRANSACTIONAL,
+        SearchIntent.NAVIGATIONAL,
+    ]
     intent_weights = [0.60, 0.20, 0.10, 0.10]
-    content_types = ["Blog Post", "Video Guide", "Pillar Guide", "Practice Exercise", "Comparison Article"]
+    content_types = [
+        "Blog Post",
+        "Video Guide",
+        "Pillar Guide",
+        "Practice Exercise",
+        "Comparison Article",
+    ]
 
     # Generate exactly 60 keywords per cluster (5 clusters * 60 = exactly 300 keywords)
     for cluster_name, parent_topic, stems in clusters:
@@ -151,26 +207,146 @@ def generate_keyword_research(
 
     # Competitor landscape: Top 20 organic competitors
     competitor_domains = [
-        ("headspace.com", 18.5, 450000.0, 88, "Dominates guided meditation apps and introductory mindfulness articles."),
-        ("calm.com", 16.2, 380000.0, 89, "Strong in sleep stories, relaxing music, and anxiety reduction programs."),
-        ("insighttimer.com", 11.0, 195000.0, 84, "Large community meditation library with extensive teacher offerings."),
-        ("mindful.org", 8.5, 120000.0, 81, "Authoritative editorial content on mindfulness research and practices."),
-        ("chopra.com", 7.2, 110000.0, 80, "Pioneering holistic wellness, meditation retreats, and ayurvedic wisdom."),
-        ("tarabrach.com", 5.8, 85000.0, 75, "High authority in radical acceptance, RAIN practice, and compassionate presence."),
-        ("jackkornfield.com", 4.9, 72000.0, 74, "Classic Buddhist mindfulness teachings and heart-centered meditation."),
-        ("soundstrue.com", 4.2, 68000.0, 77, "Extensive spiritual audio programs, online courses, and book publishing."),
-        ("dailyom.com", 3.8, 59000.0, 73, "Courses on emotional healing, astrology, and spiritual rituals."),
-        ("eckharttolle.com", 3.5, 54000.0, 76, "Power of now, presence in everyday life, and consciousness awakening."),
-        ("lionsroar.com", 2.9, 44000.0, 72, "Deep Buddhist philosophical essays and meditative practices."),
-        ("spiritualityhealth.com", 2.4, 38000.0, 70, "Integrative health, spiritual practices, and conscious lifestyle tips."),
-        ("yogajournal.com", 2.1, 35000.0, 83, "Yoga poses, pranayama breathing, and yogic philosophy."),
-        ("tenpercent.com", 1.9, 31000.0, 75, "Skeptical/science-based approach to meditation and stress relief."),
-        ("gaiam.com", 1.7, 28000.0, 78, "Yoga accessories with supporting guides on meditation and mindful living."),
-        ("onbeing.org", 1.5, 25000.0, 76, "Thoughtful podcasts on moral wisdom, poetry, and spiritual questions."),
-        ("hayhouse.com", 1.4, 23000.0, 79, "Mind-body-spirit book publications and affirmative spiritual guidance."),
-        ("wakingup.com", 1.3, 22000.0, 74, "Theory and practice of meditation with secular mindfulness teachers."),
-        ("buddhistdoor.net", 1.1, 18000.0, 68, "Global Buddhist news, philosophy, and mindful culture coverage."),
-        ("elephantjournal.com", 1.0, 16000.0, 77, "User-submitted personal essays on yoga, relationships, and mindful living."),
+        (
+            "headspace.com",
+            18.5,
+            450000.0,
+            88,
+            "Dominates guided meditation apps and introductory mindfulness articles.",
+        ),
+        (
+            "calm.com",
+            16.2,
+            380000.0,
+            89,
+            "Strong in sleep stories, relaxing music, and anxiety reduction programs.",
+        ),
+        (
+            "insighttimer.com",
+            11.0,
+            195000.0,
+            84,
+            "Large community meditation library with extensive teacher offerings.",
+        ),
+        (
+            "mindful.org",
+            8.5,
+            120000.0,
+            81,
+            "Authoritative editorial content on mindfulness research and practices.",
+        ),
+        (
+            "chopra.com",
+            7.2,
+            110000.0,
+            80,
+            "Pioneering holistic wellness, meditation retreats, and ayurvedic wisdom.",
+        ),
+        (
+            "tarabrach.com",
+            5.8,
+            85000.0,
+            75,
+            "High authority in radical acceptance, RAIN practice, and compassionate presence.",
+        ),
+        (
+            "jackkornfield.com",
+            4.9,
+            72000.0,
+            74,
+            "Classic Buddhist mindfulness teachings and heart-centered meditation.",
+        ),
+        (
+            "soundstrue.com",
+            4.2,
+            68000.0,
+            77,
+            "Extensive spiritual audio programs, online courses, and book publishing.",
+        ),
+        (
+            "dailyom.com",
+            3.8,
+            59000.0,
+            73,
+            "Courses on emotional healing, astrology, and spiritual rituals.",
+        ),
+        (
+            "eckharttolle.com",
+            3.5,
+            54000.0,
+            76,
+            "Power of now, presence in everyday life, and consciousness awakening.",
+        ),
+        (
+            "lionsroar.com",
+            2.9,
+            44000.0,
+            72,
+            "Deep Buddhist philosophical essays and meditative practices.",
+        ),
+        (
+            "spiritualityhealth.com",
+            2.4,
+            38000.0,
+            70,
+            "Integrative health, spiritual practices, and conscious lifestyle tips.",
+        ),
+        (
+            "yogajournal.com",
+            2.1,
+            35000.0,
+            83,
+            "Yoga poses, pranayama breathing, and yogic philosophy.",
+        ),
+        (
+            "tenpercent.com",
+            1.9,
+            31000.0,
+            75,
+            "Skeptical/science-based approach to meditation and stress relief.",
+        ),
+        (
+            "gaiam.com",
+            1.7,
+            28000.0,
+            78,
+            "Yoga accessories with supporting guides on meditation and mindful living.",
+        ),
+        (
+            "onbeing.org",
+            1.5,
+            25000.0,
+            76,
+            "Thoughtful podcasts on moral wisdom, poetry, and spiritual questions.",
+        ),
+        (
+            "hayhouse.com",
+            1.4,
+            23000.0,
+            79,
+            "Mind-body-spirit book publications and affirmative spiritual guidance.",
+        ),
+        (
+            "wakingup.com",
+            1.3,
+            22000.0,
+            74,
+            "Theory and practice of meditation with secular mindfulness teachers.",
+        ),
+        (
+            "buddhistdoor.net",
+            1.1,
+            18000.0,
+            68,
+            "Global Buddhist news, philosophy, and mindful culture coverage.",
+        ),
+        (
+            "elephantjournal.com",
+            1.0,
+            16000.0,
+            77,
+            "User-submitted personal essays on yoga, relationships, and mindful living.",
+        ),
     ]
     competitors = [
         CompetitorItem(
@@ -188,26 +364,146 @@ def generate_keyword_research(
     _founders = default_founders_label()
     # Exactly 20 high-value keyword gaps
     gap_data = [
-        ("dissolving anxiety in 3 minutes", "headspace.com", 8100, 24, "Publish dedicated interactive practice guide with embedded audio timer."),
-        ("witness consciousness vs thinking", "eckharttolle.com", 4400, 31, "Create authoritative philosophical video discourse and article."),
-        ("how to stop emotional reactivity", "tarabrach.com", 6600, 28, "Develop step-by-step 4-stage inner reflection framework."),
-        ("serene mind breathing steps", "calm.com", 5200, 22, "Build dedicated interactive practice page with visual breathing guide."),
-        ("spiritual awakening symptoms and fatigue", "dailyom.com", 9400, 33, "Write comprehensive FAQ addressing psychological and physical fatigue."),
-        ("letting go of family resentment", "tarabrach.com", 3800, 29, "Author compassionate guidance addressing long-standing familial hurt."),
-        ("dharma vs career ambition", "chopra.com", 4900, 26, "Create video discussion on aligning modern career with inner calling."),
-        ("meditation for overthinking at night", "calm.com", 12000, 34, "Produce evening wind-down reflective audio practice."),
-        ("how to be present in difficult conversations", "mindful.org", 3100, 25, "Draft practical communication checklist for seekers."),
-        ("transcending suffering ancient teachings", "lionsroar.com", 2900, 27, f"Synthesize core {_founders} discourses into a pillar guide."),
-        ("signs of conscious relationship", "mindful.org", 7200, 32, "Publish 7-pillar conscious partnership assessment and article."),
-        ("morning mindfulness without meditation", "tenpercent.com", 4100, 23, "Provide micro-practice guide for busy professionals."),
-        ("what is inner stillness", "soundstrue.com", 3600, 21, "Create beginner-friendly conceptual glossary entry and discourse."),
-        ("forgiveness practice for deep betrayal", "tarabrach.com", 5800, 30, "Record guided reflective contemplation on release and boundaries."),
-        ("overcoming spiritual loneliness", "onbeing.org", 2400, 20, "Publish supportive community essay and shared reflection prompt."),
-        ("how to observe thoughts without judging", "wakingup.com", 6300, 26, "Build interactive mindfulness exercise demonstrating the neutral observer."),
-        ("finding meaning during life crisis", "spiritualityhealth.com", 4700, 28, "Offer grounded spiritual perspective on navigating major life disruption."),
-        ("healing the hurried mind", "headspace.com", 3900, 25, "Write actionable essay on modern temporal anxiety and presence."),
-        ("sacred connection in daily life", "dailyom.com", 2800, 22, "Draft 3-minute morning ritual for spiritual seekers."),
-        ("living without fear of the future", "chopra.com", 5100, 27, "Deliver discourse on cultivating deep trust in consciousness."),
+        (
+            "dissolving anxiety in 3 minutes",
+            "headspace.com",
+            8100,
+            24,
+            "Publish dedicated interactive practice guide with embedded audio timer.",
+        ),
+        (
+            "witness consciousness vs thinking",
+            "eckharttolle.com",
+            4400,
+            31,
+            "Create authoritative philosophical video discourse and article.",
+        ),
+        (
+            "how to stop emotional reactivity",
+            "tarabrach.com",
+            6600,
+            28,
+            "Develop step-by-step 4-stage inner reflection framework.",
+        ),
+        (
+            "serene mind breathing steps",
+            "calm.com",
+            5200,
+            22,
+            "Build dedicated interactive practice page with visual breathing guide.",
+        ),
+        (
+            "spiritual awakening symptoms and fatigue",
+            "dailyom.com",
+            9400,
+            33,
+            "Write comprehensive FAQ addressing psychological and physical fatigue.",
+        ),
+        (
+            "letting go of family resentment",
+            "tarabrach.com",
+            3800,
+            29,
+            "Author compassionate guidance addressing long-standing familial hurt.",
+        ),
+        (
+            "dharma vs career ambition",
+            "chopra.com",
+            4900,
+            26,
+            "Create video discussion on aligning modern career with inner calling.",
+        ),
+        (
+            "meditation for overthinking at night",
+            "calm.com",
+            12000,
+            34,
+            "Produce evening wind-down reflective audio practice.",
+        ),
+        (
+            "how to be present in difficult conversations",
+            "mindful.org",
+            3100,
+            25,
+            "Draft practical communication checklist for seekers.",
+        ),
+        (
+            "transcending suffering ancient teachings",
+            "lionsroar.com",
+            2900,
+            27,
+            f"Synthesize core {_founders} discourses into a pillar guide.",
+        ),
+        (
+            "signs of conscious relationship",
+            "mindful.org",
+            7200,
+            32,
+            "Publish 7-pillar conscious partnership assessment and article.",
+        ),
+        (
+            "morning mindfulness without meditation",
+            "tenpercent.com",
+            4100,
+            23,
+            "Provide micro-practice guide for busy professionals.",
+        ),
+        (
+            "what is inner stillness",
+            "soundstrue.com",
+            3600,
+            21,
+            "Create beginner-friendly conceptual glossary entry and discourse.",
+        ),
+        (
+            "forgiveness practice for deep betrayal",
+            "tarabrach.com",
+            5800,
+            30,
+            "Record guided reflective contemplation on release and boundaries.",
+        ),
+        (
+            "overcoming spiritual loneliness",
+            "onbeing.org",
+            2400,
+            20,
+            "Publish supportive community essay and shared reflection prompt.",
+        ),
+        (
+            "how to observe thoughts without judging",
+            "wakingup.com",
+            6300,
+            26,
+            "Build interactive mindfulness exercise demonstrating the neutral observer.",
+        ),
+        (
+            "finding meaning during life crisis",
+            "spiritualityhealth.com",
+            4700,
+            28,
+            "Offer grounded spiritual perspective on navigating major life disruption.",
+        ),
+        (
+            "healing the hurried mind",
+            "headspace.com",
+            3900,
+            25,
+            "Write actionable essay on modern temporal anxiety and presence.",
+        ),
+        (
+            "sacred connection in daily life",
+            "dailyom.com",
+            2800,
+            22,
+            "Draft 3-minute morning ritual for spiritual seekers.",
+        ),
+        (
+            "living without fear of the future",
+            "chopra.com",
+            5100,
+            27,
+            "Deliver discourse on cultivating deep trust in consciousness.",
+        ),
     ]
     gaps = [
         KeywordGapItem(
@@ -238,7 +534,11 @@ def generate_keyword_research(
         "5. Monitor International Search Volume: Expand beyond the US to UK, Canada, and India where interest in authentic Eastern spiritual philosophy is expanding rapidly.",
     ]
 
-    scope_label = f"Monthly Volume ({target_country})" if target_country.lower() != "worldwide" else "Global Volume"
+    scope_label = (
+        f"Monthly Volume ({target_country})"
+        if target_country.lower() != "worldwide"
+        else "Global Volume"
+    )
 
     provenance: Mapping[str, Any]
     provider_data: Mapping[str, Any] | None = None
@@ -318,8 +618,14 @@ def generate_keyword_research(
         }
 
     is_external = provider_data is not None
-    is_simulated = bool(provenance.get("is_simulated", not is_external)) if provenance else not is_external
-    production_certified = bool(provenance.get("production_certified", False)) and not is_simulated if provenance else False
+    is_simulated = (
+        bool(provenance.get("is_simulated", not is_external)) if provenance else not is_external
+    )
+    production_certified = (
+        bool(provenance.get("production_certified", False)) and not is_simulated
+        if provenance
+        else False
+    )
 
     return KeywordResearchPayload(
         seed_keyword=seed_keyword,

@@ -299,7 +299,9 @@ class Settings(BaseSettings):
     # both slots on first_person_v10; "v8_bridge" requires both flags off. A mismatch
     # stops startup (services/first_person_serving_contract.assert_startup_safe).
     # "" = undeclared: unchanged behaviour, plus a production startup warning.
-    first_person_serving_posture: Literal["", "v10_only", "v12_shadow", "v13_shadow", "v8_bridge"] = ""
+    first_person_serving_posture: Literal[
+        "", "v10_only", "v12_shadow", "v13_shadow", "v8_bridge"
+    ] = ""
     # Admin video-approval page (services/first_person_video_decisions.py).
     # Directory for the human per-video decisions + audit log; empty uses
     # <backend>/data/fp_video_decisions (/app/data is the persisted Docker volume).
@@ -600,7 +602,9 @@ class Settings(BaseSettings):
     first_person_relevance_gate_enabled: bool = True
     # Owner decision 2026-11-25: restored to 2 (SOTA plan WS3, weak_match band).
     # The 2026-11-16 revert to 3 is itself reverted after audit confirmed it over-filters.
-    first_person_relevance_min_score: int = 3  # raised from 2: score=2 clips are weak matches not direct answers
+    first_person_relevance_min_score: int = (
+        3  # raised from 2: score=2 clips are weak matches not direct answers
+    )
     # Optional stronger model for the relevance scorer ONLY (one ~24-token reply per query);
     # empty = the provider's default generation model. 2026-10-11: the default model rated
     # same-theme clips 3/3, so precision was poor.
@@ -1437,7 +1441,9 @@ class Settings(BaseSettings):
     rag_indic_max_rewrites: int = Field(default=1, ge=0, le=3)
     rag_context_window: int = 2  # Fetch N chunks before/after each retrieved chunk
     rerank_min_score: float = 0.20  # Min CrossEncoder score (sigmoid-normalized) to keep a doc
-    rerank_fallback_floor: float = 0.12  # Fallback CrossEncoder floor for candidate retention before CRAG grading
+    rerank_fallback_floor: float = (
+        0.12  # Fallback CrossEncoder floor for candidate retention before CRAG grading
+    )
     rag_use_context_compression: bool = False  # Set to True to enable LLM-based context compression
     rag_context_compression_threshold: int = (
         20000  # Only compress context if character length exceeds this threshold

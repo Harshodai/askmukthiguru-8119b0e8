@@ -496,6 +496,7 @@ class PipelineCoordinator:
             if db is None:
                 return False
             try:
+
                 def _check_db():
                     resp = (
                         db.table("canonical_memories")

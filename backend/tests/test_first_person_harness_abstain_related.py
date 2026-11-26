@@ -51,7 +51,9 @@ def _run(monkeypatch, contexts, scores, *, flag=True):
 
 
 def _ctx(n, text):
-    return make_test_context([make_test_span(n=n, text=text, start_ms=n * 20000, end_ms=n * 20000 + 9000)])
+    return make_test_context(
+        [make_test_span(n=n, text=text, start_ms=n * 20000, end_ms=n * 20000 + 9000)]
+    )
 
 
 def test_flag_on_offers_score_two_gated_contexts_only(monkeypatch):
@@ -109,7 +111,10 @@ def test_serializers_carry_related_clips():
     res = _abstain_result()
     assert res.to_chat_response()["related_clips"][0]["text_snippet"] == TEXT_ONE
     assert _stream_done_metadata(res)["related_clips"][0]["text_snippet"] == TEXT_ONE
-    assert ChatResponse(**{**res.to_chat_response(), "response": "x"}).related_clips[0]["is_answer"] is False
+    assert (
+        ChatResponse(**{**res.to_chat_response(), "response": "x"}).related_clips[0]["is_answer"]
+        is False
+    )
     assert res.citations == []
 
 

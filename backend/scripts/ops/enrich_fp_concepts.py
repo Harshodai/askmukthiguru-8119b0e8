@@ -296,8 +296,9 @@ def scroll_children(client: Any, collection: str) -> list[dict[str, Any]]:
 
 def export_graph_vocab() -> dict[str, Any]:
     """Read-only Cypher. Run inside the backend container (env creds come from app settings)."""
-    from app.config import settings
     from neo4j import GraphDatabase
+
+    from app.config import settings
     from rag.kg_expansion import _SEEDED_CONCEPTS, _SEEDED_PRACTICES, _SEEDED_TEACHERS
 
     tenant = settings.default_tenant_id
@@ -383,6 +384,7 @@ def simulate(
     """Replay the expansion lanes with the REAL store code; the concept filter is swapped for a
     HasId filter over points whose PROPOSED patch matches the emitted terms. Read-only."""
     from qdrant_client.models import Filter, HasIdCondition
+
     from rag.kg_expansion import _find_concepts_in_query
     from services.embedding_service import get_embedding_service
     from services.first_person_context_store import FirstPersonContextStore
@@ -467,7 +469,9 @@ def load_questions(path: Path) -> list[dict[str, str]]:
     for line in path.read_text().splitlines():
         if line.strip():
             row = json.loads(line)
-            seen.setdefault(row["question_id"], {"id": row["question_id"], "question": row["question"]})
+            seen.setdefault(
+                row["question_id"], {"id": row["question_id"], "question": row["question"]}
+            )
     return list(seen.values())
 
 
@@ -481,13 +485,28 @@ def _self_test() -> None:
     assert m.match("his Karma, truly") == {"Karma"}
     assert Matcher({}).match("anything") == set()
     tags, titles = okf_vocab(
-        [{"tags": ["teaching", "ego"], "title": "Ego", "source": "https://www.youtube.com/watch?v=abcdefghijk"}]
+        [
+            {
+                "tags": ["teaching", "ego"],
+                "title": "Ego",
+                "source": "https://www.youtube.com/watch?v=abcdefghijk",
+            }
+        ]
     )
     assert tags == {"ego"} and titles == {"abcdefghijk": {"Ego"}}
-    graph = {"neighbors": {"Karma": [{"entity_id": "Dharma", "labels": ["base"]}, {"entity_id": "X", "labels": ["Teacher"]}]}}
+    graph = {
+        "neighbors": {
+            "Karma": [
+                {"entity_id": "Dharma", "labels": ["base"]},
+                {"entity_id": "X", "labels": ["Teacher"]},
+            ]
+        }
+    }
     assert graph_entity_vocab(graph) == {"Dharma"}
     payload = {"verbatim_text": "Ego and dharma.", "source_span_id": "s", "video_id": "abcdefghijk"}
-    patch = propose_patch(payload, Matcher({"Dharma": []}), Matcher({"ego": []}), titles, {"s": ["peace"]})
+    patch = propose_patch(
+        payload, Matcher({"Dharma": []}), Matcher({"ego": []}), titles, {"s": ["peace"]}
+    )
     assert patch == {"entity_ids": ["Dharma"], "topic_ids": ["ego", "peace"], "tags": ["Ego"]}
     assert_patch_safe(patch)
     try:
@@ -500,7 +519,9 @@ def _self_test() -> None:
     pats = {"a": {"topic_ids": ["x", "State"]}, "b": {"entity_ids": ["State"]}}
     assert drop_terms(pats, {"State"}) == {"State": 2} and pats == {"a": {"topic_ids": ["x"]}}
     try:
-        apply_patches(None, "c", {}, {}, keys=ALLOWED_KEYS, snapshot_confirmed=False, approved_by="a")
+        apply_patches(
+            None, "c", {}, {}, keys=ALLOWED_KEYS, snapshot_confirmed=False, approved_by="a"
+        )
         raise AssertionError("apply without snapshot accepted")
     except PermissionError:
         pass
@@ -510,17 +531,33 @@ def _self_test() -> None:
 def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--self-test", action="store_true")
-    ap.add_argument("--export-graph-vocab", action="store_true", help="read-only Memgraph export to stdout (container)")
+    ap.add_argument(
+        "--export-graph-vocab",
+        action="store_true",
+        help="read-only Memgraph export to stdout (container)",
+    )
     ap.add_argument("--graph-vocab", type=Path)
     ap.add_argument("--collection", default=DEFAULT_COLLECTION)
     ap.add_argument("--qdrant-url", default="http://localhost:6333")
     ap.add_argument("--okf", type=Path, default=REPO / "memory/okf/compiled.json")
     ap.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     ap.add_argument("--max-share", type=float, default=0.25)
-    ap.add_argument("--drop-terms", default="", help="comma-separated exact-case generic terms to remove")
-    ap.add_argument("--simulate", action="store_true", help="read-only expansion replay (loads BGE-M3 on the host)")
-    ap.add_argument("--questions", type=Path, default=REPO / "evals/first_person/negative_controls.jsonl")
-    ap.add_argument("--apply", action="store_true", help="WRITES to Qdrant; gated, never run without owner approval")
+    ap.add_argument(
+        "--drop-terms", default="", help="comma-separated exact-case generic terms to remove"
+    )
+    ap.add_argument(
+        "--simulate",
+        action="store_true",
+        help="read-only expansion replay (loads BGE-M3 on the host)",
+    )
+    ap.add_argument(
+        "--questions", type=Path, default=REPO / "evals/first_person/negative_controls.jsonl"
+    )
+    ap.add_argument(
+        "--apply",
+        action="store_true",
+        help="WRITES to Qdrant; gated, never run without owner approval",
+    )
     ap.add_argument("--patches-file", type=Path, help="reviewed patches JSONL for --apply")
     ap.add_argument("--keys", default=",".join(ALLOWED_KEYS))
     ap.add_argument("--snapshot-confirmed", action="store_true")
@@ -543,9 +580,13 @@ def main(argv: Optional[list[str]] = None) -> int:
             patches[row["point_id"]] = row["set_payload"]
         existing = {c["id"]: c["payload"] for c in scroll_children(client, args.collection)}
         n = apply_patches(
-            client, args.collection, patches, existing,
+            client,
+            args.collection,
+            patches,
+            existing,
             keys=[k for k in args.keys.split(",") if k],
-            snapshot_confirmed=args.snapshot_confirmed, approved_by=args.approved_by,
+            snapshot_confirmed=args.snapshot_confirmed,
+            approved_by=args.approved_by,
         )
         print(f"applied {n} patches by {args.approved_by}")
         return 0
@@ -556,7 +597,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     okf = json.loads(args.okf.read_text())["entries"]
     client = make_client(args.qdrant_url)
     children = scroll_children(client, args.collection)
-    patches, dropped, meta = build_proposals(children, okf, graph, graph.get("synonyms") or {}, args.max_share)
+    patches, dropped, meta = build_proposals(
+        children, okf, graph, graph.get("synonyms") or {}, args.max_share
+    )
     generic = {t for t in args.drop_terms.split(",") if t}
     dropped_generic = drop_terms(patches, generic) if generic else {}
     out = args.out_dir if args.out_dir.is_absolute() else REPO / args.out_dir
@@ -565,13 +608,22 @@ def main(argv: Optional[list[str]] = None) -> int:
         for pid, patch in sorted(patches.items()):
             fh.write(json.dumps({"point_id": pid, "set_payload": patch}, ensure_ascii=False) + "\n")
     summary = summarize(children, patches, dropped, args.max_share)
-    summary.update(collection=args.collection, vocab=meta, generic_terms_dropped=dropped_generic, mode="dry-run (nothing written to any store)")
+    summary.update(
+        collection=args.collection,
+        vocab=meta,
+        generic_terms_dropped=dropped_generic,
+        mode="dry-run (nothing written to any store)",
+    )
     if args.simulate:
         sim = simulate(client, args.collection, load_questions(args.questions), patches, graph)
         summary["simulation"] = {k: v for k, v in sim.items() if k != "rows"}
         (out / "simulation_rows.json").write_text(json.dumps(sim["rows"], indent=1))
     (out / "summary.json").write_text(json.dumps(summary, indent=1, ensure_ascii=False))
-    print(json.dumps({k: v for k, v in summary.items() if k not in ("samples",)}, ensure_ascii=False)[:3000])
+    print(
+        json.dumps({k: v for k, v in summary.items() if k not in ("samples",)}, ensure_ascii=False)[
+            :3000
+        ]
+    )
     return 0
 
 

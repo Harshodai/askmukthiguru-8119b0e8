@@ -32,7 +32,6 @@ from services.first_person_evidence_policy import first_person_evidence_policy
 from services.first_person_safety_policy import first_person_safety_policy
 from tests.test_first_person_bridge import _container, _ctx, fp_pipeline  # noqa: F401
 
-
 # ===========================================================================
 # 1. Multi-lingual HyDE Language Gate
 # ===========================================================================
@@ -59,7 +58,8 @@ def test_retrieval_query_script_detection(text: str, is_latin: bool):
 
 @pytest.mark.asyncio
 async def test_indic_turn_with_translated_english_retrieval_query_runs_hyde(
-    monkeypatch, fp_pipeline  # noqa: F811
+    monkeypatch,
+    fp_pipeline,  # noqa: F811
 ):
     """An Indic query translated into English user_msg_en MUST trigger HyDE."""
     monkeypatch.setattr(settings, "first_person_hyde_enabled", True)
@@ -67,7 +67,9 @@ async def test_indic_turn_with_translated_english_retrieval_query_runs_hyde(
 
     container = _container()
     container.llm = AsyncMock()
-    container.llm.generate_hyde = AsyncMock(return_value="A teaching about overcoming anger and inner reaction.")
+    container.llm.generate_hyde = AsyncMock(
+        return_value="A teaching about overcoming anger and inner reaction."
+    )
 
     ctx = _ctx(container, msg="కోపాన్ని ఎలా నియంత్రించాలి?", lang="te", is_indic=True)
     ctx.state["user_msg_en"] = "How do I control anger?"
@@ -444,6 +446,7 @@ def test_meta_followup_names_new_topic_shielding(monkeypatch):
 async def test_serve_question_parts_exception_and_cancellation(monkeypatch):
     """_serve_question_parts handles individual part exceptions gracefully and re-raises cancellation."""
     import asyncio
+
     from app.pipeline.stages.first_person_bridge import _serve_question_parts
     from services.first_person_pipeline import FirstPersonPipelineResult
 
@@ -512,13 +515,13 @@ def test_child_point_eligibility_strict_boolean():
     """first_person_store line 995 rejects present first_person_eligible unless strictly True."""
     from services.first_person_store import FirstPersonStore
 
-    store = FirstPersonStore.__new__(FirstPersonStore)
+    _store = FirstPersonStore.__new__(FirstPersonStore)
 
     def _eval(payload: dict):
         candidates = []
         tolerance_ms = 1000
         diff_ms = 100
-        verbatim_text = "test text"
+        _verbatim_text = "test text"
 
         # Simulating line 985-998 of get_child_point
         if diff_ms > tolerance_ms:

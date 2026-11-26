@@ -833,7 +833,10 @@ def test_host_opener_does_not_poison_guru_hit_span():
     ctx = ctx.model_copy(update={"hit_span_ids": (guru_answer.source_span_id,)})
     decision = FirstPersonContextHarness().decide(ctx, answerability="yes")
     # Verified Guru span is served cleanly without host poison
-    assert decision.decision in (HarnessDecision.SERVE_SINGLE_SPAN, HarnessDecision.SERVE_PARENT_CONTEXT)
+    assert decision.decision in (
+        HarnessDecision.SERVE_SINGLE_SPAN,
+        HarnessDecision.SERVE_PARENT_CONTEXT,
+    )
     assert decision.gates["speaker"] is True
     assert all(c.guru_id == "krishnaji" for c in decision.citations)
     assert all(c.source_span_id == guru_answer.source_span_id for c in decision.citations)

@@ -21,21 +21,25 @@ def create_keyword_research_workbook(
     workbook = xlsxwriter.Workbook(str(output_path))
 
     # Color palettes & formatting styles
-    header_format = workbook.add_format({
-        "bold": True,
-        "bg_color": "#1F4E78",
-        "font_color": "#FFFFFF",
-        "border": 1,
-        "align": "left",
-        "valign": "vcenter",
-    })
-    total_format = workbook.add_format({
-        "bold": True,
-        "bg_color": "#D9E1F2",
-        "border": 1,
-        "align": "left",
-        "valign": "vcenter",
-    })
+    header_format = workbook.add_format(
+        {
+            "bold": True,
+            "bg_color": "#1F4E78",
+            "font_color": "#FFFFFF",
+            "border": 1,
+            "align": "left",
+            "valign": "vcenter",
+        }
+    )
+    total_format = workbook.add_format(
+        {
+            "bold": True,
+            "bg_color": "#D9E1F2",
+            "border": 1,
+            "align": "left",
+            "valign": "vcenter",
+        }
+    )
     currency_format = workbook.add_format({"num_format": "$#,##0.00"})
     int_format = workbook.add_format({"num_format": "#,##0"})
     pct_format = workbook.add_format({"num_format": "0.0%"})
@@ -57,16 +61,18 @@ def create_keyword_research_workbook(
     ws1.freeze_panes(1, 0)
 
     # Compute aggregates per cluster
-    clusters_data = defaultdict(lambda: {
-        "count": 0,
-        "vol": 0,
-        "g_vol": 0,
-        "kd_sum": 0,
-        "cpc_sum": 0.0,
-        "high": 0,
-        "med": 0,
-        "low": 0,
-    })
+    clusters_data = defaultdict(
+        lambda: {
+            "count": 0,
+            "vol": 0,
+            "g_vol": 0,
+            "kd_sum": 0,
+            "cpc_sum": 0.0,
+            "high": 0,
+            "med": 0,
+            "low": 0,
+        }
+    )
 
     total_vol = sum(k.monthly_volume for k in payload.keywords)
     for kw in payload.keywords:
@@ -104,7 +110,9 @@ def create_keyword_research_workbook(
     total_med = sum(1 for k in payload.keywords if k.priority == Priority.MEDIUM)
     total_low = sum(1 for k in payload.keywords if k.priority == Priority.LOW)
     total_kd_avg = round(sum(k.kd for k in payload.keywords) / total_count, 1) if total_count else 0
-    total_cpc_avg = round(sum(k.cpc for k in payload.keywords) / total_count, 2) if total_count else 0
+    total_cpc_avg = (
+        round(sum(k.cpc for k in payload.keywords) / total_count, 2) if total_count else 0
+    )
 
     for cluster_name, stats in clusters_data.items():
         cnt = stats["count"]
@@ -169,7 +177,11 @@ def create_keyword_research_workbook(
         ws2.write(r_idx, 5, kw.kd, int_format)
 
         # KD Level color
-        kd_style = kd_easy if kw.kd_level == KDLevel.EASY else (kd_med if kw.kd_level == KDLevel.MEDIUM else kd_hard)
+        kd_style = (
+            kd_easy
+            if kw.kd_level == KDLevel.EASY
+            else (kd_med if kw.kd_level == KDLevel.MEDIUM else kd_hard)
+        )
         ws2.write(r_idx, 6, kw.kd_level.value, kd_style)
 
         ws2.write(r_idx, 7, kw.cpc, currency_format)
@@ -177,7 +189,11 @@ def create_keyword_research_workbook(
         ws2.write(r_idx, 9, kw.content_type)
 
         # Priority color
-        prio_style = prio_high if kw.priority == Priority.HIGH else (prio_med if kw.priority == Priority.MEDIUM else prio_low)
+        prio_style = (
+            prio_high
+            if kw.priority == Priority.HIGH
+            else (prio_med if kw.priority == Priority.MEDIUM else prio_low)
+        )
         ws2.write(r_idx, 10, kw.priority.value, prio_style)
 
     ws2.set_column(0, 0, 36)
@@ -196,7 +212,13 @@ def create_keyword_research_workbook(
 
     # Section 1: Top 20 Organic Competitors
     ws3.write(0, 0, "SECTION 1: TOP 20 ORGANIC COMPETITORS", title_sec1)
-    headers_sec1 = ["Competitor Domain", "Est. Traffic Share %", "Est. Traffic Value ($)", "Domain Rating (DR)", "Observations"]
+    headers_sec1 = [
+        "Competitor Domain",
+        "Est. Traffic Share %",
+        "Est. Traffic Value ($)",
+        "Domain Rating (DR)",
+        "Observations",
+    ]
     for c_idx, h in enumerate(headers_sec1):
         ws3.write(1, c_idx, h, header_format)
 
@@ -212,7 +234,13 @@ def create_keyword_research_workbook(
     # Section 2: 20 High-Value Keyword Gaps
     row_s2_title = row_s1 + 2
     ws3.write(row_s2_title, 0, "SECTION 2: 20 HIGH-VALUE KEYWORD GAPS & ACTIONS", title_sec1)
-    headers_sec2 = ["Competitor Keyword Opportunity", "Top Ranking Competitor", payload.volume_scope_label, "KD", "Recommended Action"]
+    headers_sec2 = [
+        "Competitor Keyword Opportunity",
+        "Top Ranking Competitor",
+        payload.volume_scope_label,
+        "KD",
+        "Recommended Action",
+    ]
     for c_idx, h in enumerate(headers_sec2):
         ws3.write(row_s2_title + 1, c_idx, h, header_format)
 

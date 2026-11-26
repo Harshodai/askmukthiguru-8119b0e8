@@ -25,7 +25,6 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Any
 
 from fastapi import (
@@ -35,7 +34,7 @@ from fastapi import (
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import JSONResponse, Response
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # Fix import paths — run from backend/ directory
@@ -901,7 +900,9 @@ async def lifespan(app: FastAPI):
             else:
                 logger.info("Second Brain: BRAIN_KEK unwraps all %d stored vault keys", _checked)
     except Exception as _kek_check_err:
-        logger.warning("STARTUP: could not verify BRAIN_KEK against stored vault keys: %s", _kek_check_err)
+        logger.warning(
+            "STARTUP: could not verify BRAIN_KEK against stored vault keys: %s", _kek_check_err
+        )
 
     # First-person is a rights-sensitive, calibrated route. In production,
     # refuse to accept traffic unless its release contract is complete.
@@ -1761,8 +1762,6 @@ async def get_jwks():
     from services.auth_service import get_jwks_dict
 
     return get_jwks_dict()
-
-
 
 
 # === Mount Gradio UI (gated; disabled by default in production) ===

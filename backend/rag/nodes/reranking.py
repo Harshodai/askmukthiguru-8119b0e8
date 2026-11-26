@@ -52,7 +52,9 @@ def _limit_rerank_candidates(documents: list[dict], query_tier: str) -> list[dic
                 return documents
             logger.debug(
                 "Rerank candidate budget: tier=%s %d -> %d documents",
-                query_tier, len(documents), tier_cap,
+                query_tier,
+                len(documents),
+                tier_cap,
             )
             return documents[:tier_cap]
         # Standard / complex: pool_cap governs
@@ -67,7 +69,9 @@ def _limit_rerank_candidates(documents: list[dict], query_tier: str) -> list[dic
         return documents  # identity for tier3_complex and anything within budget
     logger.debug(
         "Rerank candidate budget: tier=%s %d -> %d documents",
-        query_tier, len(documents), tier_cap,
+        query_tier,
+        len(documents),
+        tier_cap,
     )
     return documents[:tier_cap]
 
@@ -155,7 +159,8 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
         # For complex queries: prefer cross-encoder (higher precision) over FlashRank
         # FlashRank is ~5× faster but sacrifices recall for multi-hop / nuanced
         # doctrinal queries.
-        force_cross_encoder = query_tier == "tier3_complex"
+        # NOTE: computed but never read, so tier3 does not actually force the cross-encoder yet.
+        force_cross_encoder = query_tier == "tier3_complex"  # noqa: F841
 
         rerank_bypassed = False
         rerank_candidates = _limit_rerank_candidates(db_docs, query_tier)
@@ -194,7 +199,10 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
                 reverse=True,
             )[:rerank_top_k]
             rerank_bypassed = True
-        elif (getattr(settings, "use_flashrank", False) or getattr(settings, "reranker_backend", "") == "onnx_int8") and reranker is not None:
+        elif (
+            getattr(settings, "use_flashrank", False)
+            or getattr(settings, "reranker_backend", "") == "onnx_int8"
+        ) and reranker is not None:
             reranked_db = await reranker.rerank(
                 question,
                 rerank_candidates,
@@ -353,10 +361,13 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
                 f"Confidence gate: top rerank score {top_score:.3f} < min {min_score}, "
                 f"but >= fallback floor {fallback_floor:.3f}. Preserving candidate documents for grading/generation."
             )
-            crag_floor = max(fallback_floor, top_score * getattr(settings, "crag_score_delta_ratio", 0.5))
+            crag_floor = max(
+                fallback_floor, top_score * getattr(settings, "crag_score_delta_ratio", 0.5)
+            )
             before_count = len(reranked_docs)
             reranked_docs = [
-                doc for doc in reranked_docs
+                doc
+                for doc in reranked_docs
                 if (float(doc.get("rerank_score") or 0.0)) >= crag_floor
             ]
             if before_count != len(reranked_docs):
@@ -370,7 +381,8 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
             crag_floor = max(crag_floor, min_score)
             before_count = len(reranked_docs)
             reranked_docs = [
-                doc for doc in reranked_docs
+                doc
+                for doc in reranked_docs
                 if (float(doc.get("rerank_score") or 0.0)) >= crag_floor
             ]
             if before_count != len(reranked_docs):
@@ -401,13 +413,9 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
     skip_conf = getattr(settings, "crag_skip_confidence", 0.75)
 
     high_conf_docs = [
-        d for d in reranked_docs
-        if (float(d.get("rerank_score") or 0.0)) >= skip_conf
+        d for d in reranked_docs if (float(d.get("rerank_score") or 0.0)) >= skip_conf
     ]
-    ambiguous_docs = [
-        d for d in reranked_docs
-        if (float(d.get("rerank_score") or 0.0)) < skip_conf
-    ]
+    ambiguous_docs = [d for d in reranked_docs if (float(d.get("rerank_score") or 0.0)) < skip_conf]
 
     # If all retained docs have high confidence, or skip_conf is exceeded across sufficient docs:
     if len(ambiguous_docs) == 0 and len(high_conf_docs) > 0:
