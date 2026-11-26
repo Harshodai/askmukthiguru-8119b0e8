@@ -29,11 +29,7 @@
 
 ### L-TU-GRAPH-STALE-1. The Memgraph teaching-unit layer must be rebuilt from the serving collection, and the builder never deletes.
 - **What:** Only 429 of 2,760 `TUTeachingUnit.span_id` resolved in v13. The builder only MERGEs, so a plain rebuild would have left 2,331 orphans. After a Memgraph snapshot, only `TU*` labels were deleted with the repo's own `drop_projection` query and rebuilt from `first_person_v13_shadow`: 2,999 of 2,999 spans now resolve; all non-TU labels and relationships are unchanged. The build also created the first TU concept (511) and topic (104) layers, so graph expansion behaves differently from before. Use the `backend/scripts/ops` copy of `build_teaching_unit_graph.py`; the root copy resolves its paths wrongly. The build rewrites the tracked `backend/config/teaching_unit_graph_manifest.json`.
-- **Rule:** Snapshot first, delete by label, rebuild, then compare label counts to a baseline. Re-measure graph-on against graph-off before claiming any retrieval benefit.
-
-### L-MEASURE-BEFORE-FLAG-FLIP-1. Dense-only and hybrid retrieval agree on 94% of top-1; do not flip the sparse flag without human labels.
-- **What:** Over 150 AI-authored questions on v13: top-1 parent identical 94%, top-3 overlap 96%, Spearman 0.977; hybrid changed the top-1 on 9 questions and costs about 2x at p50 (211 vs 104 ms; p95 is cold-start noise). Production pins `FIRST_PERSON_CONTEXT_USE_SPARSE=false`. The `evals/gold_set_v1` annotator CSVs have every row filled 2 or 3 with an identical note and are not independent human labels, so no MRR or nDCG is quality evidence.
-- **Rule:** A retrieval flag flips only with a human-labelled held-out set.
+- **Rule:** Snapshot first, delete by label, rebuild, then compare label counts to a baseline. Re-measure graph-on against graph-off before claiming any retrieval benefit. Same discipline for the sparse flag: dense-only and hybrid agree on 94% of top-1 (150 AI-authored questions; hybrid ~2x slower at p50), and the `evals/gold_set_v1` annotator CSVs are template-filled, not human labels, so `FIRST_PERSON_CONTEXT_USE_SPARSE` stays false until a human-labelled set exists.
 
 ## Nov 26, 2026 — Faculty Readiness & Infrastructure Hardening: Pre-Screening, MMR Scaling, Intent Precedence, Try-2 Concept Expansion & Shadow Gates
 
