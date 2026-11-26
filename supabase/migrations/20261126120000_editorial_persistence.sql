@@ -15,5 +15,6 @@ CREATE TABLE IF NOT EXISTS public.editorial_audit_log (
 CREATE INDEX IF NOT EXISTS idx_editorial_audit_log_project ON public.editorial_audit_log (project_id, created_at);
 ALTER TABLE public.editorial_audit_log ENABLE ROW LEVEL SECURITY;
 
--- Append-only: no UPDATE or DELETE by any non-superuser role.
+-- Append-only for PUBLIC/anon/authenticated only. service_role (used by the backend) and
+-- superusers bypass these grants and can still UPDATE/DELETE; this is not tamper-proof.
 REVOKE UPDATE, DELETE ON public.editorial_audit_log FROM PUBLIC, anon, authenticated;

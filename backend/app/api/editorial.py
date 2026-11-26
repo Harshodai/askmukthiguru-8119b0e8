@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -30,7 +30,18 @@ from services.evidence_adapters import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/editorial", tags=["editorial"])
+
+async def _store_errors_as_503() -> AsyncIterator[None]:
+    """Router-wide: a persistence failure is a 503 on every editorial route, never a 500."""
+    try:
+        yield
+    except EditorialStoreError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+router = APIRouter(
+    prefix="/api/editorial", tags=["editorial"], dependencies=[Depends(_store_errors_as_503)]
+)
 
 _EDITORIAL_SINGLETON: EditorialIntelligenceService | None = None
 
@@ -397,8 +408,6 @@ async def approve_editorial_project(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except EditorialApprovalError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except EditorialStoreError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post("/projects/{project_id}/publish")

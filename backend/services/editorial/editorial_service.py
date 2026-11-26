@@ -202,6 +202,10 @@ class EditorialProject(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
+def _norm(user_id: str | None) -> str:
+    return (user_id or "").strip().casefold()
+
+
 class EditorialApprovalError(ValueError):
     """Raised when an approval violates human-review or claim-verification invariants."""
 
@@ -580,9 +584,21 @@ class EditorialIntelligenceService:
                 f"Cannot approve project with failing claim verification: {proj.script.verification.summary}"
             )
         reviewer = reviewer_id.strip()
-        if proj.author_id and proj.author_id.strip().lower() == reviewer.lower():
+        author = _norm(proj.author_id)
+        if not author:
             raise EditorialApprovalError(
-                "Author and approver must be different people; ask another reviewer to approve."
+                "Cannot approve a project with no recorded author; author/approver separation "
+                "cannot be verified."
+            )
+        contributors = {author} | {
+            _norm(e.get("actor_id"))
+            for e in proj.audit_log
+            if str(e.get("event", "")).endswith("_attached")
+        }
+        if _norm(reviewer) in contributors:
+            raise EditorialApprovalError(
+                "Approver must differ from the project's author and from anyone who attached "
+                "content to it; ask another reviewer to approve."
             )
         now = datetime.now(UTC)
         return self._commit(

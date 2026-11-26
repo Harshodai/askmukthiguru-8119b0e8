@@ -159,8 +159,9 @@ def test_author_cannot_approve_and_approver_is_recorded(store_kind: str) -> None
     proj = svc.create_project(title="Title", topic="S", author_id="Alice")
     svc.attach_script(proj.project_id, _good_script(svc), actor_id="Alice")
 
-    with pytest.raises(EditorialApprovalError, match="different people"):
-        svc.approve_project(proj.project_id, reviewer_id=" alice ")
+    for variant in (" alice ", "ALICE", "Alice"):
+        with pytest.raises(EditorialApprovalError, match="must differ"):
+            svc.approve_project(proj.project_id, reviewer_id=variant)
     assert svc.get_project(proj.project_id).status == "review"  # type: ignore[union-attr]
 
     approved = svc.approve_project(proj.project_id, reviewer_id="bob", notes="ok")
@@ -201,3 +202,43 @@ def test_approval_still_requires_verified_claims() -> None:
     svc.attach_script(proj.project_id, bad)
     with pytest.raises(EditorialApprovalError):
         svc.approve_project(proj.project_id, reviewer_id="bob")
+
+
+def test_script_attacher_cannot_approve_but_third_party_can() -> None:
+    svc = _svc()
+    proj = svc.create_project(title="Title", topic="S", author_id="A")
+    svc.attach_script(proj.project_id, _good_script(svc), actor_id=" b ")
+    with pytest.raises(EditorialApprovalError, match="must differ"):
+        svc.approve_project(proj.project_id, reviewer_id="B")
+    assert svc.approve_project(proj.project_id, reviewer_id="C").approved_by == "C"
+
+
+@pytest.mark.parametrize("author", [None, "", "   "])
+def test_unset_author_fails_closed(author: str | None) -> None:
+    svc = _svc()
+    proj = svc.create_project(title="Title", topic="S", author_id=author)
+    svc.attach_script(proj.project_id, _good_script(svc), actor_id="b")
+    with pytest.raises(EditorialApprovalError, match="no recorded author"):
+        svc.approve_project(proj.project_id, reviewer_id="c")
+
+
+def test_store_error_is_503_on_non_approve_route(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api.admin import _require_admin
+    from app.dependencies import get_container_async
+
+    monkeypatch.setattr(
+        editorial_api,
+        "_EDITORIAL_SINGLETON",
+        _svc(SupabaseEditorialStore(None)),
+    )
+    app = FastAPI()
+    app.include_router(editorial_api.router)
+    app.dependency_overrides[_require_admin] = lambda: {"id": "admin-1"}
+    app.dependency_overrides[get_container_async] = lambda: SimpleNamespace()
+    r = TestClient(app, raise_server_exceptions=False).post(
+        "/api/editorial/projects", json={"title": "Title", "topic": "Topic"}
+    )
+    assert r.status_code == 503
