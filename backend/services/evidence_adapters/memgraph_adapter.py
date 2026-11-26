@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from domain.evidence_contract import EvidenceCandidate, make_source_id
+from services.guru_registry import neutral_voice_id
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +178,7 @@ class MemgraphEvidenceAdapter:
             if not eid:
                 continue
             gid = str(row.get("guru_id") or "").strip() or None
-            if tid_filter and gid and gid.lower() not in {tid_filter, "preethaji_krishnaji"}:
+            if tid_filter and gid and gid.lower() not in {tid_filter, neutral_voice_id()}:
                 continue
             text = str(row.get("verbatim_text") or row.get("text") or "").strip()
             if not text:

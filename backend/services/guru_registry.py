@@ -467,6 +467,13 @@ def match_organization(context: str) -> dict[str, Any] | None:
     return None
 
 
+def shared_scope_slug() -> str:
+    """Slug of the shared scope, e.g. 'sri-x-and-sri-y' from the shared teachers' labels."""
+    _, ids = shared_attribution()
+    labels = [label_for(i) for i in ids]
+    return "-and-".join(re.sub(r"[^a-z0-9]+", "-", lbl.lower()).strip("-") for lbl in labels if lbl)
+
+
 def is_shared_guru_scope(value: str | None) -> bool:
     candidate = (value or "").strip().lower()
     if candidate in {"both", "all", "shared"}:

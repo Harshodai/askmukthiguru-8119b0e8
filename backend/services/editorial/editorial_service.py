@@ -27,6 +27,7 @@ from domain.evidence_contract import (
     EvidenceCandidate,
 )
 from services.evidence_adapters.claim_verifier import ClaimVerificationService
+from services.guru_registry import default_founders_label
 
 EditorialStage = Literal[
     "idea",
@@ -150,7 +151,7 @@ class EditorialBrief(BaseModel):
     differentiating_angle: str
     guardrails: list[str] = Field(
         default_factory=lambda: [
-            "Keep exact quotations verbatim and properly attributed to Sri Preethaji or Sri Krishnaji.",
+            f"Keep exact quotations verbatim and properly attributed to {default_founders_label(' or ')}.",
             "Label editorial narration and proposed synthesis distinctly from original teacher statements.",
         ]
     )
@@ -271,7 +272,7 @@ class EditorialIntelligenceService:
             )
         if len(teacher_counts) > 1:
             angles.append(
-                "Highlight complementary perspectives across Sri Preethaji and Sri Krishnaji with explicit source citations."
+                f"Highlight complementary perspectives across {default_founders_label(' and ')} with explicit source citations."
             )
         if graph_edges:
             angles.append(

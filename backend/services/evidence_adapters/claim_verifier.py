@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from functools import lru_cache
 
 from domain.evidence_contract import (
     ClaimEvidenceMapping,
@@ -11,21 +12,32 @@ from domain.evidence_contract import (
     EpistemicCategory,
     EvidenceCandidate,
 )
+from services.guru_registry import get_gurus, label_for, shared_attribution
 
 _WS_RE = re.compile(r"\s+")
 _PUNCT_EDGE_RE = re.compile(r"^[\W_]+|[\W_]+$")
 
-_TEACHER_ALIASES: dict[str, set[str]] = {
-    "preethaji": {"preethaji", "sri preethaji", "sri_preethaji", "sri-preethaji", "preetha"},
-    "krishnaji": {"krishnaji", "sri krishnaji", "sri_krishnaji", "sri-krishnaji", "krishna"},
-    "preethaji_krishnaji": {
-        "preethaji_krishnaji",
-        "sri preethaji & sri krishnaji",
-        "sri preethaji and sri krishnaji",
-        "both",
-        "shared",
-    },
-}
+
+@lru_cache(maxsize=1)
+def _teacher_aliases() -> dict[str, set[str]]:
+    """Canonical teacher id -> accepted spellings, derived from the guru registry."""
+    aliases: dict[str, set[str]] = {}
+    for g in get_gurus():
+        label = g.label.lower()
+        # bare first-name stem ("<name>ji" -> "<name>") was always accepted
+        stem = g.id.removesuffix("ji")
+        aliases[g.id] = {g.id, label, label.replace(" ", "_"), label.replace(" ", "-"), stem}
+    primary, shared_ids = shared_attribution()
+    if primary:
+        labels = [label_for(i).lower() for i in shared_ids if label_for(i)]
+        aliases[primary] = {
+            primary,
+            " & ".join(labels),
+            " and ".join(labels),
+            "both",
+            "shared",
+        }
+    return aliases
 
 
 def _norm(text: str) -> str:
@@ -36,7 +48,7 @@ def _canon_teacher(val: str | None) -> str | None:
     if not val:
         return None
     low = _norm(val)
-    for canon, aliases in _TEACHER_ALIASES.items():
+    for canon, aliases in _teacher_aliases().items():
         if low in aliases or low == canon:
             return canon
     return low
@@ -49,11 +61,10 @@ def _teachers_compatible(attributed: str | None, evidence_teacher: str | None) -
         return c_attr == c_ev
     if c_attr == c_ev:
         return True
-    if c_ev == "preethaji_krishnaji" and c_attr in {"preethaji", "krishnaji"}:
+    primary, shared_ids = shared_attribution()
+    if c_ev == primary and c_attr in shared_ids:
         return True
-    if c_attr == "preethaji_krishnaji" and c_ev in {"preethaji", "krishnaji"}:
-        return True
-    return False
+    return c_attr == primary and c_ev in shared_ids
 
 
 class ClaimVerificationService:

@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 
 from domain.evidence_contract import EvidenceCandidate, content_sha256, make_source_id
+from services.guru_registry import shared_scope_slug
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ class OKFEvidenceAdapter:
             entry_teacher = str(entry.get("teacher") or "both").lower()
             if (
                 tid_filter
-                and entry_teacher not in {"both", "sri-preethaji-and-sri-krishnaji"}
+                and entry_teacher not in {"both", shared_scope_slug()}
                 and tid_filter not in entry_teacher
             ):
                 continue

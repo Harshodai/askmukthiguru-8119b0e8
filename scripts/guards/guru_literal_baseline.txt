@@ -1,6 +1,6 @@
 # T8-02 / GURU-010: lines naming a teacher in runtime code, per file.
 # RATCHET: counts may only go down. Format: <path><TAB><count>.
-# Total at write time: 575 lines in 121 files.
+# Total at write time: 574 lines in 121 files.
 backend/app/api/first_person.py	3
 backend/app/api/first_person_local_review.py	1
 backend/app/api/ingest.py	3
@@ -62,7 +62,7 @@ backend/services/first_person_local_review.py	6
 backend/services/first_person_pipeline.py	6
 backend/services/first_person_public_projection.py	1
 backend/services/first_person_set_selector.py	4
-backend/services/guru_brain/guru_kg_service.py	2
+backend/services/guru_brain/guru_kg_service.py	1
 backend/services/guru_brain/persona_discriminator.py	11
 backend/services/guru_brain/tone_extractor.py	15
 backend/services/guru_voice_langhanam.py	3
