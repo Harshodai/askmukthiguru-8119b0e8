@@ -2,7 +2,9 @@
 
 Both are personal learning signals. Nothing is read or written unless the request is an
 authenticated, non-incognito, non-benchmark one with an active memory consent receipt.
-Any lookup failure means "no consent" (fail closed).
+A failed consent lookup (postgrest APIError, httpx.HTTPError, RuntimeError, OSError,
+ConnectionError, TimeoutError, ValueError, KeyError) means "no consent": fail closed,
+nothing is read or written, and the already-gated answer is unaffected.
 """
 
 from __future__ import annotations
@@ -10,6 +12,9 @@ from __future__ import annotations
 import asyncio
 import logging
 from typing import Any
+
+import httpx
+from postgrest.exceptions import APIError
 
 from app.config import settings
 from services.first_person_seen_store import clear_seen_clips
@@ -20,7 +25,18 @@ from services.user_profile_service import _is_persistable_user_id
 logger = logging.getLogger(__name__)
 
 SIGNALS_TABLE = "seeker_comprehension_signals"
-_CONSENT_ERRORS = (RuntimeError, OSError, ConnectionError, TimeoutError, ValueError, KeyError)
+SIGNAL_ERRORS = (
+    APIError,
+    httpx.HTTPError,
+    RuntimeError,
+    OSError,
+    ConnectionError,
+    TimeoutError,
+    ValueError,
+    KeyError,
+)
+# PostgREST/Postgres "table does not exist" codes (migration not applied yet).
+_MISSING_TABLE_CODES = {"42P01", "PGRST205"}
 _CONFUSION_CUES = (
     "didn't understand",
     "did not understand",
@@ -44,7 +60,7 @@ async def active_consent_receipt_id(ctx: Any, container: Any) -> str | None:
         return None
     try:
         receipt = await outbox.active_consent(user_id=str(user_id), tenant_id=tenant_id)
-    except _CONSENT_ERRORS as exc:
+    except SIGNAL_ERRORS as exc:
         logger.warning(
             "Seeker consent lookup failed (%s); treating as no consent", type(exc).__name__
         )
@@ -117,8 +133,15 @@ async def erase_seeker_signals(container: Any, user_id: str, tenant_id: str) -> 
             "tenant_id", tenant_id
         ).execute()
 
-    await asyncio.to_thread(_delete)
+    try:
+        await asyncio.to_thread(_delete)
+    except APIError as exc:
+        # Unapplied migration: nothing to delete. Every other error still propagates (503).
+        if str(getattr(exc, "code", "")) not in _MISSING_TABLE_CODES:
+            raise
+        logger.info("seeker_comprehension_signals absent; nothing to erase")
     # Seen-clip keys use the bridge's tenant label ("default" when unset).
     redis_client = getattr(container, "redis_client", None)
     for tid in {tenant_id, "default"}:
-        await asyncio.to_thread(clear_seen_clips, user_id, tid, redis_client)
+        if not await asyncio.to_thread(clear_seen_clips, user_id, tid, redis_client):
+            raise RuntimeError("seen-clip cleanup failed")

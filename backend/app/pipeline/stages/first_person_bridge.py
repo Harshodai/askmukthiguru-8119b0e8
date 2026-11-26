@@ -58,7 +58,11 @@ from services.first_person_public_projection import (
     public_editorial_set_metadata as _public_editorial_set_metadata,
 )
 from services.first_person_rights import source_is_authoritatively_licensed
-from services.seeker.consent import active_consent_receipt_id, record_comprehension_signal
+from services.seeker.consent import (
+    SIGNAL_ERRORS,
+    active_consent_receipt_id,
+    record_comprehension_signal,
+)
 from services.user_profile_service import _is_persistable_user_id
 
 if TYPE_CHECKING:
@@ -2087,7 +2091,7 @@ class FirstPersonBridgeStage(Stage):
             # Observational only (flag + consent gated inside); the answer is unchanged.
             try:
                 await record_comprehension_signal(ctx, container, citations)
-            except (RuntimeError, OSError, ConnectionError, TimeoutError, ValueError) as _cs_exc:
+            except SIGNAL_ERRORS as _cs_exc:
                 logger.debug("[FirstPersonBridge] comprehension signal skipped: %s", _cs_exc)
         if (
             getattr(settings, "first_person_server_seen_clips_enabled", False)
