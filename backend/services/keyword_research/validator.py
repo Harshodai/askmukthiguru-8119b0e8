@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
 import zipfile
 from datetime import datetime
 from pathlib import Path
+
+from defusedxml import ElementTree as ET  # workbook XML is untrusted input
 
 from services.keyword_research.models import KeywordResearchPayload
 
@@ -168,7 +169,7 @@ def validate_keyword_research_payload(
 
 
 def inspect_xlsx_sheet_names(xlsx_path: Path) -> list[str]:
-    """Inspect sheet names of an .xlsx file using standard library zipfile/XML."""
+    """Inspect sheet names of an .xlsx file using zipfile and defusedxml."""
     xlsx_path = Path(xlsx_path)
     if not xlsx_path.exists():
         raise FileNotFoundError(f"Workbook not found: {xlsx_path}")
