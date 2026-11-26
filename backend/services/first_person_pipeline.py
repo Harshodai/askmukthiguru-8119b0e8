@@ -58,8 +58,8 @@ from domain.first_person_context import (
     SourceSpan,
     SpeakerRole,
     ValidatedCrossParentEdge,
-    clip_text_hash,
     _is_same_or_shared_guru,
+    clip_text_hash,
 )
 from domain.first_person_facets import FACET_PLANNER_VERSION, QueryFacets
 from domain.speaker_provenance import AUTOMATED_PROVENANCE_KEYS, HUMAN_REVIEW_KEYS
@@ -534,7 +534,9 @@ from services.first_person_evidence_policy import (
     _standalone_problem as _shared_standalone_problem,
 )
 from services.live_event_text import (
-    LIVE_EVENT_INSTRUCTION_RE as _LIVE_EVENT_INSTRUCTION_RE,
+    LIVE_EVENT_INSTRUCTION_RE as _LIVE_EVENT_INSTRUCTION_RE,  # noqa: F401 - tests assert identity with the shared pattern
+)
+from services.live_event_text import (
     is_live_event_instruction as _is_live_event_instruction,
 )
 
@@ -2068,7 +2070,6 @@ async def _joint_sufficiency_verdict(
     reply, a timeout or a provider error is INDETERMINATE and the caller abstains
     (invariant 19). Awaited on the request loop, never asyncio.run.
     """
-    import inspect
 
     user_prompt = f"Seeker question: {neutralise(question)}\n"
     if resolved_question and resolved_question != question:
@@ -2136,7 +2137,6 @@ async def _acall(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
     worker thread, so a sync bridge inside it can block on this loop without
     deadlocking it. Callers pass the module global, so a monkeypatch applies.
     """
-    import inspect
 
     core = getattr(fn, "_async_core", None)
     if core is not None:
@@ -5714,7 +5714,6 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 ) -> tuple[Optional[FirstPersonPipelineResult], list[int]]:
                     """Evaluate one deterministically screened context through LLM relevance + assembly."""
                     _local_tokens: list[int] = []
-                    ctx = prep["ctx"]
                     decision = prep["decision"]
                     served_spans = prep["served_spans"]
                     citations = prep["citations"]

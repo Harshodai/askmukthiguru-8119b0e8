@@ -102,7 +102,7 @@ print('__RESULT__' + json.dumps(output))
         "audio_size_bytes": audio_size,
         "whisper_backend": "mlx_whisper",
         "model": "mlx-community/whisper-tiny",
-        "transcribed_at": datetime.datetime.now(getattr(datetime, "UTC", datetime.timezone.utc)).isoformat(),
+        "transcribed_at": datetime.datetime.now(getattr(datetime, "UTC", datetime.UTC)).isoformat(),
         "transcript_text": text,
         "segments": segments,
         "artifacts": {

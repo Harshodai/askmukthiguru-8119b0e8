@@ -155,7 +155,8 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
         # For complex queries: prefer cross-encoder (higher precision) over FlashRank
         # FlashRank is ~5× faster but sacrifices recall for multi-hop / nuanced
         # doctrinal queries.
-        force_cross_encoder = query_tier == "tier3_complex"
+        # NOTE: computed but never read, so tier3 does not actually force the cross-encoder yet.
+        force_cross_encoder = query_tier == "tier3_complex"  # noqa: F841
 
         rerank_bypassed = False
         rerank_candidates = _limit_rerank_candidates(db_docs, query_tier)

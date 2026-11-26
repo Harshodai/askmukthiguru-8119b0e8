@@ -14,12 +14,12 @@ Handles:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 import logging
 import re
 import secrets
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.config import settings
@@ -181,7 +181,7 @@ async def create_link_challenge(
     p_hash = hash_phone(clean)
     p_masked = mask_phone(clean)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = now + timedelta(minutes=expiry_minutes)
 
     challenge_row = {
@@ -236,7 +236,7 @@ async def verify_link_challenge(
     if challenge.get("consumed_at"):
         raise ValueError("This linking code has already been used")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at_str = challenge.get("expires_at")
     if expires_at_str:
         expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
@@ -332,7 +332,7 @@ async def update_link_consent(
     memory_write_consent: bool | None = None,
 ) -> dict[str, Any]:
     """Decoupled DPDP update for channel history sync and long-term memory permissions."""
-    updates: dict[str, Any] = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    updates: dict[str, Any] = {"updated_at": datetime.now(UTC).isoformat()}
     if sync_history_consent is not None:
         updates["sync_history_consent"] = bool(sync_history_consent)
     if memory_write_consent is not None:
@@ -364,7 +364,7 @@ async def update_link_consent(
 
 async def unlink_account(supabase: Any, user_id: str) -> bool:
     """Disconnect WhatsApp number and revoke active binding."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     def _revoke():
         return (
@@ -413,7 +413,7 @@ async def optout_account_by_phone(supabase: Any, phone: str) -> bool:
     p_hash = hash_phone(phone)
     if not p_hash or not supabase:
         return False
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     def _optout():
         return (
@@ -434,7 +434,7 @@ async def resume_account_by_phone(supabase: Any, phone: str) -> bool:
     p_hash = hash_phone(phone)
     if not p_hash or not supabase:
         return False
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     def _resume():
         return (

@@ -9,10 +9,9 @@ import os
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 import pytest
-
-from pathlib import Path
 
 BACKEND_URL = os.environ.get("BACKEND_URL", "")
 

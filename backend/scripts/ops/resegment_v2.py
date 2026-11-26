@@ -521,7 +521,7 @@ def fidelity(v10: list[dict[str, Any]], v2: list[dict[str, Any]], per_video: dic
         near = [x for x in by[c["video_id"]] if x["end_ms"] > c["start_ms"] and x["start_ms"] < c["end_ms"]]
         near.sort(key=lambda x: x["start_ms"])
 
-        def matched(b: list[str]) -> float:
+        def matched(b: list[str], a: list[str] = a) -> float:
             sm = difflib.SequenceMatcher(None, a, b, autojunk=False)
             return sum(m.size for m in sm.get_matching_blocks() if m.size >= 3) / max(1, len(a))
 

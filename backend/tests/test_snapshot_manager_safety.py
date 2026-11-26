@@ -9,8 +9,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import pytest
-
 os.environ.setdefault("NEO4J_PASSWORD", "test-only-not-a-real-secret")
 os.environ.setdefault("QDRANT_COLLECTION", "spiritual_wisdom_contextual")
 

@@ -1,7 +1,7 @@
 import json
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 
 BASE_URL = "https://askmukthiguru-8119b0e8-production.up.railway.app"
 

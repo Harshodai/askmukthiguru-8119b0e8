@@ -1802,7 +1802,6 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
     # meditation timer") is not a request to be guided; it falls through to Case 4 and the
     # graph routes it back to the general lane.
     from app.pipeline.stages.off_topic_stage import _is_general_task
-
     from rag.meditation import is_meditation_practice_query
 
     is_practice_instruction = is_meditation_practice_query(question)

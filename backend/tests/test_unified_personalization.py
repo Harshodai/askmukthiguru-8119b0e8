@@ -446,9 +446,9 @@ async def test_false_abstention_recovery_difference_synthesis():
 @pytest.mark.asyncio
 async def test_personalize_stage_dataclass_profile_and_memory_merging(monkeypatch):
     """Test PersonalizeStage extracts attributes from UserProfile dataclass and unifies memories."""
+    import app.pipeline.stages.personalize_stage as stage_module
     from app.pipeline.stages.context import PipelineContext
     from app.pipeline.stages.personalize_stage import PersonalizeStage
-    import app.pipeline.stages.personalize_stage as stage_module
     from app.schemas import ChatRequest
     from services.user_profile_service import LanguagePreference, SpiritualLevel, UserProfile
 

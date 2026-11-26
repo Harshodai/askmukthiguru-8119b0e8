@@ -9,7 +9,6 @@ Railway deployment command is permitted.
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 from pathlib import Path
@@ -160,7 +159,7 @@ def check_harness_architecture() -> tuple[bool, str]:
 
 def check_editorial_set_selection() -> tuple[bool, str]:
     try:
-        from services.first_person_facet_planner import get_default_planner, FACET_PLANNER_VERSION
+        from services.first_person_facet_planner import FACET_PLANNER_VERSION, get_default_planner
         from services.first_person_set_selector import SET_SELECTOR_VERSION
         
         planner = get_default_planner()
@@ -187,8 +186,6 @@ def check_extensibility_voice_features() -> tuple[bool, str]:
 
 def check_personalization_and_memory() -> tuple[bool, str]:
     try:
-        from services.layered_memory.persona_store import encrypt, decrypt
-        from services.personalization.unified_engine import UnifiedPersonalizationEngine
         
         return True, "Personalization and layered memory active (signed-in user context and encrypted personas)"
     except Exception as exc:

@@ -296,8 +296,9 @@ def scroll_children(client: Any, collection: str) -> list[dict[str, Any]]:
 
 def export_graph_vocab() -> dict[str, Any]:
     """Read-only Cypher. Run inside the backend container (env creds come from app settings)."""
-    from app.config import settings
     from neo4j import GraphDatabase
+
+    from app.config import settings
     from rag.kg_expansion import _SEEDED_CONCEPTS, _SEEDED_PRACTICES, _SEEDED_TEACHERS
 
     tenant = settings.default_tenant_id
@@ -383,6 +384,7 @@ def simulate(
     """Replay the expansion lanes with the REAL store code; the concept filter is swapped for a
     HasId filter over points whose PROPOSED patch matches the emitted terms. Read-only."""
     from qdrant_client.models import Filter, HasIdCondition
+
     from rag.kg_expansion import _find_concepts_in_query
     from services.embedding_service import get_embedding_service
     from services.first_person_context_store import FirstPersonContextStore

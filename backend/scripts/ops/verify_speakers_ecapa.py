@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+
 try:
     import soundfile as sf
 except ModuleNotFoundError:  # host-only: soundfile is an in-Docker ML dependency

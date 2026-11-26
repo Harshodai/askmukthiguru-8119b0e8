@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from qdrant_client.http.models import SparseVector
 
-from services.first_person_context_store import SPAN_INDEXES
 from services.first_person_batch_pipeline import (
     CHUNKER_VERSION,
     MAX_PARENT_DURATION_MS,
@@ -13,7 +12,7 @@ from services.first_person_batch_pipeline import (
     encode_vectors,
     upsert_video,
 )
-
+from services.first_person_context_store import SPAN_INDEXES
 
 SEGMENTS = [
     {"start_ms": 0, "end_ms": 9000, "text": "Awareness begins when we pause"},

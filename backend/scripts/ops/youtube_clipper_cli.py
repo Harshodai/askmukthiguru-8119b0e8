@@ -80,7 +80,7 @@ def main() -> int:
     if args.duration > 0:
         cov = validate_chapter_coverage(chapters, args.duration)
         if not cov.is_valid:
-            print(f"WARNING: Chapter coverage issues detected:\n  " + "\n  ".join(cov.errors), file=sys.stderr)
+            print("WARNING: Chapter coverage issues detected:\n  " + "\n  ".join(cov.errors), file=sys.stderr)
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = Path(args.out) if args.out else Path(f"youtube-clips/{timestamp}")

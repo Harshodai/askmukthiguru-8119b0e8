@@ -15,11 +15,9 @@ data loss during server restarts or container recycling.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import re
 import urllib.parse
-import uuid
 from typing import Any
 
 from app.config import settings
@@ -270,6 +268,7 @@ def process_whatsapp_turn_task(
     answer_text = ""
     try:
         import asyncio
+
         from app.pipeline.pipeline_coordinator import PipelineCoordinator
         from app.schemas import ChatRequest
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
 import pytest
 
 from services.youtube_clipper.models import (
@@ -12,8 +13,6 @@ from services.youtube_clipper.models import (
 )
 from services.youtube_clipper.pipeline import (
     batch_translate_cues,
-    burn_subtitles_libass,
-    cut_mp4_clip,
     generate_bilingual_srt,
     generate_chapter_summary_md,
     parse_vtt_cues,
@@ -269,7 +268,8 @@ def test_process_chapter_translation_cardinality_mismatch_fails_closed(tmp_path:
         return {"returncode": 0}
 
     # Translator returns 1 item for 2 cues
-    bad_translator = lambda batch: ["[ZH] only one line"]
+    def bad_translator(batch):
+        return ["[ZH] only one line"]
 
     out_base = tmp_path / "out"
     with pytest.raises(RuntimeError) as exc_info:

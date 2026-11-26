@@ -13,9 +13,9 @@ from typing import Any, Optional
 
 from ingest.cleaner import clean_transcript
 from services.embedding_service import EmbeddingService
+from services.guru_registry import canonical_guru_id
 from services.qdrant_service import QdrantService
 from services.teacher_attribution import resolve_teacher_attribution
-from services.guru_registry import canonical_guru_id
 
 logger = logging.getLogger(__name__)
 

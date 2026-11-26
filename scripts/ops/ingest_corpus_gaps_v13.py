@@ -19,14 +19,12 @@ Strictly satisfies repository invariants:
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import os
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 # Ensure backend modules are on sys.path
 _BACKEND = Path(__file__).resolve().parents[2] / "backend"
@@ -42,7 +40,6 @@ from qdrant_client.http.models import (
     VectorParams,
 )
 
-from app.config import settings
 from services.embedding_service import EmbeddingService
 from services.first_person_store import FirstPersonStore
 
@@ -388,7 +385,7 @@ def main() -> None:
             "boundary_status": "clean",
             "record_type": "passage",
             "parent_unit_id": f"{c['video_id']}_parent_{c['start_ms']}",
-            "indexed_at": datetime.now(timezone.utc).isoformat(),
+            "indexed_at": datetime.now(UTC).isoformat(),
         }
 
         # Sparse vector conversion

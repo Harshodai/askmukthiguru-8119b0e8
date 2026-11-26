@@ -1,22 +1,22 @@
 from __future__ import annotations
 
-import asyncio
 import threading
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+
 try:
     from services.ontology_resolver import (
+        _fallback_token_concepts,
         resolve_query_concepts_llm,
         resolve_query_concepts_llm_async,
-        _fallback_token_concepts,
     )
 except ImportError:
     from backend.services.ontology_resolver import (
+        _fallback_token_concepts,
         resolve_query_concepts_llm,
         resolve_query_concepts_llm_async,
-        _fallback_token_concepts,
     )
 
 

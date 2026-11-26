@@ -61,6 +61,7 @@ def _guru_alias_map() -> dict[str, str]:
     mapping: dict[str, str] = {}
     try:
         import re as _re
+
         import yaml
 
         if _GURUS_CONFIG.is_file():

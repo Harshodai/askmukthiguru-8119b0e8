@@ -29,7 +29,6 @@ Records and prints:
 
 import json
 import os
-import sys
 import time
 import urllib.error
 import urllib.request
@@ -99,7 +98,7 @@ def ask_query(query: str, language: str = "en", extra_payload: dict = None):
                 elif status == "failed":
                     elapsed = time.time() - t0
                     return j_data, elapsed
-            except Exception as e:
+            except Exception:
                 pass
         return {"error": "polling timeout"}, time.time() - t0
     else:

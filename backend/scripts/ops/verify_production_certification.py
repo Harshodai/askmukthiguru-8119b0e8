@@ -228,7 +228,7 @@ def main() -> int:
     else:
         repo_root = script_path.parents[1]
 
-    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    timestamp = datetime.datetime.now(datetime.UTC).isoformat()
     git_rev = get_git_revision(repo_root)
 
     print("============================================================")

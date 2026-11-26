@@ -206,7 +206,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--snapshot", default="", help="snapshot name taken just before this apply")
     ap.add_argument("--before-out", default="")
-    ap.add_argument("--verified-at", default=dt.datetime.now(dt.timezone.utc).isoformat())
+    ap.add_argument("--verified-at", default=dt.datetime.now(dt.UTC).isoformat())
     ap.add_argument("--windowed-verdicts-jsonl", default="", help="optional windowed ECAPA verdicts jsonl")
     ap.add_argument("--windowed-calibration", default="", help="optional windowed calibration json")
     ap.add_argument(

@@ -1,6 +1,7 @@
 """Unit tests for dual-anchor concept alignment and relationship safety boundary de-escalation."""
 
 import pytest
+
 from app.config import settings
 from app.pipeline.stages.context import PipelineContext
 from app.pipeline.stages.guardrail_stage import OutputGuardrailStage
@@ -35,6 +36,7 @@ def test_relationship_repair_queries_detected_for_intent(query):
 
 
 from unittest.mock import AsyncMock, MagicMock
+
 
 def _make_ctx(question: str, answer: str) -> PipelineContext:
     container = MagicMock()
@@ -92,6 +94,7 @@ def test_clean_concept_ids_expands_case_and_tokens():
 
 def test_expand_query_concepts_includes_relational_seeds(monkeypatch):
     from types import SimpleNamespace
+
     from rag.kg_expansion import resolve_concepts_in_query
 
     query = "How do I heal hurt in my relationships?"

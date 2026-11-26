@@ -4,7 +4,6 @@ Tests for Memgraph-Driven Dynamic Candidate Sizing (MemgraphHarnessSizer).
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest

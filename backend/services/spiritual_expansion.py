@@ -13,14 +13,14 @@ Invariants:
 from __future__ import annotations
 
 import asyncio
-from collections import OrderedDict
-from collections.abc import Sequence
 import hashlib
 import json
 import logging
 import re
 import threading
 import time
+from collections import OrderedDict
+from collections.abc import Sequence
 from typing import Any, Optional
 
 from services.guru_registry import default_founders_label
@@ -246,7 +246,7 @@ class SpiritualConceptExpansion:
                         llm_phrases.append(cleaned_line)
                         if len(llm_phrases) >= 3:
                             break
-            except (TimeoutError, asyncio.TimeoutError):
+            except TimeoutError:
                 logger.info(
                     "[SpiritualConceptExpansion] Fast LLM expansion timed out (>%.2fs); falling back",
                     timeout_budget,

@@ -40,7 +40,7 @@ from domain.spiritual_ontology import (  # noqa: F401
     normalize_entity_name,
 )
 from rag.states import GraphState
-from rag.timeout_utils import get_node_timeout
+from rag.timeout_utils import get_node_timeout  # noqa: F401
 from services.rankers import _reciprocal_rank_fusion
 
 from . import _services

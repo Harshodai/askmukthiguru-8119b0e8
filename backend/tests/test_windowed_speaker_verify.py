@@ -8,14 +8,11 @@ Naming convention: test_<what it tests>_<expected outcome>.
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers — fake objects injected instead of real model/files
@@ -72,7 +69,6 @@ class _FakeEmbedder:
 
 def _make_wav(tmp_dir: Path, video_id: str, duration_s: float = 5.0) -> Path:
     """Write a minimal valid 16-bit mono 16 kHz WAV."""
-    import struct
     import wave
 
     wav_path = tmp_dir / f"{video_id}.wav"

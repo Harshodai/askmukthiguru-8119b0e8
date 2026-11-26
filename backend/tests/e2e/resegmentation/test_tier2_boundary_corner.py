@@ -22,14 +22,11 @@ Covers 16 boundary & edge-case groups (5 tests per group = 80 tests):
 from __future__ import annotations
 
 import asyncio
-import copy
-import json
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient

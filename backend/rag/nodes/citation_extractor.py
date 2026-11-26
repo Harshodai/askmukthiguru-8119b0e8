@@ -13,7 +13,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from app.config import settings
-from app.constants import BOOK_FOUR_SACRED_SECRETS_URL, canonicalize_book_url, is_book_source
+from app.constants import BOOK_FOUR_SACRED_SECRETS_URL, is_book_source
 from rag.nodes.utils import log_metrics
 from rag.states import GraphState
 from services.guru_registry import requested_gurus

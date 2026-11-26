@@ -71,8 +71,6 @@ if str(_BACKEND) not in sys.path:
 
 # Import ONLY helpers — never copy.
 from scripts.ops.regenerate_v10_span_ecapa_verdicts import (  # noqa: E402
-    GURU_BY_SPEAKER,
-    GURU_IDS,
     TARGET_SAMPLE_RATE,
     _round,
     _sha256_file,
@@ -82,7 +80,6 @@ from scripts.ops.regenerate_v10_span_ecapa_verdicts import (  # noqa: E402
     load_references,
     read_slice,
     score_against_references,
-    verdict_group,
     wav_header,
 )
 
@@ -563,7 +560,7 @@ def _load_negative_diar_windows(
         if len(win_lab) != len(t_centres):
             continue
         # Map cluster int→label string; win_lab may already be label strings.
-        def _resolve(lab: str) -> str:
+        def _resolve(lab: str, cluster_names: dict[str, str] = cluster_names) -> str:
             return cluster_names.get(str(lab), str(lab))
 
         labels = [_resolve(w) for w in win_lab]

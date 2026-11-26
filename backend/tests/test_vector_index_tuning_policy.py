@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import inspect
+
 import numpy as np
 import pytest
 
 from benchmarks.hnsw_tuning_sweep import (
     calculate_recall,
-    compute_exact_ground_truth,
     recommend_hnsw_params,
     run_hnsw_sweep,
 )
@@ -100,7 +100,7 @@ def test_hnsw_sweep_require_native_fails_when_missing():
     queries = np.random.randn(2, 8).astype(np.float32)
 
     try:
-        import hnswlib
+        import hnswlib  # noqa: F401  (availability probe)
         has_hnswlib = True
     except ImportError:
         has_hnswlib = False

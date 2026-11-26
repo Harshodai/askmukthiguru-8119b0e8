@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
 import pytest
 
 from services.youtube_transcript.downloader import (
@@ -11,7 +12,6 @@ from services.youtube_transcript.downloader import (
     clean_vtt_to_text,
     download_transcript,
     extract_video_id,
-    list_subtitles,
     parse_list_subs_output,
     sanitize_filename,
 )
@@ -26,8 +26,6 @@ from services.youtube_transcript.models import (
     WhisperConsentRequiredError,
 )
 from services.youtube_transcript.preflight import (
-    check_ffmpeg_installed,
-    check_ytdlp_installed,
     get_whisper_install_instructions,
     get_ytdlp_install_instructions,
 )
@@ -257,7 +255,7 @@ def test_download_transcript_whisper_requires_consent(tmp_path: Path):
     res = download_transcript(
         req_with_consent,
         custom_runner=fake_runner,
-        whisper_transcriber=lambda vid, p, l: fake_whisper_output,
+        whisper_transcriber=lambda vid, p, lang: fake_whisper_output,
     )
     assert res.source_type == CaptionSourceType.WHISPER
     assert res.vtt_path.exists()

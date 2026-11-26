@@ -118,7 +118,8 @@ class MemgraphHarnessSizer:
                 duration_ms=(time.monotonic() - start_time) * 1000.0,
             )
 
-        timeout_ms = float(getattr(settings, "first_person_memgraph_sizing_timeout_ms", 25.0) or 25.0)
+        # NOTE: unused here, so this query path has no sizing timeout applied.
+        timeout_ms = float(getattr(settings, "first_person_memgraph_sizing_timeout_ms", 25.0) or 25.0)  # noqa: F841
         unique_seeds = [
             s for s in dict.fromkeys(seed_span_ids) if isinstance(s, str) and s.strip()
         ][:16]
@@ -237,7 +238,7 @@ class MemgraphHarnessSizer:
                 ),
                 timeout=timeout_s,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug(
                 "[MemgraphHarnessSizer] Query exceeded deadline (%.2fms); fallback to heuristic",
                 timeout_ms,

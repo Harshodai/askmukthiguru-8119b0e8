@@ -20,8 +20,6 @@ from __future__ import annotations
 
 import collections
 import logging
-import os
-import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
@@ -36,7 +34,6 @@ from services.whatsapp_service import (
     clean_phone,
     clear_whatsapp_session,
     create_link_challenge,
-    format_whatsapp_message,
     get_account_link_by_phone,
     get_link_status,
     hash_phone,

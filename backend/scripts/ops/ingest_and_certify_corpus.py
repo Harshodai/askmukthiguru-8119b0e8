@@ -19,7 +19,6 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 _ROOT = Path(__file__).resolve().parents[2]
 _BACKEND = _ROOT / "backend"
@@ -31,12 +30,7 @@ import soundfile as sf
 from qdrant_client import QdrantClient
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-from app.config import settings
 from scripts.ops.reverify_and_enrich_v13 import (
-    CALIBRATION_PATH,
-    DOCTRINE_ENTITIES,
-    DOCTRINE_TAGS,
-    REFERENCES_PATH,
     extract_entities,
     extract_tags,
     load_calibration,

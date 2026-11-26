@@ -3,7 +3,6 @@
 
 import json
 import os
-import sys
 import time
 import urllib.error
 import urllib.request
@@ -71,9 +70,9 @@ BENCHMARK_QUERIES = [
 
 
 def main():
-    print(f"================================================================================")
+    print("================================================================================")
     print(f"FACULTY READINESS BENCHMARK — TARGETING {BASE_URL}")
-    print(f"================================================================================")
+    print("================================================================================")
     
     scorecard = []
 
@@ -122,9 +121,9 @@ def main():
             })
         time.sleep(1.0)
 
-    print(f"\n================================================================================")
-    print(f"FACULTY BENCHMARK SUMMARY SCORECARD")
-    print(f"================================================================================")
+    print("\n================================================================================")
+    print("FACULTY BENCHMARK SUMMARY SCORECARD")
+    print("================================================================================")
     for sc in scorecard:
         status_str = "PASS" if sc.get("pass") else "FAIL"
         print(f"[{status_str}] {sc['label']:<32} | {sc.get('elapsed', 0):>5.2f}s | Grounding: {sc.get('grounding', 'N/A'):<16} | Citations: {sc.get('citations_count', 0)}")

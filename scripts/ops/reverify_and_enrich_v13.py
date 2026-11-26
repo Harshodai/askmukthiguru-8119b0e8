@@ -16,7 +16,6 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any
 
 _BACKEND = Path(__file__).resolve().parents[2]
 if str(_BACKEND) not in sys.path:
@@ -28,11 +27,11 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 from scripts.ops.windowed_ecapa_v1_scorer import (
+    is_verified_windowed_verdict,
     load_embedder,
+    pending_voice_check_patch,
     score_span_windows,
     windowed_verdict,
-    is_verified_windowed_verdict,
-    pending_voice_check_patch,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -70,7 +69,7 @@ DOCTRINE_ENTITIES = {
 
 
 def load_calibration():
-    with open(CALIBRATION_PATH, "r", encoding="utf-8") as f:
+    with open(CALIBRATION_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 

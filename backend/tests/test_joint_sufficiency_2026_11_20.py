@@ -14,9 +14,9 @@ from tests.test_first_person_pipeline_golden_llm import (  # noqa: F401 - autous
     SPAN_TEXT_ONE,
     SPAN_TEXT_TWO,
     FakeLLM,
+    _deterministic_settings,
     _harness_on,
     _harness_pipeline,
-    _deterministic_settings,
     _llm_settings,
 )
 

@@ -12,7 +12,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.config import settings
-from rag.nodes.generation import _clean_inline_citations, _polish_and_weave_clips, verify_verbatim_spans
+from rag.nodes.generation import (
+    _clean_inline_citations,
+    _polish_and_weave_clips,
+    verify_verbatim_spans,
+)
 from services.first_person_pipeline import _HARNESS_JUDGE_CONCURRENCY, FirstPersonPipeline
 
 

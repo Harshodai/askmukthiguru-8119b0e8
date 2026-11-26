@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "ingest_lightrag_data.py"
 SPEC = importlib.util.spec_from_file_location("ingest_lightrag_data_under_test", SCRIPT)
 assert SPEC and SPEC.loader

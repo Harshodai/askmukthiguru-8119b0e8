@@ -57,8 +57,11 @@ logger = logging.getLogger("build_teaching_unit_graph")
 try:
     from services.guru_registry import canonical_guru_id, shared_attribution
 except ImportError:
-    canonical_guru_id = lambda g: g.lower().replace("-", "_") if g else g  # type: ignore
-    shared_attribution = lambda: ("preethaji_krishnaji", ["preethaji", "krishnaji"])  # type: ignore
+    def canonical_guru_id(g):  # type: ignore
+        return g.lower().replace("-", "_") if g else g
+
+    def shared_attribution():  # type: ignore
+        return ("preethaji_krishnaji", ["preethaji", "krishnaji"])
 
 # ---------------------------------------------------------------------------
 # Production guard — must be the first check after logging is up.

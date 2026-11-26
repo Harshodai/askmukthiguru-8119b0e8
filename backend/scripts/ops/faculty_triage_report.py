@@ -21,10 +21,9 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -64,14 +63,14 @@ def generate_triage_report(feedback_rows: list[dict[str, Any]]) -> dict[str, Any
             problem_videos[vid] += 1
         elif tag == "UNSAFE":
             unsafe_events.append({
-                "timestamp": row.get("created_at") or datetime.now(timezone.utc).isoformat(),
+                "timestamp": row.get("created_at") or datetime.now(UTC).isoformat(),
                 "query": row.get("question") or row.get("query") or "Unknown query",
                 "video_id": vid,
                 "reason": row.get("reason") or "Flagged as unsafe",
             })
 
     report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "total_triage_events": total_events,
         "tag_breakdown": {tag: tag_counts.get(tag, 0) for tag in CANONICAL_TAGS},
         "unsafe_count": len(unsafe_events),

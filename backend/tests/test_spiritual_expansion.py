@@ -23,8 +23,7 @@ from app.pipeline.stages.context import PipelineContext
 from app.pipeline.stages.personalize_stage import PersonalizeStage
 from rag.nodes.generation import generate_answer
 from rag.nodes.utils import _llm_retrieval_expansions
-from domain.first_person_context import ParentContext, ParentUnit
-from services.first_person_pipeline import FirstPersonPipeline, FirstPersonPipelineResult
+from services.first_person_pipeline import FirstPersonPipeline
 from services.personalization.models import (
     MoodSpiritualJournalContext,
     PrePracticeLogContext,
@@ -37,7 +36,6 @@ from services.personalization.models import (
 )
 from services.spiritual_expansion import (
     SpiritualConceptExpansion,
-    get_spiritual_concept_expansion,
     set_spiritual_concept_expansion,
 )
 

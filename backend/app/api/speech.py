@@ -26,7 +26,7 @@ from app.schemas.compliance_provenance import (
     SoftwareAgentDescriptor,
 )
 from app.security_utils import RedisBackedRateLimiter, is_benchmark_request
-from services.auth_service import get_current_user_from_supabase, get_optional_user
+from services.auth_service import get_optional_user
 from services.sarvam_service import SarvamCloudService
 from services.watermarking_service import WatermarkingService
 from services.whisper_local_service import transcribe_with_whisper

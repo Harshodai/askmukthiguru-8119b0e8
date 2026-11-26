@@ -23,6 +23,7 @@ import importlib.util
 import json
 from pathlib import Path
 
+
 def _find_repo_root() -> Path:
     current = Path(__file__).resolve()
     for parent in current.parents:

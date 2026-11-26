@@ -32,11 +32,11 @@ Usage:
 from __future__ import annotations
 
 import argparse
-from collections import Counter
 import logging
 import os
-from pathlib import Path
 import sys
+from collections import Counter
+from pathlib import Path
 from typing import Any, Optional
 
 

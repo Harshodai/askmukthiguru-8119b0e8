@@ -8,8 +8,8 @@ Simulates 3 distinct personas:
 
 import json
 import os
-import sys
 import time
+
 import requests
 
 BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
@@ -17,7 +17,7 @@ BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 def poll_job(session, job_id, token, max_retries=40, delay=2):
     url = f"{BASE_URL}/api/jobs/{job_id}"
     headers = {"X-Session-Id": token}
-    for attempt in range(max_retries):
+    for _attempt in range(max_retries):
         resp = session.get(url, headers=headers)
         if resp.status_code == 200:
             data = resp.json()

@@ -22,11 +22,8 @@ Covers Features F1 through F16 (5 tests per feature):
 from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path
-from typing import Any
-from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient

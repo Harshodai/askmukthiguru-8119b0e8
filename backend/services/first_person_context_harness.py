@@ -16,7 +16,6 @@ import re
 from dataclasses import dataclass, field
 
 from domain.first_person_context import (
-    _is_same_or_shared_guru,
     AnswerRole,
     BoundaryStatus,
     CitationSpan,
@@ -28,6 +27,7 @@ from domain.first_person_context import (
     SourceSpan,
     SpeakerRole,
     ValidatedCrossParentEdge,
+    _is_same_or_shared_guru,
     clip_text_hash,
 )
 from domain.speaker_provenance import speaker_write_violations

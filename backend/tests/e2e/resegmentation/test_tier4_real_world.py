@@ -13,23 +13,14 @@ Covers 8 realistic operational end-to-end workflows:
 
 from __future__ import annotations
 
-import copy
-import hashlib
 import json
-import logging
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from scripts.ops.collection_fingerprint import fingerprint_from_ids
 from scripts.ops.dry_run_resegmentation import (
-    ANALOGY_RESOLUTION_RE,
-    DANGLING_OPENER_RE,
-    ENUMERATION_ITEM_RE,
-    PROMISSORY_CAUSAL_RESOLUTION_RE,
     RhetoricalResegmentationEngine,
     run_dry_run,
 )

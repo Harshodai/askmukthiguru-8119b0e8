@@ -15,14 +15,14 @@ from types import SimpleNamespace
 
 import pytest
 
+from services.canonical_memory.judge import DecisionType
+from services.canonical_memory.resolver import MemoryResolver
 from services.canonical_memory.retriever import CanonicalMemoryRetriever
 from tests.test_canonical_memory_resolution import (
     MockSupabase,
     _make_candidate,
     _make_decision,
 )
-from services.canonical_memory.judge import DecisionType
-from services.canonical_memory.resolver import MemoryResolver
 
 
 @pytest.mark.asyncio

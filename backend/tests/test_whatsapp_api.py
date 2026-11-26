@@ -5,22 +5,20 @@ Tests for WhatsApp Meta Cloud API Webhook, Account Linking, and DPDP Consent.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
 from services.whatsapp_service import (
-    CRISIS_HELPLINE_COPY,
     clean_phone,
     create_link_challenge,
     format_whatsapp_message,
     generate_link_token,
-    get_link_status,
     hash_phone,
     hash_token,
     likely_crisis,
@@ -326,7 +324,7 @@ async def test_account_linking_lifecycle():
         "phone_number_masked": challenge["phone_number_masked"],
         "phone_number_raw": phone,
         "consumed_at": None,
-        "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(),
+        "expires_at": (datetime.now(UTC) + timedelta(minutes=10)).isoformat(),
     }
     fake_db.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
         data=[challenge_row]
@@ -338,7 +336,7 @@ async def test_account_linking_lifecycle():
             "status": "active",
             "sync_history_consent": False,
             "memory_write_consent": False,
-            "linked_at": datetime.now(timezone.utc).isoformat(),
+            "linked_at": datetime.now(UTC).isoformat(),
         }]
     )
 
@@ -348,13 +346,13 @@ async def test_account_linking_lifecycle():
     assert linked["memory_write_consent"] is False
 
     # 3. Attempt replay (should fail)
-    challenge_row["consumed_at"] = datetime.now(timezone.utc).isoformat()
+    challenge_row["consumed_at"] = datetime.now(UTC).isoformat()
     with pytest.raises(ValueError, match="already been used"):
         await verify_link_challenge(fake_db, token, user_id)
 
     # 4. Attempt expired token (should fail)
     challenge_row["consumed_at"] = None
-    challenge_row["expires_at"] = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    challenge_row["expires_at"] = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
     with pytest.raises(ValueError, match="expired"):
         await verify_link_challenge(fake_db, token, user_id)
 
@@ -364,7 +362,7 @@ async def test_account_linking_lifecycle():
             "phone_number_masked": "+9198*** **210",
             "sync_history_consent": True,
             "memory_write_consent": False,
-            "linked_at": datetime.now(timezone.utc).isoformat(),
+            "linked_at": datetime.now(UTC).isoformat(),
         }]
     )
     consent = await update_link_consent(fake_db, user_id, sync_history_consent=True)
@@ -536,7 +534,11 @@ def test_build_meta_interactive_buttons():
 
 
 def test_whatsapp_ai_pause_and_resume():
-    from services.whatsapp_service import is_whatsapp_ai_paused, pause_whatsapp_ai, resume_whatsapp_ai
+    from services.whatsapp_service import (
+        is_whatsapp_ai_paused,
+        pause_whatsapp_ai,
+        resume_whatsapp_ai,
+    )
 
     fake_store = {}
 

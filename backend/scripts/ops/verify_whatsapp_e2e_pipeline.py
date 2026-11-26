@@ -28,7 +28,6 @@ import os
 import sys
 import uuid
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 
@@ -302,8 +301,8 @@ def run_e2e_verification() -> bool:
     print("\n[7/9] Verifying two-channel account linking & consent controls...")
     fake_user_id = str(uuid.uuid4())
     mock_supabase = MagicMock()
-    mock_challenges_table = MagicMock()
-    mock_links_table = MagicMock()
+    _mock_challenges_table = MagicMock()
+    _mock_links_table = MagicMock()
 
     # Challenge table returns active challenge
     challenge_row = {
@@ -348,8 +347,8 @@ def run_e2e_verification() -> bool:
     mock_container = MagicMock()
     mock_container.supabase_client = mock_supabase
 
-    from services.auth_service import get_current_user_from_supabase
     from app.dependencies import get_container_async
+    from services.auth_service import get_current_user_from_supabase
 
     app.dependency_overrides[get_current_user_from_supabase] = lambda: {"id": fake_user_id, "email": "faculty@oneness.org"}
     app.dependency_overrides[get_container_async] = lambda: mock_container
@@ -420,13 +419,14 @@ def run_e2e_verification() -> bool:
     live_db = _get_client()
     if live_db:
         import asyncio
+
         from services.whatsapp_service import (
             create_link_challenge,
-            verify_link_challenge,
-            get_link_status,
-            update_link_consent,
-            unlink_account,
             get_account_link_by_phone,
+            get_link_status,
+            unlink_account,
+            update_link_consent,
+            verify_link_challenge,
         )
 
         dummy_user_id = "9218a205-8084-4fde-a8d4-b4bd1046c583"

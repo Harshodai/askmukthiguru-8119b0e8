@@ -11,29 +11,27 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 _BACKEND = Path(__file__).resolve().parents[1]
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from scripts.ops.windowed_ecapa_v1_scorer import (  # noqa: E402
+    GROUP_NOT_RUN,
+    GROUP_REFUSED,
+    GROUP_VERIFIED,
+    SILENCE_RMS_FLOOR,
     VERDICT_INDETERMINATE,
     VERDICT_REFUSED_FLOOR,
     VERDICT_REFUSED_HOST,
     VERDICT_REFUSED_MARGIN,
     VERDICT_VERIFIED,
-    GROUP_NOT_RUN,
-    GROUP_REFUSED,
-    GROUP_VERIFIED,
-    SILENCE_RMS_FLOOR,
+    _roc_auc,
+    _slide_windows,
     calibrate_windowed_floor,
     is_silent,
     windowed_verdict,
-    _roc_auc,
-    _slide_windows,
 )
-
 
 # ---------------------------------------------------------------------------
 # is_silent

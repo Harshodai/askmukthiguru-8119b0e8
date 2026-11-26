@@ -24,10 +24,9 @@ import copy
 import hashlib
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional
-from unittest.mock import MagicMock
+from typing import Any, Optional
 
 import pytest
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -303,7 +302,7 @@ class MockRejectionsDB:
     def __init__(self) -> None:
         self.rows: list[dict[str, Any]] = []
 
-    def insert(self, rows: list[dict[str, Any]]) -> "MockRejectionsDB":
+    def insert(self, rows: list[dict[str, Any]]) -> MockRejectionsDB:
         for r in rows:
             missing = self.REQUIRED_FIELDS - set(r.keys())
             if missing:
@@ -320,7 +319,7 @@ class MockRejectionsDB:
     def execute(self) -> dict[str, Any]:
         return {"data": self.rows, "count": len(self.rows)}
 
-    def select(self, *columns: str) -> "MockRejectionsDBQuery":
+    def select(self, *columns: str) -> MockRejectionsDBQuery:
         return MockRejectionsDBQuery(self.rows)
 
 
@@ -329,7 +328,7 @@ class MockRejectionsDBQuery:
         self._rows = rows
         self._filtered = list(rows)
 
-    def eq(self, column: str, value: Any) -> "MockRejectionsDBQuery":
+    def eq(self, column: str, value: Any) -> MockRejectionsDBQuery:
         self._filtered = [r for r in self._filtered if r.get(column) == value]
         return self
 

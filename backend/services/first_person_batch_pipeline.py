@@ -8,9 +8,10 @@ before any Qdrant write; raw ASR text is preserved verbatim and never rewritten.
 from __future__ import annotations
 
 import math
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any
 
 from qdrant_client.http.models import SparseVector
 
@@ -28,10 +29,9 @@ from domain.first_person_context import (
 )
 from ingest.verbatim.asr_cleaner import asr_cleaner_flags
 from ingest.verbatim.boundaries import boundary_defects
+from services.guru_registry import shared_attribution
 from services.qdrant.indexer import resolve_source_rights_status
 from services.text_quality_filter import find_artifact
-
-from services.guru_registry import shared_attribution
 
 CORPUS_VERSION = "fp-context-resegment-v2"
 CHUNKER_VERSION = "boundary_v1:sentence_closing_18-25s"

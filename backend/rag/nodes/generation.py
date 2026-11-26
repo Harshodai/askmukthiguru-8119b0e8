@@ -11,7 +11,8 @@ import asyncio
 import functools
 import logging
 import re
-from typing import Optional
+import time
+from typing import Any, Optional
 
 from langchain_core.runnables import RunnableConfig
 
@@ -4240,12 +4241,12 @@ async def _polish_and_weave_clips(
     disclaimers = []
     lines = answer.split("\n\n")
     clean_lines = []
-    for l in lines:
-        stripped_l = l.strip()
+    for block in lines:
+        stripped_l = block.strip()
         if stripped_l.startswith("_") and stripped_l.endswith("_") and len(stripped_l) > 20:
             disclaimers.append(stripped_l)
         else:
-            clean_lines.append(l)
+            clean_lines.append(block)
 
     body_to_polish = "\n\n".join(clean_lines).strip()
     if len(body_to_polish) < 30:
@@ -4330,7 +4331,7 @@ async def _polish_and_weave_clips(
             verified_text = f"{verified_text}\n\n" + "\n\n".join(disclaimers)
         return verified_text
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("LLM polishing timed out after %.1fs; falling back to original answer", timeout_s)
         return answer
     except Exception as e:

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Self-harm / suicidal despair regex matching runtime safety filter
@@ -200,7 +200,7 @@ def main() -> None:
             {
                 **cand,
                 "self_harm_check_passed": True,
-                "screened_at": datetime.now(timezone.utc).isoformat(),
+                "screened_at": datetime.now(UTC).isoformat(),
             }
         )
 
@@ -209,7 +209,7 @@ def main() -> None:
         json.dump(
             {
                 "version": "1.0",
-                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "generated_at": datetime.now(UTC).isoformat(),
                 "total_candidates": len(verified_candidates),
                 "screening_policy": "STRICT_EXCLUSION_OF_SELF_HARM",
                 "regex_pattern": _CLIP_MENTIONS_SELF_HARM.pattern,
@@ -225,7 +225,7 @@ def main() -> None:
     lines = [
         "# Standalone Grief & Loss Teachings: Candidate Review Packet",
         "",
-        f"**Date:** {datetime.now(timezone.utc).strftime('%Y-%m-%d')}  ",
+        f"**Date:** {datetime.now(UTC).strftime('%Y-%m-%d')}  ",
         "**Status:** PROPOSED FOR OWNER & CLINICIAN REVIEW  ",
         "**Corpus Gap Reference:** `docs/plans/CORPUS_GAP_INGESTION_PLAN_2026_11_20.md`  ",
         "**Safety Invariant:** All candidates verified clean against `_CLIP_MENTIONS_SELF_HARM` "

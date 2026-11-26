@@ -41,7 +41,7 @@ import os
 import re
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 _BACKEND = Path(__file__).resolve().parents[2] / "backend"
@@ -50,11 +50,8 @@ if str(_BACKEND) not in sys.path:
 
 from qdrant_client import QdrantClient  # noqa: E402
 from qdrant_client.http.models import (  # noqa: E402
-    Distance,
     PointStruct,
     SparseVector,
-    SparseVectorParams,
-    VectorParams,
 )
 
 from services.embedding_service import EmbeddingService  # noqa: E402
@@ -250,7 +247,7 @@ def main() -> int:
     dense, sparse = encoded["dense"], encoded["sparse"]
 
     points = []
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     for i, a in enumerate(accepted):
         start_ms, end_ms = int(a["start"] * 1000), int(a["end"] * 1000)
         sv = sparse[i]

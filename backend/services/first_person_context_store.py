@@ -37,7 +37,6 @@ from qdrant_client.http.models import (
 from app.config import settings
 from domain.first_person_context import (
     _VALIDATED_EDGE_ISSUE_TOKEN,
-    _is_same_or_shared_guru,
     BoundaryStatus,
     CompletenessStatus,
     ParentContext,
@@ -45,6 +44,7 @@ from domain.first_person_context import (
     SourceSpan,
     SpeakerRole,
     ValidatedCrossParentEdge,
+    _is_same_or_shared_guru,
     clip_text_hash,
 )
 from domain.speaker_provenance import (

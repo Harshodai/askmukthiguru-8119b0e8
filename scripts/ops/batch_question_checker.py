@@ -5,10 +5,9 @@ Evaluates route decisions, grounding states, and inspects abstentions.
 Per Invariant X29, retries on 429 with backoff.
 """
 
-import json
 import os
-import sys
 import time
+
 import requests
 
 BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")

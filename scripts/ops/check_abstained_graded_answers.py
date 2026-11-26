@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import time
+
 import requests
 
 BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
@@ -26,7 +27,7 @@ def acquire_session(session: requests.Session):
     the auth/quota dependencies accept, and recording its 400/401 as an
     abstention would corrupt the evaluation artifact.
     """
-    for attempt in range(4):
+    for _attempt in range(4):
         try:
             resp = session.post(f"{BASE_URL}/api/auth/anon-session", json={})
             if resp.status_code == 200:

@@ -1,10 +1,10 @@
 """Tests for co-guru founder context hydration, speaker gate, and sub-10s latency guards."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from domain.first_person_context import (
-    _is_same_or_shared_guru,
     BoundaryStatus,
     CompletenessStatus,
     ParentContext,
@@ -12,18 +12,19 @@ from domain.first_person_context import (
     ProvenanceKind,
     SourceSpan,
     SpeakerRole,
+    _is_same_or_shared_guru,
     clip_text_hash,
     make_source_span_id,
+)
+from rag.nodes.reranking import _limit_rerank_candidates
+from services.first_person_context_harness import (
+    FirstPersonContextHarness,
+    HarnessPolicy,
 )
 from services.first_person_context_store import (
     FirstPersonContextStore,
     FirstPersonContextStoreError,
 )
-from services.first_person_context_harness import (
-    FirstPersonContextHarness,
-    HarnessPolicy,
-)
-from rag.nodes.reranking import _limit_rerank_candidates
 
 
 def _dummy_span(
