@@ -222,13 +222,12 @@ def _get_client() -> Optional[Client]:
         url = settings.supabase_url
         if "host.docker.internal" in url:
             import socket
+
             try:
                 socket.gethostbyname("host.docker.internal")
             except socket.gaierror:
                 url = url.replace("host.docker.internal", "127.0.0.1")
-        _cached_supabase_client = create_client(
-            url, settings.supabase_key, options=opts
-        )
+        _cached_supabase_client = create_client(url, settings.supabase_key, options=opts)
         return _cached_supabase_client
     except Exception as e:
         logger.warning("Failed to initialize Supabase client: %s", e)

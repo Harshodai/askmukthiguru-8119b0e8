@@ -279,9 +279,7 @@ def build_composition_manifest(
         spk_raw = c.get("speaker_verified", False)
         rights_raw = c.get("rights_cleared", False)
         if not isinstance(spk_raw, bool) or not isinstance(rights_raw, bool):
-            raise TypeError(
-                f"Clip {cid!r} speaker_verified and rights_cleared must be booleans"
-            )
+            raise TypeError(f"Clip {cid!r} speaker_verified and rights_cleared must be booleans")
         spk_ok = spk_raw is True
         rights_ok = rights_raw is True
         guru_id = str(c.get("guru_id") or "unknown")

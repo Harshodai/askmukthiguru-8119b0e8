@@ -296,7 +296,9 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
             ref["timestamp_seconds"],
             tolerance_s=PERSONALIZE_CLIP_TOLERANCE_S,
         )
-        if not isinstance(clip, dict) and getattr(settings, "first_person_context_collection", None):
+        if not isinstance(clip, dict) and getattr(
+            settings, "first_person_context_collection", None
+        ):
             try:
                 clip = store.get_clip_by_video_and_start_in_collection(
                     collection=settings.first_person_context_collection,
@@ -528,9 +530,7 @@ class PersonalizeStage(Stage):
                     user_id=str(_uid), tenant_id=str(_tenant_id)
                 )
                 _receipt = (
-                    await _maybe_receipt
-                    if _inspect.isawaitable(_maybe_receipt)
-                    else _maybe_receipt
+                    await _maybe_receipt if _inspect.isawaitable(_maybe_receipt) else _maybe_receipt
                 )
                 if not _receipt:
                     return _decline(
@@ -681,7 +681,9 @@ class PersonalizeStage(Stage):
                             f"(longest: {sad.longest_streak} days)"
                         )
                     if sad.daily_practices:
-                        facet_lines.append(f"- [Sadhana Practices] {', '.join(sad.daily_practices)}")
+                        facet_lines.append(
+                            f"- [Sadhana Practices] {', '.join(sad.daily_practices)}"
+                        )
                     if sad.minutes_meditated > 0:
                         facet_lines.append(
                             f"- [Sadhana Time] Total meditated: {sad.minutes_meditated} minutes"
@@ -690,7 +692,9 @@ class PersonalizeStage(Stage):
                 # 3. Pre-Practice State & Intentions
                 if seeker_ctx.pre_practice:
                     pp = seeker_ctx.pre_practice
-                    if pp.mental_clarity or (pp.pre_session_state and pp.pre_session_state != "calm"):
+                    if pp.mental_clarity or (
+                        pp.pre_session_state and pp.pre_session_state != "calm"
+                    ):
                         facet_lines.append(
                             f"- [Pre-Practice State] Clarity: {pp.mental_clarity}/10, State: {pp.pre_session_state}"
                         )
@@ -702,7 +706,9 @@ class PersonalizeStage(Stage):
                     sn = seeker_ctx.study_notebooks
                     if sn.saved_teachings:
                         teachings = [
-                            t.get("title", "Teaching") if isinstance(t, dict) else getattr(t, "title", "Teaching")
+                            t.get("title", "Teaching")
+                            if isinstance(t, dict)
+                            else getattr(t, "title", "Teaching")
                             for t in sn.saved_teachings
                         ]
                         facet_lines.append(f"- [Saved Teachings] {', '.join(teachings)}")
@@ -752,7 +758,9 @@ class PersonalizeStage(Stage):
                         top_str = ", ".join(topics) if isinstance(topics, list) else str(topics)
                         facet_lines.append(f"- [Profile Focus Areas] {top_str}")
                     if sp.spiritual_readiness and sp.spiritual_readiness != "intermediate":
-                        facet_lines.append(f"- [Spiritual Readiness] {sp.spiritual_readiness.title()}")
+                        facet_lines.append(
+                            f"- [Spiritual Readiness] {sp.spiritual_readiness.title()}"
+                        )
 
                 if facet_lines:
                     mem_evidence = "\n".join(facet_lines)

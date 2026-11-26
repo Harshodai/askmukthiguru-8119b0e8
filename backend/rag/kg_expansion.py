@@ -161,9 +161,7 @@ async def resolve_concepts_in_query_async(
     try:
         from app.config import settings as app_settings
 
-        enabled = bool(
-            getattr(app_settings, "kg_dynamic_concept_resolution_enabled", False)
-        )
+        enabled = bool(getattr(app_settings, "kg_dynamic_concept_resolution_enabled", False))
     except Exception as exc:
         logger.debug(
             "[KGExpansion] Dynamic concept setting unavailable; using token matches: %s",
@@ -264,7 +262,9 @@ async def expand_query_via_kg(
     timeout_val = max(0.01, float(timeout if timeout is not None else default_timeout))
     deadline = asyncio.get_running_loop().time() + timeout_val
     concept_timeout = min(
-        float(getattr(settings, "kg_dynamic_concept_resolution_timeout_s", 0.75)) if settings else 0.75,
+        float(getattr(settings, "kg_dynamic_concept_resolution_timeout_s", 0.75))
+        if settings
+        else 0.75,
         max(0.01, timeout_val * 0.4),
     )
     try:

@@ -414,7 +414,10 @@ def _early_filter(
             from services.serene_mind_engine import DistressLevel
 
             prior_assessment = state.get("assessment")
-            if prior_assessment is not None and getattr(prior_assessment, "level", None) is not None:
+            if (
+                prior_assessment is not None
+                and getattr(prior_assessment, "level", None) is not None
+            ):
                 keyword_assessment = prior_assessment
             else:
                 keyword_assessment = serene_mind.assess_distress(question, chat_history)
@@ -424,6 +427,7 @@ def _early_filter(
                     _only_existential_signal,
                     classify_existential_vs_severe_distress,
                 )
+
                 if (
                     _only_existential_signal(keyword_assessment)
                     and classify_existential_vs_severe_distress(question) == "MILD_EXISTENTIAL"
@@ -1802,11 +1806,14 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
     # meditation timer") is not a request to be guided; it falls through to Case 4 and the
     # graph routes it back to the general lane.
     from app.pipeline.stages.off_topic_stage import _is_general_task
-
     from rag.meditation import is_meditation_practice_query
 
     is_practice_instruction = is_meditation_practice_query(question)
-    if fresh and (not is_interrogative or is_practice_instruction) and not _is_general_task(question):
+    if (
+        fresh
+        and (not is_interrogative or is_practice_instruction)
+        and not _is_general_task(question)
+    ):
         if "soul sync" in question:
             response = format_meditation_script("soul_sync")
             return {

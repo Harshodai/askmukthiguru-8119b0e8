@@ -52,9 +52,9 @@ from ingest.youtube_loader import (
 from services.contextual_chunking_service import ContextualChunkingService
 from services.embedding_service import EmbeddingService
 from services.injection_scanner import scan_chunks_for_injection
+from services.llm_protocol import ILLMService
 from services.metadata_extractor import extract_video_metadata
 from services.ocr_service import OCRService
-from services.llm_protocol import ILLMService
 from services.pii_scanner import redact_pii
 from services.qdrant_service import QdrantService
 from services.text_quality_filter import select_clean
@@ -448,9 +448,9 @@ async def _okf_extract_for_video(video_id: str) -> None:
         logger.warning(f"In-process OKF extraction failed for video {video_id}: {e}")
 
 
+from services.guru_registry import canonical_guru_id
 from services.provenance import classify_chunk_provenance
 from services.teacher_attribution import resolve_teacher_attribution
-from services.guru_registry import canonical_guru_id
 
 
 def is_url_safe(url: str) -> bool:
@@ -3575,7 +3575,10 @@ class IngestionPipeline:
             if chunk_voice and i < len(chunk_voice) and chunk_voice[i]:
                 voice_fields = dict(chunk_voice[i])
                 if voice_fields.get("speaker_verified") is True:
-                    from domain.speaker_provenance import pending_voice_fields, speaker_write_violations
+                    from domain.speaker_provenance import (
+                        pending_voice_fields,
+                        speaker_write_violations,
+                    )
 
                     if speaker_write_violations(voice_fields):
                         logger.error(

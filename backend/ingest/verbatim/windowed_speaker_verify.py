@@ -199,7 +199,11 @@ class WindowedEcapaVerifier:
         self._calibration: dict[str, Any] | None = None  # loaded lazily
 
         # References
-        ref_default = _DEFAULT_REFERENCES_PATH if _DEFAULT_REFERENCES_PATH.is_file() else _FALLBACK_REFERENCES_PATH
+        ref_default = (
+            _DEFAULT_REFERENCES_PATH
+            if _DEFAULT_REFERENCES_PATH.is_file()
+            else _FALLBACK_REFERENCES_PATH
+        )
         ref_path = Path(references_path or ref_default)
         if not ref_path.is_file():
             raise FileNotFoundError(
@@ -219,17 +223,14 @@ class WindowedEcapaVerifier:
 
     def _load_calibration(self) -> dict[str, Any]:
         if self._calibration is None:
-            self._calibration = json.loads(
-                self._calibration_path.read_text(encoding="utf-8")
-            )
+            self._calibration = json.loads(self._calibration_path.read_text(encoding="utf-8"))
         return self._calibration
 
     def _load_references(self) -> dict[str, np.ndarray]:
         if self._references is None:
             with np.load(self._references_path) as f:
                 self._references = {
-                    str(k).lower(): np.asarray(f[k], dtype=np.float32)
-                    for k in f.files
+                    str(k).lower(): np.asarray(f[k], dtype=np.float32) for k in f.files
                 }
         return self._references
 
@@ -254,9 +255,7 @@ class WindowedEcapaVerifier:
         """Return the real SpeechBrain embedder, loading it on first call."""
         if self._embedder is None:
             scorer = self._load_scorer()
-            self._embedder = scorer.load_embedder(
-                cache_dir=self._model_cache, device="auto"
-            )
+            self._embedder = scorer.load_embedder(cache_dir=self._model_cache, device="auto")
         return self._embedder
 
     # ------------------------------------------------------------------
@@ -302,7 +301,10 @@ class WindowedEcapaVerifier:
         except Exception as exc:
             logger.warning(
                 "windowed_verify: unexpected error for %s [%s-%s]: %s",
-                video_id, start_ms, end_ms, exc,
+                video_id,
+                start_ms,
+                end_ms,
+                exc,
             )
             return _pv()
 
@@ -327,7 +329,10 @@ class WindowedEcapaVerifier:
         except Exception as exc:
             logger.warning(
                 "windowed_verify: unexpected error for %s [%s-%s]: %s",
-                wav_path, start_ms, end_ms, exc,
+                wav_path,
+                start_ms,
+                end_ms,
+                exc,
             )
             return _pv()
 
@@ -384,7 +389,10 @@ class WindowedEcapaVerifier:
         if audio is None or len(audio) == 0:
             logger.debug(
                 "windowed_verify: read_slice failed for %s [%s-%s]: %s",
-                wav_path.name, s_start_ms, s_end_ms, err,
+                wav_path.name,
+                s_start_ms,
+                s_end_ms,
+                err,
             )
             return pending_voice_fields()
 
@@ -402,7 +410,10 @@ class WindowedEcapaVerifier:
         except Exception as exc:
             logger.warning(
                 "windowed_verify: scoring failed for %s [%s-%s]: %s",
-                wav_path.name, start_ms, end_ms, exc,
+                wav_path.name,
+                start_ms,
+                end_ms,
+                exc,
             )
             return pending_voice_fields()
 
@@ -451,13 +462,23 @@ class WindowedEcapaVerifier:
             logger.warning(
                 "windowed_verify: verified verdict failed the write rule for %s [%s-%s] "
                 "(verdict=%s reason=%s, windows=%s silent=%s); demoting to pending",
-                wav_path.name, start_ms, end_ms, verdict, reason,
-                stats.get("windows_scored"), silent,
+                wav_path.name,
+                start_ms,
+                end_ms,
+                verdict,
+                reason,
+                stats.get("windows_scored"),
+                silent,
             )
             return pending_voice_fields()
         if not verified:
             logger.debug(
                 "windowed_verify: refused %s [%s-%s] verdict=%s windows=%s silent=%s",
-                wav_path.name, start_ms, end_ms, verdict, stats.get("windows_scored"), silent,
+                wav_path.name,
+                start_ms,
+                end_ms,
+                verdict,
+                stats.get("windows_scored"),
+                silent,
             )
         return fields

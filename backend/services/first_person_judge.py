@@ -455,7 +455,11 @@ async def judge_select_async(
 
     allow_weak = bool(getattr(settings, "first_person_serve_weak_match", True))
     chosen = select_index(scores, answerable, minimum, allow_weak_match=allow_weak)
-    is_direct = bool(scores[chosen]["answers"]) if chosen is not None and 0 <= chosen < len(scores) else False
+    is_direct = (
+        bool(scores[chosen]["answers"])
+        if chosen is not None and 0 <= chosen < len(scores)
+        else False
+    )
     if judge_meta_out is not None:
         judge_meta_out.update(
             {
@@ -465,7 +469,9 @@ async def judge_select_async(
                 "is_direct": is_direct,
             }
         )
-        editorial_set = build_editorial_set_from_judge(judge_meta_out, query=question, is_direct=is_direct)
+        editorial_set = build_editorial_set_from_judge(
+            judge_meta_out, query=question, is_direct=is_direct
+        )
         if editorial_set is not None:
             judge_meta_out["editorial_set"] = editorial_set
     return chosen

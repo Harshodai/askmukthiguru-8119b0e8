@@ -88,7 +88,9 @@ def unified_real_store(monkeypatch):
     store = FirstPersonStore.__new__(FirstPersonStore)
     store._client = MagicMock()
     monkeypatch.setattr(stage, "_store_for_request", lambda: store)
-    return lambda *payloads: setattr(store._client.scroll, "return_value", _scroll_points(*payloads))
+    return lambda *payloads: setattr(
+        store._client.scroll, "return_value", _scroll_points(*payloads)
+    )
 
 
 def test_real_fp_context_clip_passes_the_integrity_gate(unified_real_store):

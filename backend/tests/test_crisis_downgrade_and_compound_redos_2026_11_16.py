@@ -70,14 +70,31 @@ _OLD_COMPOUND_RE = re.compile(
     re.IGNORECASE,
 )
 
-_WORDS = ["both", "peace", "and", "how", "as", "well", "anger", ",", "what", "is", "?", "also", "—", "love"]
+_WORDS = [
+    "both",
+    "peace",
+    "and",
+    "how",
+    "as",
+    "well",
+    "anger",
+    ",",
+    "what",
+    "is",
+    "?",
+    "also",
+    "—",
+    "love",
+]
 
 
 def test_compound_verdict_unchanged_on_short_queries() -> None:
     for length in range(1, 6):
         for combo in itertools.product(_WORDS, repeat=length):
             text = " ".join(combo)
-            assert bool(_OLD_COMPOUND_RE.search(text)) == bool(_COMPOUND_QUESTION_RE.search(text)), text
+            assert bool(_OLD_COMPOUND_RE.search(text)) == bool(
+                _COMPOUND_QUESTION_RE.search(text)
+            ), text
 
 
 @pytest.mark.parametrize("unit", ["and ", "both ", "x , ", "a  \t"])

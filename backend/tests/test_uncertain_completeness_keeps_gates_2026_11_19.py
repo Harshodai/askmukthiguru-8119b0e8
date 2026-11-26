@@ -16,16 +16,25 @@ from services.first_person_context_harness import (
     HarnessDecision,
     HarnessPolicy,
 )
-from tests.test_first_person_context_harness import context, span  # noqa: F401
-from tests.test_first_person_context_harness import _synthetic_registry  # noqa: F401 - autouse
+from tests.test_first_person_context_harness import (  # noqa: F401
+    _synthetic_registry,  # noqa: F401 - autouse
+    context,
+    span,
+)
 
 _POLICY = HarnessPolicy(allow_fragment_with_antecedent=True, allow_uncertain_completeness=True)
 
 
 def _uncertain_cases():
     return [
-        ("span", lambda **kw: context([span(completeness_status=CompletenessStatus.UNCERTAIN, **kw)])),
-        ("parent", lambda **kw: context([span(**kw)], completeness_status=CompletenessStatus.UNCERTAIN)),
+        (
+            "span",
+            lambda **kw: context([span(completeness_status=CompletenessStatus.UNCERTAIN, **kw)]),
+        ),
+        (
+            "parent",
+            lambda **kw: context([span(**kw)], completeness_status=CompletenessStatus.UNCERTAIN),
+        ),
     ]
 
 

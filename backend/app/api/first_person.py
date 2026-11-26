@@ -574,6 +574,7 @@ async def enqueue_first_person_video_ingest(
 ) -> FirstPersonIngestStatusResponse:
     """Enqueue asynchronous first-person video ingestion via Celery."""
     import uuid
+
     from services.first_person_ingest_service import (
         FPJobStage,
         FPJobStatus,

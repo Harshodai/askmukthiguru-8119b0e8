@@ -14,6 +14,7 @@ from services.citation_service import _check_grounding, resolve
 # 1. Inline Citation Grounding Trap Remediation Tests
 # ---------------------------------------------------------------------------
 
+
 def test_check_grounding_verified_grounded_skips_paragraph_penalty():
     """When claim verification has confirmed all claims are grounded,
     paragraph marker absence in intro/conclusion must not fail citations_verified."""
@@ -100,7 +101,9 @@ async def test_format_final_answer_preserves_verified_status_on_grounded_claims(
         "question": "How do I overcome anxiety?",
         "answer": answer,
         "relevant_docs": docs,
-        "citations": [{"url": "https://youtube.com/watch?v=abc12345", "title": "Discourse on Anxiety"}],
+        "citations": [
+            {"url": "https://youtube.com/watch?v=abc12345", "title": "Discourse on Anxiety"}
+        ],
         "is_faithful": True,
         "faithfulness_score": 1.0,
         "confidence_score": 8.5,
@@ -124,6 +127,7 @@ async def test_format_final_answer_preserves_verified_status_on_grounded_claims(
 # ---------------------------------------------------------------------------
 # 2. Memory-to-Verifier Evidence Bridge Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_personalize_stage_bridges_canonical_memories_to_verifier_evidence(monkeypatch):
@@ -162,9 +166,15 @@ async def test_personalize_stage_bridges_canonical_memories_to_verifier_evidence
     store = MagicMock()
     store.get_clip_by_video_and_start.return_value = clip
     monkeypatch.setattr(stage_module, "_store_for_request", lambda: store)
-    monkeypatch.setattr(stage_module, "_passes_integrity_gate", lambda clip, **kw: True, raising=False)
-    monkeypatch.setattr("services.first_person_pipeline._passes_integrity_gate", lambda clip, **kw: True)
-    monkeypatch.setattr("services.first_person_pipeline.is_youtube_video_available", lambda vid: True)
+    monkeypatch.setattr(
+        stage_module, "_passes_integrity_gate", lambda clip, **kw: True, raising=False
+    )
+    monkeypatch.setattr(
+        "services.first_person_pipeline._passes_integrity_gate", lambda clip, **kw: True
+    )
+    monkeypatch.setattr(
+        "services.first_person_pipeline.is_youtube_video_available", lambda vid: True
+    )
     monkeypatch.setattr(
         "services.first_person_pipeline.source_is_authoritatively_licensed",
         lambda **kwargs: True,
@@ -220,6 +230,7 @@ async def test_personalize_stage_bridges_canonical_memories_to_verifier_evidence
 # 3. Dynamic Reranker Floor Fallback Tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_grade_documents_dynamic_fallback_preserves_candidates(monkeypatch):
     """When top_score is below min_score (0.35) but >= fallback_floor (0.22),
@@ -229,18 +240,36 @@ async def test_grade_documents_dynamic_fallback_preserves_candidates(monkeypatch
     from unittest.mock import AsyncMock, MagicMock
 
     from rag.nodes import _services
+
     mock_grader = MagicMock()
     mock_grader.grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
-    mock_grader.batch_grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
+    mock_grader.batch_grade_relevance = AsyncMock(
+        return_value=[{"relevant": True}, {"relevant": True}]
+    )
     monkeypatch.setattr(_services, "_ollama", mock_grader)
 
     state = {
         "question": "What is the spiritual perspective on right action in career?",
         "query_tier": "tier3_complex",
         "reranked_docs": [
-            {"title": "Doc A", "source_url": "https://example.com/a", "rerank_score": 0.28, "text": "Action in a beautiful state."},
-            {"title": "Doc B", "source_url": "https://example.com/b", "rerank_score": 0.24, "text": "Right action flows naturally."},
-            {"title": "Doc C", "source_url": "https://example.com/c", "rerank_score": 0.10, "text": "Unrelated excerpt."},
+            {
+                "title": "Doc A",
+                "source_url": "https://example.com/a",
+                "rerank_score": 0.28,
+                "text": "Action in a beautiful state.",
+            },
+            {
+                "title": "Doc B",
+                "source_url": "https://example.com/b",
+                "rerank_score": 0.24,
+                "text": "Right action flows naturally.",
+            },
+            {
+                "title": "Doc C",
+                "source_url": "https://example.com/c",
+                "rerank_score": 0.10,
+                "text": "Unrelated excerpt.",
+            },
         ],
         "intent": "QUERY",
     }
@@ -260,17 +289,30 @@ async def test_grade_documents_rejects_below_fallback_floor(monkeypatch):
     from unittest.mock import AsyncMock, MagicMock
 
     from rag.nodes import _services
+
     mock_grader = MagicMock()
     mock_grader.grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
-    mock_grader.batch_grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
+    mock_grader.batch_grade_relevance = AsyncMock(
+        return_value=[{"relevant": True}, {"relevant": True}]
+    )
     monkeypatch.setattr(_services, "_ollama", mock_grader)
 
     state = {
         "question": "Unrelated cold query",
         "query_tier": "tier3_complex",
         "reranked_docs": [
-            {"title": "Doc A", "source_url": "https://example.com/a", "rerank_score": 0.15, "text": "Unrelated A"},
-            {"title": "Doc B", "source_url": "https://example.com/b", "rerank_score": 0.12, "text": "Unrelated B"},
+            {
+                "title": "Doc A",
+                "source_url": "https://example.com/a",
+                "rerank_score": 0.15,
+                "text": "Unrelated A",
+            },
+            {
+                "title": "Doc B",
+                "source_url": "https://example.com/b",
+                "rerank_score": 0.12,
+                "text": "Unrelated B",
+            },
         ],
         "intent": "QUERY",
     }
@@ -283,9 +325,11 @@ async def test_grade_documents_rejects_below_fallback_floor(monkeypatch):
 # 4. Strict Minimal Stitching & Polarity Inversion Directives
 # ---------------------------------------------------------------------------
 
+
 def test_system_prompt_contains_minimal_stitching_and_no_polarity_inversion():
     """GURU_SYSTEM_PROMPT must mandate STRICT MINIMAL STITCHING and NO POLARITY INVERSION."""
     from rag.prompts.system import GURU_SYSTEM_PROMPT
+
     assert "STRICT MINIMAL STITCHING" in GURU_SYSTEM_PROMPT
     assert "poison you drink" in GURU_SYSTEM_PROMPT
     assert "NO POLARITY INVERSION" in GURU_SYSTEM_PROMPT
@@ -309,6 +353,7 @@ async def test_context_engineer_instructions_contain_minimal_stitching():
 # ---------------------------------------------------------------------------
 # 5. Robustness & Edge Case Attack Surface Tests
 # ---------------------------------------------------------------------------
+
 
 def test_check_grounding_rejects_out_of_range_markers_even_when_claims_verified_grounded():
     """When an answer contains citation markers that reference non-existent document IDs
@@ -386,7 +431,11 @@ async def test_format_final_answer_does_not_preserve_verified_when_verification_
         "relevant_docs": docs,
         "is_faithful": False,
         "faithfulness_score": 0.40,
-        "verification": {"passed": False, "score": 0.40, "claims": [{"claim": "xyz", "supported": False}]},
+        "verification": {
+            "passed": False,
+            "score": 0.40,
+            "claims": [{"claim": "xyz", "supported": False}],
+        },
         "query_tier": "tier3_complex",
         "intent": "QUERY",
         "retry_count": 0,
@@ -405,18 +454,35 @@ async def test_grade_documents_handles_none_rerank_score_without_type_error(monk
     from unittest.mock import AsyncMock, MagicMock
 
     from rag.nodes import _services
+
     mock_grader = MagicMock()
     mock_grader.grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
-    mock_grader.batch_grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
+    mock_grader.batch_grade_relevance = AsyncMock(
+        return_value=[{"relevant": True}, {"relevant": True}]
+    )
     monkeypatch.setattr(_services, "_ollama", mock_grader)
 
     state = {
         "question": "What is the spiritual perspective on right action in career?",
         "query_tier": "tier3_complex",
         "reranked_docs": [
-            {"title": "Doc A", "source_url": "https://example.com/a", "rerank_score": 0.28, "text": "Action in a beautiful state."},
-            {"title": "Doc B", "source_url": "https://example.com/b", "rerank_score": None, "text": "Unscored excerpt."},
-            {"title": "Doc C", "source_url": "https://example.com/c", "text": "Missing key excerpt."},
+            {
+                "title": "Doc A",
+                "source_url": "https://example.com/a",
+                "rerank_score": 0.28,
+                "text": "Action in a beautiful state.",
+            },
+            {
+                "title": "Doc B",
+                "source_url": "https://example.com/b",
+                "rerank_score": None,
+                "text": "Unscored excerpt.",
+            },
+            {
+                "title": "Doc C",
+                "source_url": "https://example.com/c",
+                "text": "Missing key excerpt.",
+            },
         ],
         "intent": "QUERY",
     }
@@ -431,12 +497,13 @@ def test_verify_inline_citations_bare_numeric_brackets():
     """Bare [1] numeric markers are recognized and preserved without premature False exit."""
     docs = [
         {"title": "Doc 1", "source_url": "https://example.com/1", "text": "Peace is within you."},
-        {"title": "Doc 2", "source_url": "https://example.com/2", "text": "Living in a beautiful state."},
+        {
+            "title": "Doc 2",
+            "source_url": "https://example.com/2",
+            "text": "Living in a beautiful state.",
+        },
     ]
-    answer = (
-        "Peace is within you [1].\n\n"
-        "Living in a beautiful state transforms your actions [2]."
-    )
+    answer = "Peace is within you [1].\n\nLiving in a beautiful state transforms your actions [2]."
     cleaned, verified, stripped = _verify_inline_citations(
         answer,
         docs,
@@ -459,6 +526,7 @@ def test_check_grounding_bare_numeric_brackets():
 # ---------------------------------------------------------------------------
 # 6. Mode 2 Grounded Synthesis Evidence Injection & Prompting Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_context_engineer_injects_first_person_synthesis_evidence_and_directives(monkeypatch):
@@ -543,10 +611,7 @@ async def test_context_engineer_fails_closed_when_synthesis_disabled(monkeypatch
     res = await context_engineer(state)
 
     selected = res.get("selected_docs", [])
-    assert not any(
-        d.get("knowledge_source") == "first_person_transcript"
-        for d in selected
-    )
+    assert not any(d.get("knowledge_source") == "first_person_transcript" for d in selected)
     instructions = res["context_layers"]["instructions"]
     assert "GROUNDED TEACHING SYNTHESIS DIRECTIVE" not in instructions
 
@@ -582,7 +647,9 @@ async def test_context_engineer_rejects_unverified_voice_spans(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_retrieval_injects_first_person_related_clips_into_documents_and_relevant_docs(monkeypatch):
+async def test_retrieval_injects_first_person_related_clips_into_documents_and_relevant_docs(
+    monkeypatch,
+):
     """retrieve_documents maps first_person_related_clips into documents and relevant_docs
     with real scores (no synthetic 0.85) when first_person_grounded_synthesis_enabled is True."""
     from unittest.mock import AsyncMock, MagicMock
@@ -628,7 +695,12 @@ async def test_retrieval_injects_first_person_related_clips_into_documents_and_r
     rel_docs = res.get("relevant_docs", [])
 
     matching_doc = next(
-        (d for d in docs if d.get("knowledge_source") == "first_person_transcript" and d.get("video_id") == "vid_abc"),
+        (
+            d
+            for d in docs
+            if d.get("knowledge_source") == "first_person_transcript"
+            and d.get("video_id") == "vid_abc"
+        ),
         None,
     )
     assert matching_doc is not None
@@ -636,8 +708,7 @@ async def test_retrieval_injects_first_person_related_clips_into_documents_and_r
     assert matching_doc.get("score") == 0.92
 
     assert any(
-        d.get("knowledge_source") == "first_person_transcript"
-        and d.get("video_id") == "vid_abc"
+        d.get("knowledge_source") == "first_person_transcript" and d.get("video_id") == "vid_abc"
         for d in rel_docs
     )
 
@@ -725,6 +796,3 @@ def test_route_after_first_person_enforces_soft_allowlist_and_fallback(monkeypat
     }
     out = _route_after_first_person(state)
     assert out != END
-
-
-

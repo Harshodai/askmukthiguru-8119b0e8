@@ -111,6 +111,7 @@ let VideoApprovalPage: ComponentType = NoopPage;
 let ObservabilityDashboard: ComponentType = NoopPage;
 let WaitlistSubscribersPage: ComponentType = NoopPage;
 let HumanReviewGatesPage: ComponentType = NoopPage;
+let EditorialWorkbenchPage: ComponentType = NoopPage;
 
 
 if (ADMIN_ENABLED) {
@@ -149,6 +150,7 @@ if (ADMIN_ENABLED) {
   VideoApprovalPage = lazyWithRetry(() => import("./admin/pages/VideoApprovalPage"));
   ObservabilityDashboard = lazyWithRetry(() => import("./admin/components/ObservabilityDashboard").then(m => ({ default: m.ObservabilityDashboard })));
   HumanReviewGatesPage = lazyWithRetry(() => import("./admin/pages/HumanReviewGatesPage"));
+  EditorialWorkbenchPage = lazyWithRetry(() => import("./admin/pages/EditorialWorkbenchPage"));
 }
 
 const queryClient = new QueryClient({
@@ -364,6 +366,7 @@ const App = () => {
                   <Route path="subscribers" element={<AdminRoute><WaitlistSubscribersPage /></AdminRoute>} />
                   <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
                   <Route path="admins" element={<AdminRoute><AdminsPage /></AdminRoute>} />
+                  <Route path="editorial" element={<AdminRoute><EditorialWorkbenchPage /></AdminRoute>} />
                   <Route path="self-check" element={<AdminRoute><AdminSelfCheckPage /></AdminRoute>} />
 
                 </Route>

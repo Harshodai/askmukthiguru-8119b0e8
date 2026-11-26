@@ -967,7 +967,10 @@ class FirstPersonStore:
             # unedited (2026-11-19: a missing hash used to pass). v10+ store it in
             # source_text_hash (CLAUDE.md invariant 2).
             text_hash = payload.get("source_text_hash") or payload.get("transcript_hash")
-            if not text_hash or text_hash != hashlib.sha256(verbatim_text.encode("utf-8")).hexdigest():
+            if (
+                not text_hash
+                or text_hash != hashlib.sha256(verbatim_text.encode("utf-8")).hexdigest()
+            ):
                 continue
             if (
                 payload.get("boundary_status") == "uncertain"

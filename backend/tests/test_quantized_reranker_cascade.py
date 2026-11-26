@@ -4,7 +4,7 @@ Tests for Two-Stage Cascade Quantized Reranker and ColBERT Decommissioning.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

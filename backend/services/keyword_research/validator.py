@@ -15,6 +15,7 @@ _HEX_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 class KeywordValidationError(ValueError):
     """Raised when keyword research deliverable violates the locked-in contract."""
+
     pass
 
 
@@ -43,7 +44,9 @@ def validate_keyword_research_payload(
     # 2. Exactly 5 topic clusters
     clusters = {k.topic_cluster for k in payload.keywords}
     if len(clusters) != 5:
-        errors.append(f"Expected exactly 5 topic clusters, found {len(clusters)}: {sorted(clusters)}.")
+        errors.append(
+            f"Expected exactly 5 topic clusters, found {len(clusters)}: {sorted(clusters)}."
+        )
 
     # 3. Top 20 competitors
     if len(payload.competitors) != 20:
@@ -66,7 +69,9 @@ def validate_keyword_research_payload(
     # 7. Metric range validation
     for kw in payload.keywords:
         if kw.monthly_volume < 0:
-            errors.append(f"Keyword '{kw.keyword}' has negative monthly volume: {kw.monthly_volume}.")
+            errors.append(
+                f"Keyword '{kw.keyword}' has negative monthly volume: {kw.monthly_volume}."
+            )
         if kw.global_volume < 0:
             errors.append(f"Keyword '{kw.keyword}' has negative global volume: {kw.global_volume}.")
         if not (0 <= kw.kd <= 100):
@@ -97,18 +102,24 @@ def validate_keyword_research_payload(
             )
 
         if not payload.provenance:
-            errors.append(
-                "Externally certified payload missing required provenance object."
-            )
+            errors.append("Externally certified payload missing required provenance object.")
         else:
             provider = prov.get("provider")
-            if not provider or not isinstance(provider, str) or provider.strip() in ("", "public_data_baseline", "simulated"):
+            if (
+                not provider
+                or not isinstance(provider, str)
+                or provider.strip() in ("", "public_data_baseline", "simulated")
+            ):
                 errors.append(
                     f"Certified payload requires verified external provider name, got: {provider!r}."
                 )
 
             source_url = prov.get("source_url")
-            if not source_url or not isinstance(source_url, str) or not (source_url.startswith("http://") or source_url.startswith("https://")):
+            if (
+                not source_url
+                or not isinstance(source_url, str)
+                or not (source_url.startswith("http://") or source_url.startswith("https://"))
+            ):
                 errors.append(
                     f"Certified payload requires valid external source_url (http/https), got: {source_url!r}."
                 )
@@ -120,16 +131,26 @@ def validate_keyword_research_payload(
                 try:
                     datetime.fromisoformat(retrieved_at.replace("Z", "+00:00"))
                 except ValueError:
-                    errors.append(f"Certified payload has malformed retrieved_at timestamp: {retrieved_at!r}.")
+                    errors.append(
+                        f"Certified payload has malformed retrieved_at timestamp: {retrieved_at!r}."
+                    )
 
             req_sha = prov.get("request_sha256")
-            if not req_sha or not isinstance(req_sha, str) or not _HEX_SHA256_PATTERN.match(req_sha.lower()):
+            if (
+                not req_sha
+                or not isinstance(req_sha, str)
+                or not _HEX_SHA256_PATTERN.match(req_sha.lower())
+            ):
                 errors.append(
                     f"Certified payload requires valid 64-character hex request_sha256 hash, got: {req_sha!r}."
                 )
 
             resp_sha = prov.get("response_sha256")
-            if not resp_sha or not isinstance(resp_sha, str) or not _HEX_SHA256_PATTERN.match(resp_sha.lower()):
+            if (
+                not resp_sha
+                or not isinstance(resp_sha, str)
+                or not _HEX_SHA256_PATTERN.match(resp_sha.lower())
+            ):
                 errors.append(
                     f"Certified payload requires valid 64-character hex response_sha256 hash, got: {resp_sha!r}."
                 )

@@ -57,9 +57,7 @@ class UserUsageMonitor:
         if len(self._calls) > MAX_TRACKED_KEYS:
             # evict down to 90% so the sort amortises over ~1k records
             target = MAX_TRACKED_KEYS * 9 // 10
-            oldest = sorted(
-                (k for k in self._calls if k != keep), key=lambda k: self._calls[k][-1]
-            )
+            oldest = sorted((k for k in self._calls if k != keep), key=lambda k: self._calls[k][-1])
             for k in oldest[: len(self._calls) - target]:
                 del self._calls[k]
 

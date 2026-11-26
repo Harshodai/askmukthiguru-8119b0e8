@@ -360,7 +360,12 @@ class InputGuardrailStage(Stage):
                 intent, route_decision = "DISTRESS", "distress"
             elif "emotional_dependency" in reason:
                 intent, route_decision = "EMOTIONAL_DEPENDENCY", "emotional_dependency_guard"
-            elif "Medical advice" in reason or "Harmful pattern" in reason or "prompt_injection" in reason or "persona_escape" in reason:
+            elif (
+                "Medical advice" in reason
+                or "Harmful pattern" in reason
+                or "prompt_injection" in reason
+                or "persona_escape" in reason
+            ):
                 intent, route_decision = "SAFETY_VIOLATION", "blocked"
             else:
                 intent, route_decision = "ERROR", "blocked"

@@ -13,23 +13,14 @@ Covers 8 realistic operational end-to-end workflows:
 
 from __future__ import annotations
 
-import copy
-import hashlib
 import json
-import logging
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from scripts.ops.collection_fingerprint import fingerprint_from_ids
 from scripts.ops.dry_run_resegmentation import (
-    ANALOGY_RESOLUTION_RE,
-    DANGLING_OPENER_RE,
-    ENUMERATION_ITEM_RE,
-    PROMISSORY_CAUSAL_RESOLUTION_RE,
     RhetoricalResegmentationEngine,
     run_dry_run,
 )
@@ -42,12 +33,15 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 # Scenario 1: Full Probe Resegmentation Run & Artifact Verification
 # ===========================================================================
 
+
 def test_scenario1_full_probe_resegmentation_run():
     """Scenario 1: Execute dry-run engine across all 3 probe cases and verify discourse closure."""
     engine = RhetoricalResegmentationEngine()
 
     # 1. Evaluate q010 (Incomplete enumeration in sMgbjxyrgqw)
-    res_q010 = engine.resegment_video("sMgbjxyrgqw", "q010", "The first aspiration is for achievement")
+    res_q010 = engine.resegment_video(
+        "sMgbjxyrgqw", "q010", "The first aspiration is for achievement"
+    )
     assert res_q010.closure_achieved is True
     assert res_q010.issue_type == "incomplete_enumeration"
     assert "4-level enumeration" in res_q010.rhetorical_resolution
@@ -62,7 +56,9 @@ def test_scenario1_full_probe_resegmentation_run():
     res_q074 = engine.resegment_video("fdPQxZsPAwI", "q074", "causes ill health within us")
     assert res_q074.closure_achieved is True
     assert res_q074.issue_type == "promissory_setup_cutoff"
-    assert res_q074.rhetorical_end_s >= 100.0  # Extended past promissory setup into causal explanation
+    assert (
+        res_q074.rhetorical_end_s >= 100.0
+    )  # Extended past promissory setup into causal explanation
 
     # 4. Verify overall run results
     all_results = run_dry_run()
@@ -74,6 +70,7 @@ def test_scenario1_full_probe_resegmentation_run():
 # ===========================================================================
 # Scenario 2: End-to-End Shadow Indexing Pipeline Simulation with Gate Rejections
 # ===========================================================================
+
 
 def test_scenario2_end_to_end_shadow_indexing_with_quality_gates(mock_qdrant, mock_rejections_db):
     """Scenario 2: Ingest candidate stream, filter promotional clips to DB, and index clean chunks to shadow."""
@@ -177,6 +174,7 @@ def test_scenario2_end_to_end_shadow_indexing_with_quality_gates(mock_qdrant, mo
 # Scenario 3: Admin Console Full Inspection Flow
 # ===========================================================================
 
+
 def test_scenario3_admin_console_full_inspection_flow(admin_client: TestClient):
     """Scenario 3: Administrator inspects resegmentation status, shadow collection, and comparative segments."""
     from app.main import app, get_current_user_from_supabase
@@ -225,6 +223,7 @@ def test_scenario3_admin_console_full_inspection_flow(admin_client: TestClient):
 # Scenario 4: Immutable Fingerprint Calculation and Stamping onto Evaluation Manifest
 # ===========================================================================
 
+
 def test_scenario4_immutable_fingerprint_stamping_on_manifest(mock_qdrant, tmp_path: Path):
     """Scenario 4: Compute deterministic fingerprint from collection IDs and stamp onto evaluation manifest."""
     # Seed 20 shadow collection points
@@ -272,6 +271,7 @@ def test_scenario4_immutable_fingerprint_stamping_on_manifest(mock_qdrant, tmp_p
 # Scenario 5: Full Graded Evaluation Simulation with Dual LLM Judges and 7-Bar Report
 # ===========================================================================
 
+
 def test_scenario5_full_graded_evaluation_simulation_dual_judges(synthetic_eval_run: Path):
     """Scenario 5: Run dual-judge grading across 202 probe queries and evaluate 7 registered bars."""
     grades_file = synthetic_eval_run / "grades.json"
@@ -306,6 +306,7 @@ def test_scenario5_full_graded_evaluation_simulation_dual_judges(synthetic_eval_
 # Scenario 6: Truncation Ceiling Resolution & Completeness Delta Benchmark vs 20261115-graded-9-live
 # ===========================================================================
 
+
 def test_scenario6_truncation_ceiling_resolution_delta_benchmark(synthetic_eval_run: Path):
     """Scenario 6: Benchmark shadow collection results against 20261115-graded-9-live baseline."""
     report = json.loads((synthetic_eval_run / "report.json").read_text())
@@ -333,6 +334,7 @@ def test_scenario6_truncation_ceiling_resolution_delta_benchmark(synthetic_eval_
 # ===========================================================================
 # Scenario 7: Multi-Vector Dense + Sparse Payload Integrity Under Simulated Batch Indexing
 # ===========================================================================
+
 
 def test_scenario7_multi_vector_dense_sparse_payload_integrity(mock_qdrant):
     """Scenario 7: Batch index 50 multi-vector points and verify retrieval and filter integrity."""
@@ -382,6 +384,7 @@ def test_scenario7_multi_vector_dense_sparse_payload_integrity(mock_qdrant):
 # Scenario 8: Live Collection Disaster Recovery & Read-Only Isolation Proof Under Forced Error
 # ===========================================================================
 
+
 def test_scenario8_disaster_recovery_and_isolation_proof(mock_qdrant):
     """Scenario 8: Simulate misconfigured jobs and forced exceptions; verify live v10 remains isolated."""
     # Record baseline state of live collection
@@ -390,11 +393,15 @@ def test_scenario8_disaster_recovery_and_isolation_proof(mock_qdrant):
     assert initial_points == 4224
 
     # 1. Forced error: worker accidentally attempts upsert on first_person_v10
-    with pytest.raises(AssertionError, match="MUTATION ON LIVE COLLECTION first_person_v10 FORBIDDEN"):
+    with pytest.raises(
+        AssertionError, match="MUTATION ON LIVE COLLECTION first_person_v10 FORBIDDEN"
+    ):
         mock_qdrant.upsert("first_person_v10", [{"id": "disaster_pt", "vector": [0.0] * 1024}])
 
     # 2. Forced error: worker attempts delete on first_person_v10
-    with pytest.raises(AssertionError, match="MUTATION ON LIVE COLLECTION first_person_v10 FORBIDDEN"):
+    with pytest.raises(
+        AssertionError, match="MUTATION ON LIVE COLLECTION first_person_v10 FORBIDDEN"
+    ):
         mock_qdrant.delete("first_person_v10", ["v10_pt_0000"])
 
     # 3. Forced error: operator attempts to redirect public alias 'first_person'
@@ -402,6 +409,7 @@ def test_scenario8_disaster_recovery_and_isolation_proof(mock_qdrant):
         class Create:
             alias_name = "first_person"
             collection_name = "first_person_v12_shadow"
+
         create_alias = Create()
 
     with pytest.raises(AssertionError, match="REPONTING PUBLIC ALIAS"):
@@ -412,5 +420,7 @@ def test_scenario8_disaster_recovery_and_isolation_proof(mock_qdrant):
     assert v10_info_after.points_count == initial_points == 4224
 
     # Verify public alias remains pointing to first_person_v10
-    alias_entry = [a for a in mock_qdrant.get_aliases().aliases if a.alias_name == "first_person"][0]
+    alias_entry = [a for a in mock_qdrant.get_aliases().aliases if a.alias_name == "first_person"][
+        0
+    ]
     assert alias_entry.collection_name == "first_person_v10"

@@ -32,11 +32,11 @@ Usage:
 from __future__ import annotations
 
 import argparse
-from collections import Counter
 import logging
 import os
-from pathlib import Path
 import sys
+from collections import Counter
+from pathlib import Path
 from typing import Any, Optional
 
 
@@ -195,9 +195,7 @@ def provision_shadow_collection(
                 wait=True,
             )
         except Exception as exc:
-            logger.debug(
-                f"Payload index creation for {field_name} ignored: {exc}"
-            )
+            logger.debug(f"Payload index creation for {field_name} ignored: {exc}")
 
 
 def stamp_accepted_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -428,7 +426,9 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     print("\n=== Shadow Resegmented Index Build Summary ===")
     print(f"Status:              {summary['status'].upper()}")
-    print(f"Mode:                {'APPLY (writes executed)' if summary['apply_mode'] else 'DRY-RUN (read-only)'}")
+    print(
+        f"Mode:                {'APPLY (writes executed)' if summary['apply_mode'] else 'DRY-RUN (read-only)'}"
+    )
     print(f"Source Collection:   {summary['source_collection']}")
     print(f"Target Collection:   {summary['target_collection']}")
     print(f"Total Scanned:       {summary['total_scanned']}")
@@ -441,9 +441,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     if not summary["apply_mode"]:
         print(f"Unpersisted Rejections: {len(summary['unpersisted_rejections'])}")
     print("Collection Status:")
-    print(f"  - Source Count:    {summary['source_final_count']} (unchanged: {summary['source_final_count'] == summary['source_initial_count']})")
+    print(
+        f"  - Source Count:    {summary['source_final_count']} (unchanged: {summary['source_final_count'] == summary['source_initial_count']})"
+    )
     print(f"  - Target Count:    {summary['target_points_count']}")
-    print("Isolation Verification: PASS (Zero writes/updates/alias mutations to protected collections)")
+    print(
+        "Isolation Verification: PASS (Zero writes/updates/alias mutations to protected collections)"
+    )
     print("===============================================")
     return 0
 

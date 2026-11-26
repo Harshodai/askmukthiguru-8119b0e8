@@ -1,6 +1,7 @@
 """L-INDIC-INTERNAL-EN-1: graph generates/verifies in English once the query was translated."""
 
-from app.language_utils import detect_message_lang, internal_pipeline_language as f
+from app.language_utils import detect_message_lang
+from app.language_utils import internal_pipeline_language as f
 
 
 def test_detect_message_lang_typography_and_scripts():

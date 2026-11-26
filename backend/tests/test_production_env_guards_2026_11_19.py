@@ -60,9 +60,10 @@ def test_local_supabase_demo_key_is_refused():
 
 
 def test_is_production_false_is_refused():
-    assert "IS_PRODUCTION must be true" in validate_environment(
-        {**_valid_env(), "IS_PRODUCTION": "false"}
-    ).errors
+    assert (
+        "IS_PRODUCTION must be true"
+        in validate_environment({**_valid_env(), "IS_PRODUCTION": "false"}).errors
+    )
 
 
 @pytest.mark.parametrize("name", ["BRAIN_KEK", "SUPABASE_JWT_SECRET", "SUPABASE_KEY", "JWT_SECRET"])
@@ -88,7 +89,10 @@ def test_quantized_image_with_encoder_on_warns():
 
 
 def test_scheme_less_host_vars_are_checked():
-    assert any("REDIS_HOST" in e for e in validate_environment({**_valid_env(), "REDIS_HOST": "localhost"}).errors)
+    assert any(
+        "REDIS_HOST" in e
+        for e in validate_environment({**_valid_env(), "REDIS_HOST": "localhost"}).errors
+    )
     assert validate_environment({**_valid_env(), "REDIS_HOST": "redis.railway.internal"}).ok
 
 
@@ -96,19 +100,30 @@ def test_env_file_parser_drops_inline_comments_but_keeps_quoted_hashes(tmp_path)
     from scripts.ops.validate_production_env import _read_env_file
 
     f = tmp_path / "x.env"
-    f.write_text('export A=1 # note\nB="pa#ss" # inline comment\nC=\'q\'\n# full comment\nD=plain # comment\n', encoding="utf-8")
+    f.write_text(
+        "export A=1 # note\nB=\"pa#ss\" # inline comment\nC='q'\n# full comment\nD=plain # comment\n",
+        encoding="utf-8",
+    )
     assert _read_env_file(str(f)) == {"A": "1", "B": "pa#ss", "C": "q", "D": "plain"}
 
 
 def test_invalid_boolean_flag_fails_even_without_quantized_only():
-    env = {**_valid_env(), "QUANTIZED_ONLY": "false", "ON_DEVICE_INTENT_ENCODER_ENABLED": "not-a-bool"}
+    env = {
+        **_valid_env(),
+        "QUANTIZED_ONLY": "false",
+        "ON_DEVICE_INTENT_ENCODER_ENABLED": "not-a-bool",
+    }
     result = validate_environment(env)
-    assert any("ON_DEVICE_INTENT_ENCODER_ENABLED is not a valid boolean" in e for e in result.errors)
+    assert any(
+        "ON_DEVICE_INTENT_ENCODER_ENABLED is not a valid boolean" in e for e in result.errors
+    )
 
 
 def test_scheme_host_with_query_params_strips_params():
     from scripts.ops.validate_production_env import _host_of
 
     assert _host_of("redis://redis:6379/0?ssl=true") == "redis"
-    assert _host_of("redis://default:pw@redis.railway.internal:6379?query=1") == "redis.railway.internal"
-
+    assert (
+        _host_of("redis://default:pw@redis.railway.internal:6379?query=1")
+        == "redis.railway.internal"
+    )

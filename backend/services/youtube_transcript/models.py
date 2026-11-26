@@ -30,7 +30,12 @@ class TranscriptErrorCode(str, Enum):
 class TranscriptError(Exception):
     """Base exception for transcript errors."""
 
-    def __init__(self, message: str, code: TranscriptErrorCode = TranscriptErrorCode.SUBPROCESS_FAILED, details: Optional[dict] = None):
+    def __init__(
+        self,
+        message: str,
+        code: TranscriptErrorCode = TranscriptErrorCode.SUBPROCESS_FAILED,
+        details: Optional[dict] = None,
+    ):
         super().__init__(message)
         self.message = message
         self.code = code
@@ -82,6 +87,7 @@ class WhisperConsentRequiredError(TranscriptError):
 @dataclass(frozen=True)
 class SubtitleTrack:
     """Represents an individual subtitle or caption track."""
+
     language_code: str
     name: str
     extension: str = "vtt"
@@ -92,6 +98,7 @@ class SubtitleTrack:
 @dataclass
 class SubtitleListResult:
     """Result of listing available subtitles for a video."""
+
     video_id: str
     title: str
     manual_subtitles: list[SubtitleTrack] = field(default_factory=list)
@@ -110,14 +117,23 @@ class SubtitleListResult:
         norm_code = lang_code.lower().split("-")[0]
         if prefer_manual:
             for track in self.manual_subtitles:
-                if track.language_code.lower() == lang_code.lower() or track.language_code.lower().startswith(norm_code):
+                if (
+                    track.language_code.lower() == lang_code.lower()
+                    or track.language_code.lower().startswith(norm_code)
+                ):
                     return track
         for track in self.auto_subtitles:
-            if track.language_code.lower() == lang_code.lower() or track.language_code.lower().startswith(norm_code):
+            if (
+                track.language_code.lower() == lang_code.lower()
+                or track.language_code.lower().startswith(norm_code)
+            ):
                 return track
         if not prefer_manual and self.manual_subtitles:
             for track in self.manual_subtitles:
-                if track.language_code.lower() == lang_code.lower() or track.language_code.lower().startswith(norm_code):
+                if (
+                    track.language_code.lower() == lang_code.lower()
+                    or track.language_code.lower().startswith(norm_code)
+                ):
                     return track
         return None
 
@@ -125,6 +141,7 @@ class SubtitleListResult:
 @dataclass
 class TranscriptDownloadRequest:
     """Input parameters for downloading a transcript."""
+
     url: str
     target_language: str = "en"
     prefer_manual: bool = True
@@ -138,6 +155,7 @@ class TranscriptDownloadRequest:
 @dataclass
 class TranscriptDownloadResult:
     """Final artifact deliverable for a downloaded transcript."""
+
     video_id: str
     title: str
     language: str

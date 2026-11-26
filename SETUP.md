@@ -1,5 +1,7 @@
 # AskMukthiGuru — Complete Setup & Code Flow Guide
 
+> **Scope:** Setup guidance, not a current readiness verdict. Commands that restore data or clear caches mutate stores and require explicit authorization under [AGENTS.md](AGENTS.md). Dated counts and service states must be checked against the actual environment.
+
 ## Table of Contents
 
 1. [Quick Start](#1-quick-start)
@@ -30,7 +32,7 @@ curl -s localhost:8000/api/health   # wait for "ready": true
 
 Compose stops with a message naming the variable if `NEO4J_PASSWORD`, `REDIS_PASSWORD`,
 `JWT_SECRET` or `CORS_ORIGINS` is empty in `backend/.env`. `SUPABASE_ANON_KEY` is not enforced
-by compose but is baked into the frontend image, so set it too. After `make flush-cache`, run
+by compose but is baked into the frontend image, so set it too. After an explicitly authorized `make flush-cache`, run
 `make verify-cache-empty` (exit 0 = empty, 1 = cached, 2 = unreachable). `bash scripts/prelaunch.sh`
 checks all of this against your local stack before running the browser tests.
 
@@ -41,8 +43,8 @@ and they cost RAM on a laptop.
 A fresh clone has **empty** Qdrant and Memgraph volumes, so chat answers with
 no teachings until the data is restored. See section 4, "Seeding a fresh stack".
 
-The LLM runs through OpenRouter (`LLM_PROVIDER=openrouter`). Ollama is optional
-and only used when `LLM_PROVIDER=ollama`.
+The default LLM provider is OpenRouter (`LLM_PROVIDER=openrouter`). Ollama was
+removed; do not configure it as a provider.
 
 ---
 
@@ -71,7 +73,7 @@ default passwords any more.
 | `OPENROUTER_API_KEY` | answering questions | LLM provider key. Without it the backend starts but cannot answer. |
 | `SUPABASE_URL`, `SUPABASE_KEY` | telemetry, memory | Without them each request logs `Telemetry Sink insert failed`, and the hallucination job sees no data. |
 | `QDRANT_COLLECTION` | retrieval | Defaults to `spiritual_wisdom_contextual`, the live corpus. |
-| `FIRST_PERSON_COLLECTION` | teacher clips | Defaults to `first_person_v7`. |
+| `FIRST_PERSON_COLLECTION` | teacher clips | Optional explicit override; the resolved collection depends on first-person serving posture. See `backend/app/config.py` and [AGENTS.md](AGENTS.md). |
 
 Production additionally requires `ANON_SESSION_HMAC_SECRET` and `BRAIN_KEK`;
 `Settings` raises at startup without them.
@@ -84,13 +86,13 @@ Never commit `backend/.env`.
 ## 3. Frontend Setup
 
 ### Prerequisites
-- Node.js 18+ or Bun
+- Node.js and npm (the repository specifies npm in `package.json`)
 
 ### Install & Run
 ```bash
-bun install
-bun run dev          # http://localhost:8080
-bun test             # Run all tests
+npm ci
+npm run dev          # http://localhost:8080
+npm run test:unit    # Run frontend unit tests
 ```
 
 ### Key Frontend Files
@@ -141,11 +143,13 @@ make restore    # on the new stack: restores both collections and the graph
 
 `make restore` never replays a graph dump over a populated graph, and it checks
 the node count after restoring. Record the point counts of
-`spiritual_wisdom_contextual` and `first_person_v7` and the graph node count on
-both machines and compare them. The snapshots are the only copy of the corpus,
-so keep a dated copy somewhere other than the laptop.
+the configured collections and the graph node count on both machines and compare
+them. Check the current backup inventory and recovery procedure before acting;
+do not assume snapshots are the only copies of the corpus.
 
 ### Flushing caches before a measured run
+Cache flushing mutates Redis and Qdrant and requires explicit authorization; never
+use a global Redis flush. Verify the target and applicable runbook first.
 ```bash
 make flush-cache   # exits non-zero if Redis or the Qdrant semantic cache was not flushed
 ```

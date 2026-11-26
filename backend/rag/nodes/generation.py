@@ -11,7 +11,8 @@ import asyncio
 import functools
 import logging
 import re
-from typing import Optional
+import time
+from typing import Any, Optional
 
 from langchain_core.runnables import RunnableConfig
 
@@ -1232,7 +1233,11 @@ def _grounded_partial_answer(
             (isinstance(score, (int, float)) and score >= 0.20)
             or (isinstance(doc.get("score"), (int, float)) and doc.get("score") >= 0.60)
         )
-        if overlap == 0 and not has_semantic_score and (len(question_stems) >= 2 or (require_overlap and question_stems)):
+        if (
+            overlap == 0
+            and not has_semantic_score
+            and (len(question_stems) >= 2 or (require_overlap and question_stems))
+        ):
             continue
         if not seeker_raised_self_harm and _SELF_HARM_TOPIC.search(excerpt):
             continue
@@ -1788,7 +1793,10 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
                 # Verify eligibility gates per Invariants A & E
                 if clip.get("is_verbatim") is not True:
                     continue
-                if clip.get("domain_rights_status") != "licensed" or clip.get("rights_cleared") is not True:
+                if (
+                    clip.get("domain_rights_status") != "licensed"
+                    or clip.get("rights_cleared") is not True
+                ):
                     continue
                 if getattr(settings, "first_person_require_speaker_verified", False):
                     is_verified = (
@@ -1800,36 +1808,53 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
                         continue
                 clip_id = clip.get("clip_id") or clip.get("point_id")
                 already_in_docs = any(
-                    (d.get("clip_id") == clip_id or d.get("point_id") == clip_id or d.get("text") == text)
+                    (
+                        d.get("clip_id") == clip_id
+                        or d.get("point_id") == clip_id
+                        or d.get("text") == text
+                    )
                     for d in raw_docs
                     if isinstance(d, dict)
                 )
                 if not already_in_docs:
-                    raw_score = clip.get("confidence") if clip.get("confidence") is not None else clip.get("score")
+                    raw_score = (
+                        clip.get("confidence")
+                        if clip.get("confidence") is not None
+                        else clip.get("score")
+                    )
                     score_val = float(raw_score) if raw_score is not None else 0.0
-                    fp_docs_to_add.append({
-                        "text": text,
-                        "content": text,
-                        "title": clip.get("title") or "First-Person Teaching Transcript",
-                        "source_url": clip.get("source_url") or clip.get("url") or (f"https://www.youtube.com/watch?v={clip.get('video_id')}" if clip.get("video_id") else ""),
-                        "video_id": clip.get("video_id"),
-                        "point_id": clip_id,
-                        "clip_id": clip_id,
-                        "speaker": clip.get("speaker"),
-                        "teacher_id": clip.get("teacher_id") or clip.get("speaker"),
-                        "is_verbatim": True,
-                        "knowledge_source": "first_person_transcript",
-                        "speaker_verified": clip.get("speaker_verified", False),
-                        "voice_verification_method": clip.get("voice_verification_method"),
-                        "domain_rights_status": clip.get("domain_rights_status"),
-                        "rights_cleared": clip.get("rights_cleared", False),
-                        "first_person_eligible": clip.get("first_person_eligible", False),
-                        "playback_start_seconds": clip.get("playback_start_seconds"),
-                        "playback_end_seconds": clip.get("playback_end_seconds"),
-                        "transcript_hash": clip.get("transcript_hash") or clip.get("source_text_hash"),
-                        "score": score_val,
-                        "rerank_score": score_val,
-                    })
+                    fp_docs_to_add.append(
+                        {
+                            "text": text,
+                            "content": text,
+                            "title": clip.get("title") or "First-Person Teaching Transcript",
+                            "source_url": clip.get("source_url")
+                            or clip.get("url")
+                            or (
+                                f"https://www.youtube.com/watch?v={clip.get('video_id')}"
+                                if clip.get("video_id")
+                                else ""
+                            ),
+                            "video_id": clip.get("video_id"),
+                            "point_id": clip_id,
+                            "clip_id": clip_id,
+                            "speaker": clip.get("speaker"),
+                            "teacher_id": clip.get("teacher_id") or clip.get("speaker"),
+                            "is_verbatim": True,
+                            "knowledge_source": "first_person_transcript",
+                            "speaker_verified": clip.get("speaker_verified", False),
+                            "voice_verification_method": clip.get("voice_verification_method"),
+                            "domain_rights_status": clip.get("domain_rights_status"),
+                            "rights_cleared": clip.get("rights_cleared", False),
+                            "first_person_eligible": clip.get("first_person_eligible", False),
+                            "playback_start_seconds": clip.get("playback_start_seconds"),
+                            "playback_end_seconds": clip.get("playback_end_seconds"),
+                            "transcript_hash": clip.get("transcript_hash")
+                            or clip.get("source_text_hash"),
+                            "score": score_val,
+                            "rerank_score": score_val,
+                        }
+                    )
         if fp_docs_to_add:
             if p_clip and raw_docs and raw_docs[0].get("knowledge_source") == "personalize_clip":
                 raw_docs = [raw_docs[0]] + fp_docs_to_add + list(raw_docs[1:])
@@ -2260,13 +2285,13 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         instructions += (
             "\nGROUNDED TEACHING SYNTHESIS DIRECTIVE:\n"
             "You are synthesizing verified teachings from the teachers' exact spoken transcripts.\n"
-            "1. VERBATIM BLOCKQUOTES ONLY: You MUST present all verbatim teacher quotes using markdown blockquotes (> \"...\") on their own line. "
+            '1. VERBATIM BLOCKQUOTES ONLY: You MUST present all verbatim teacher quotes using markdown blockquotes (> "...") on their own line. '
             "Quote the teachers' exact words directly from the transcripts without altering, paraphrasing, or embedding unclosed quotes inline.\n"
             "2. STRICT MINIMAL STITCHING: Write only minimal, concise connective prose (1-2 sentences) to frame the teachings. "
             "Do NOT invent poetic metaphors, motivational filler, or advice formulas. Every statement must reflect the core teachings.\n"
-            "3. GRAMMATICAL INTEGRITY: Use clean, natural grammar. Never stack modal verbs (e.g. NEVER write \"begins to can\"). "
-            "Always identify the teacher by name (\"Sri Krishnaji\" / \"Sri Preethaji\") before using third-person pronouns.\n"
-            "4. NO CONVERSATIONAL FLUFF: Never conclude with conversational questions (e.g. do NOT ask \"Would you like to explore...\"). End cleanly.\n"
+            '3. GRAMMATICAL INTEGRITY: Use clean, natural grammar. Never stack modal verbs (e.g. NEVER write "begins to can"). '
+            'Always identify the teacher by name ("Sri Krishnaji" / "Sri Preethaji") before using third-person pronouns.\n'
+            '4. NO CONVERSATIONAL FLUFF: Never conclude with conversational questions (e.g. do NOT ask "Would you like to explore..."). End cleanly.\n'
             "5. SACRED PRESENCE & REVERENCE: Speak with profound calm and clarity, addressing the seeker with direct compassion and grounding every teaching in the Gurus' spoken truth.\n"
         )
 
@@ -4233,19 +4258,28 @@ async def _polish_and_weave_clips(
 
     # Skip on obvious system refusals, errors, or crisis messages
     _lower = answer.lower()
-    if any(m in _lower for m in ("14416", "vandrevala", "emergency services", "cannot answer", "outside my area of wisdom")):
+    if any(
+        m in _lower
+        for m in (
+            "14416",
+            "vandrevala",
+            "emergency services",
+            "cannot answer",
+            "outside my area of wisdom",
+        )
+    ):
         return answer
 
     # Detach known footer disclaimers before polishing
     disclaimers = []
     lines = answer.split("\n\n")
     clean_lines = []
-    for l in lines:
-        stripped_l = l.strip()
+    for block in lines:
+        stripped_l = block.strip()
         if stripped_l.startswith("_") and stripped_l.endswith("_") and len(stripped_l) > 20:
             disclaimers.append(stripped_l)
         else:
-            clean_lines.append(l)
+            clean_lines.append(block)
 
     body_to_polish = "\n\n".join(clean_lines).strip()
     if len(body_to_polish) < 30:
@@ -4278,14 +4312,20 @@ async def _polish_and_weave_clips(
         # Only accept provider if it is an actual LLM client (state["llm_provider"] may be a str name)
         active_llm = (
             provider
-            if (provider is not None and (hasattr(provider, "generate_fast") or hasattr(provider, "generate")))
+            if (
+                provider is not None
+                and (hasattr(provider, "generate_fast") or hasattr(provider, "generate"))
+            )
             else None
         )
         if active_llm is None:
             try:
                 from app.dependencies import get_container
+
                 container = get_container()
-                active_llm = getattr(container, "llm_gateway", None) or getattr(container, "llm", None)
+                active_llm = getattr(container, "llm_gateway", None) or getattr(
+                    container, "llm", None
+                )
             except Exception:
                 active_llm = None
 
@@ -4330,8 +4370,10 @@ async def _polish_and_weave_clips(
             verified_text = f"{verified_text}\n\n" + "\n\n".join(disclaimers)
         return verified_text
 
-    except asyncio.TimeoutError:
-        logger.warning("LLM polishing timed out after %.1fs; falling back to original answer", timeout_s)
+    except TimeoutError:
+        logger.warning(
+            "LLM polishing timed out after %.1fs; falling back to original answer", timeout_s
+        )
         return answer
     except Exception as e:
         logger.warning("LLM polishing failed (non-fatal): %s; falling back to original answer", e)
@@ -4518,7 +4560,9 @@ def _answer_shape_floor(answer: str, question: str) -> tuple[str, list[str]]:
     from app.config import settings
     from guardrails.lightweight_handler import needs_relationship_safety_boundary
 
-    if getattr(settings, "relationship_safety_boundary_enabled", False) and needs_relationship_safety_boundary(question):
+    if getattr(
+        settings, "relationship_safety_boundary_enabled", False
+    ) and needs_relationship_safety_boundary(question):
         before = len(paragraphs)
         paragraphs = _relationship_floor(paragraphs)
         if len(paragraphs) != before:
@@ -4554,7 +4598,12 @@ def _merge_fp_related_clips(citations: list, state: GraphState) -> list:
     }
     for clip in related:
         if isinstance(clip, dict):
-            key = clip.get("url") or clip.get("source_url") or clip.get("videoId") or clip.get("video_id")
+            key = (
+                clip.get("url")
+                or clip.get("source_url")
+                or clip.get("videoId")
+                or clip.get("video_id")
+            )
             if key and key not in seen:
                 out.append(clip)
                 seen.add(key)
@@ -4887,7 +4936,9 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
 
     verification_state = state.get("verification")
     if not isinstance(verification_state, dict):
-        verification_state = {"passed": verification_state} if isinstance(verification_state, bool) else {}
+        verification_state = (
+            {"passed": verification_state} if isinstance(verification_state, bool) else {}
+        )
     f_score = float(state.get("faithfulness_score") or verification_state.get("score") or 0.0)
     ver_claims = verification_state.get("claims") or []
     unsupported_claims_count = sum(
@@ -5198,11 +5249,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             if doc_count > 0
             else bool(citations)
         )
-        if (
-            claims_grounded
-            and (citations or relevant_docs)
-            and has_valid_marker
-        ):
+        if claims_grounded and (citations or relevant_docs) and has_valid_marker:
             logger.info(
                 "Final: preserving verified status -- claims are fully entailed (score=%.2f, 0 unsupported) "
                 "and valid citations exist despite paragraph-level marker absence.",
@@ -5558,7 +5605,11 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             )
         )
         turn_start = float(state.get("start_time") or state.get("turn_start_time") or 0.0)
-        elapsed_s = (time.time() - turn_start) if turn_start > 1e8 else ((time.monotonic() - turn_start) if turn_start > 0 else 0.0)
+        elapsed_s = (
+            (time.time() - turn_start)
+            if turn_start > 1e8
+            else ((time.monotonic() - turn_start) if turn_start > 0 else 0.0)
+        )
         fast_mode = bool(getattr(settings, "reflection_fast_mode_enabled", False))
         may_retry = (
             retry_count < 1
@@ -5719,7 +5770,11 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     # Polish sentence boundaries, remove URL-stripping debris, and weave multi-clip transitions
     llm_provider = state.get("llm_provider")
     _weave_timeout = float(
-        getattr(settings, "rag_verbatim_polishing_timeout_s", getattr(settings, "polish_and_weave_timeout_s", 2.5))
+        getattr(
+            settings,
+            "rag_verbatim_polishing_timeout_s",
+            getattr(settings, "polish_and_weave_timeout_s", 2.5),
+        )
         or 2.5
     )
     answer = await _polish_and_weave_clips(

@@ -1453,7 +1453,12 @@ def test_dense_vectors_for_spans_reads_named_dense_vectors_without_payload():
 
     assert got == {sample.source_span_id: [0.25, 0.5]}
     assert client.calls == [
-        ("fp_context_test", [point_id, point_id_for_record("missing-span")], False, ["passage_dense"])
+        (
+            "fp_context_test",
+            [point_id, point_id_for_record("missing-span")],
+            False,
+            ["passage_dense"],
+        )
     ]
 
 

@@ -1,31 +1,35 @@
 from __future__ import annotations
 
-import asyncio
 import threading
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+
 try:
     from services.ontology_resolver import (
+        _fallback_token_concepts,
         resolve_query_concepts_llm,
         resolve_query_concepts_llm_async,
-        _fallback_token_concepts,
     )
 except ImportError:
     from backend.services.ontology_resolver import (
+        _fallback_token_concepts,
         resolve_query_concepts_llm,
         resolve_query_concepts_llm_async,
-        _fallback_token_concepts,
     )
 
 
 @pytest.mark.asyncio
 async def test_resolve_query_concepts_llm_async_with_mock_llm():
     mock_llm = MagicMock()
-    mock_llm.generate = AsyncMock(return_value='{"concepts": ["Relationship", "Hurt", "Forgiveness"]}')
-    
-    concepts = await resolve_query_concepts_llm_async("How do I heal hurt with my spouse?", llm_service=mock_llm)
+    mock_llm.generate = AsyncMock(
+        return_value='{"concepts": ["Relationship", "Hurt", "Forgiveness"]}'
+    )
+
+    concepts = await resolve_query_concepts_llm_async(
+        "How do I heal hurt with my spouse?", llm_service=mock_llm
+    )
     assert "Relationship" in concepts
     assert "Hurt" in concepts
     assert "Forgiveness" in concepts
@@ -42,7 +46,9 @@ def test_fallback_token_concepts():
 
 def test_resolve_query_concepts_llm_sync_fallback():
     # Calling without LLM service should cleanly fall back to token extraction
-    concepts = resolve_query_concepts_llm("How to dissolve suffering in relationships?", llm_service=None)
+    concepts = resolve_query_concepts_llm(
+        "How to dissolve suffering in relationships?", llm_service=None
+    )
     assert len(concepts) > 0
     assert any("Suffering" in c or "Relationships" in c for c in concepts)
 
@@ -66,7 +72,9 @@ async def test_ontology_resolver_24h_redis_cache_roundtrip(monkeypatch):
     mock_llm = MagicMock()
     mock_llm.generate = AsyncMock(return_value='{"concepts": ["Forgiveness", "Relationship"]}')
 
-    first = await mod.resolve_query_concepts_llm_async("How do I forgive my partner?", llm_service=mock_llm)
+    first = await mod.resolve_query_concepts_llm_async(
+        "How do I forgive my partner?", llm_service=mock_llm
+    )
     assert first == ["Forgiveness", "Relationship"]
     assert len(fake_store) == 1
     ttl, _ = next(iter(fake_store.values()))
@@ -74,10 +82,11 @@ async def test_ontology_resolver_24h_redis_cache_roundtrip(monkeypatch):
 
     # Clear in-memory cache and confirm hit comes from Redis without calling LLM again
     mod._RESOLVER_CACHE.clear()
-    second = await mod.resolve_query_concepts_llm_async("How do I forgive my partner?", llm_service=mock_llm)
+    second = await mod.resolve_query_concepts_llm_async(
+        "How do I forgive my partner?", llm_service=mock_llm
+    )
     assert second == ["Forgiveness", "Relationship"]
     assert mock_llm.generate.await_count == 1
-
 
 
 @pytest.mark.asyncio

@@ -1957,7 +1957,9 @@ class OpenRouterService:
     async def generate_hypothetical_answer(self, query: str, **kwargs) -> str:
         """HyDE: Generate hypothetical answer using fast model when enabled for sub-second expansion."""
         if getattr(settings, "rag_rewrite_query_fast_model", True):
-            return await self._generate_fast(HYDE_PROMPT, query, operation="generate_hyde", **kwargs)
+            return await self._generate_fast(
+                HYDE_PROMPT, query, operation="generate_hyde", **kwargs
+            )
         return await self.generate(HYDE_PROMPT, query, operation="generate_hyde", **kwargs)
 
     async def generate_hyde(self, question: str, **kwargs) -> str:

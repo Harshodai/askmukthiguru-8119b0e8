@@ -121,7 +121,9 @@ def test_resolve_meta_followup_targets_the_prior_turn(monkeypatch):
     # No prior user turn (or only the current one): nothing to resolve against.
     assert bridge._resolve_meta_followup("say it shorter", []) is None
     assert (
-        bridge._resolve_meta_followup("say it shorter", [{"role": "user", "content": "say it shorter"}])
+        bridge._resolve_meta_followup(
+            "say it shorter", [{"role": "user", "content": "say it shorter"}]
+        )
         is None
     )
 
@@ -137,7 +139,10 @@ async def test_bridge_meta_followup_query_note_and_span_cap(monkeypatch, fp_pipe
     kw = fp_pipeline.execute.call_args.kwargs
     if not flag:
         # Old resolver: the meta request itself is glued on and scored (the live bug).
-        assert kw["retrieval_query"] == f"{_HIST[0]['content']} — That is too long, can you say it shorter?"
+        assert (
+            kw["retrieval_query"]
+            == f"{_HIST[0]['content']} — That is too long, can you say it shorter?"
+        )
         assert "max_context_spans" not in kw
         return
     assert kw["retrieval_query"] == _HIST[0]["content"]
@@ -312,7 +317,9 @@ def test_seen_contexts_go_last_without_dropping_any(monkeypatch, flag):
         ctxs, {"seen_video_ids": ["v1"], "seen_clip_ids": ["s2"]}
     )
     assert sorted(map(id, out)) == sorted(map(id, ctxs))
-    assert [c.parent.video_id for c in out] == (["v1", "v2", "v3"] if not flag else ["v3", "v1", "v2"])
+    assert [c.parent.video_id for c in out] == (
+        ["v1", "v2", "v3"] if not flag else ["v3", "v1", "v2"]
+    )
 
 
 # --- (e) answerability prefetch ------------------------------------------------------
@@ -417,9 +424,13 @@ def test_bridge_with_real_pipeline_serves_with_every_flag(flags_on, monkeypatch)
 
     for name in _FLAGS:
         monkeypatch.setattr(settings, name, flags_on)
-    for name in ("first_person_context_harness_enabled", "first_person_answerability_check_enabled",
-                 "first_person_relevance_gate_enabled", "first_person_chat_bridge_enabled",
-                 "first_person_route_enabled"):
+    for name in (
+        "first_person_context_harness_enabled",
+        "first_person_answerability_check_enabled",
+        "first_person_relevance_gate_enabled",
+        "first_person_chat_bridge_enabled",
+        "first_person_route_enabled",
+    ):
         monkeypatch.setattr(settings, name, True)
     monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
@@ -431,22 +442,27 @@ def test_bridge_with_real_pipeline_serves_with_every_flag(flags_on, monkeypatch)
         pipeline._llm_service = FakeLLM()
         pipeline.execute = MagicMock(side_effect=AssertionError("sync entry used on the loop"))
         monkeypatch.setattr(bridge, "_fp_pipeline", lambda container: pipeline)
-        res = await FirstPersonBridgeStage().run(_ctx(_container(), msg="What is the nature of suffering?"))
+        res = await FirstPersonBridgeStage().run(
+            _ctx(_container(), msg="What is the nature of suffering?")
+        )
         return pipeline, res
 
     pipeline, res = asyncio.run(_run())
     assert res is not None
     assert res.route_metadata["route_decision"] == "first_person_bridge"
     assert res.citations, "the clip must still be served"
-    assert pipeline._llm_service.calls.count("answerability") == 1  # prefetch never doubles the gate call
-
+    assert (
+        pipeline._llm_service.calls.count("answerability") == 1
+    )  # prefetch never doubles the gate call
 
 
 @pytest.mark.asyncio
 async def test_topic_shift_bypasses_the_exact_cache(monkeypatch, fp_pipeline):  # noqa: F811
     monkeypatch.setattr(settings, "first_person_meta_followup_enabled", False)
     monkeypatch.setattr(settings, "first_person_topic_shift_enabled", True)
-    await FirstPersonBridgeStage().run(_ctx(_container(), msg="Unrelated, what is the purpose of meditation?"))
+    await FirstPersonBridgeStage().run(
+        _ctx(_container(), msg="Unrelated, what is the purpose of meditation?")
+    )
     assert fp_pipeline.execute.call_args.kwargs["cache_bypass"] is True
 
 

@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 import time
-from pathlib import Path
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct

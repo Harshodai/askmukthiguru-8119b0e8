@@ -16,7 +16,6 @@ import re
 from dataclasses import dataclass, field
 
 from domain.first_person_context import (
-    _is_same_or_shared_guru,
     AnswerRole,
     BoundaryStatus,
     CitationSpan,
@@ -28,6 +27,7 @@ from domain.first_person_context import (
     SourceSpan,
     SpeakerRole,
     ValidatedCrossParentEdge,
+    _is_same_or_shared_guru,
     clip_text_hash,
 )
 from domain.speaker_provenance import speaker_write_violations
@@ -308,7 +308,8 @@ def policy_from_settings() -> HarnessPolicy:
 
     return HarnessPolicy(
         max_context_spans=max(1, int(settings.first_person_context_max_spans)),
-        require_speaker_verified=getattr(settings, "first_person_require_speaker_verified", False) is True,
+        require_speaker_verified=getattr(settings, "first_person_require_speaker_verified", False)
+        is True,
         require_voice_method=getattr(settings, "first_person_require_voice_method", False) is True,
         allow_uncertain_completeness=getattr(
             settings, "first_person_allow_uncertain_completeness", True
@@ -344,11 +345,16 @@ class FirstPersonContextHarness:
         guru_roles = {"guru", "teacher"} | set(_founders) | {f"sri_{gid}" for gid in _founders}
         for span in spans:
             role = str(getattr(span, "speaker_role", "") or "").lower()
-            if role not in guru_roles and span.speaker_role not in (SpeakerRole.GURU, SpeakerRole.TEACHER):
+            if role not in guru_roles and span.speaker_role not in (
+                SpeakerRole.GURU,
+                SpeakerRole.TEACHER,
+            ):
                 return False
             # Verify founder teacher attribution
             canonical_gid = canonical_guru_id(span.guru_id) or (span.guru_id or "").strip().lower()
-            canonical_sid = canonical_guru_id(span.speaker_id) or (span.speaker_id or "").strip().lower()
+            canonical_sid = (
+                canonical_guru_id(span.speaker_id) or (span.speaker_id or "").strip().lower()
+            )
             if canonical_gid not in allowed_gurus and canonical_sid not in allowed_gurus:
                 return False
             # Only enforce strict ECAPA provenance dict check if require_speaker_verified is True
@@ -438,9 +444,7 @@ class FirstPersonContextHarness:
         has_uncertain = parent_status is CompletenessStatus.UNCERTAIN or any(
             s.completeness_status is CompletenessStatus.UNCERTAIN for s in spans
         )
-        has_true_fragment = any(
-            s.completeness_status is CompletenessStatus.FRAGMENT for s in spans
-        )
+        has_true_fragment = any(s.completeness_status is CompletenessStatus.FRAGMENT for s in spans)
         return has_uncertain and not has_true_fragment
 
     @staticmethod
@@ -487,12 +491,18 @@ class FirstPersonContextHarness:
         # Ensure non-guru opener spans (e.g. host questions or music at the start of the parent)
         # do not poison verified guru spans when anchoring windows.
         first_guru_idx = next(
-            (i for i, s in enumerate(ordered) if s.speaker_role in (SpeakerRole.GURU, SpeakerRole.TEACHER)),
+            (
+                i
+                for i, s in enumerate(ordered)
+                if s.speaker_role in (SpeakerRole.GURU, SpeakerRole.TEACHER)
+            ),
             0,
         )
 
         if hit_index is None:
-            return self._apply_word_budget(ordered[first_guru_idx : first_guru_idx + limit], hit_ids)
+            return self._apply_word_budget(
+                ordered[first_guru_idx : first_guru_idx + limit], hit_ids
+            )
 
         is_guru_hit = ordered[hit_index].speaker_role in (SpeakerRole.GURU, SpeakerRole.TEACHER)
 
@@ -533,9 +543,7 @@ class FirstPersonContextHarness:
                 "discourse_opener",
                 "severed_lowercase_opener",
             ):
-                head_candidate = self._apply_word_budget(
-                    ordered[:limit], hit_ids
-                )
+                head_candidate = self._apply_word_budget(ordered[:limit], hit_ids)
                 if not _context_standalone_problem(
                     (s.verbatim_text for s in head_candidate),
                     is_verified_parent=True,
@@ -766,7 +774,12 @@ class FirstPersonContextHarness:
                     key=lambda span: span.start_ms,
                 )
                 if ordered:
-                    limit = max(1, window_limit if window_limit is not None else self._policy.max_context_spans)
+                    limit = max(
+                        1,
+                        window_limit
+                        if window_limit is not None
+                        else self._policy.max_context_spans,
+                    )
                     spans = tuple(ordered[:limit])
                 gates["selector_honored"] = True
             else:

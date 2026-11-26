@@ -31,13 +31,46 @@ INTENTIONALLY_DROPPED = {
 # Keys that appear in nested result dicts (verification/LettuceDetect payloads,
 # tool outputs), not as graph-state channels.
 NESTED_NOT_STATE = {
-    "passed", "details", "claims", "score", "is_valid", "method", "verdict", "ratio",
-    "action", "done", "reasoning", "entity_id", "content", "title", "metadata",
-    "text", "source", "semantic", "contradictions", "has_contradiction",
-    "unsupported_sentences", "timed_out", "citations_verified", "redacted_sentences",
-    "draft_details", "relevancy_score", "context_chunks", "content_type", "categories",
-    "adjacent_concepts", "navigation_hints", "node_data", "relation_summary",
-    "traversal_options", "keywords", "tags", "terms", "teachers", "factual_context", "has_doctrine_match",
+    "passed",
+    "details",
+    "claims",
+    "score",
+    "is_valid",
+    "method",
+    "verdict",
+    "ratio",
+    "action",
+    "done",
+    "reasoning",
+    "entity_id",
+    "content",
+    "title",
+    "metadata",
+    "text",
+    "source",
+    "semantic",
+    "contradictions",
+    "has_contradiction",
+    "unsupported_sentences",
+    "timed_out",
+    "citations_verified",
+    "redacted_sentences",
+    "draft_details",
+    "relevancy_score",
+    "context_chunks",
+    "content_type",
+    "categories",
+    "adjacent_concepts",
+    "navigation_hints",
+    "node_data",
+    "relation_summary",
+    "traversal_options",
+    "keywords",
+    "tags",
+    "terms",
+    "teachers",
+    "factual_context",
+    "has_doctrine_match",
 }
 
 
@@ -65,10 +98,7 @@ def _read_keys() -> set[str]:
 def test_returned_and_read_keys_are_declared():
     declared = set(GraphState.__annotations__)
     missing = (
-        (_returned_keys() & _read_keys())
-        - declared
-        - INTENTIONALLY_DROPPED
-        - NESTED_NOT_STATE
+        (_returned_keys() & _read_keys()) - declared - INTENTIONALLY_DROPPED - NESTED_NOT_STATE
     )
     assert not missing, f"Declare in GraphState (or allowlist with a reason): {sorted(missing)}"
 

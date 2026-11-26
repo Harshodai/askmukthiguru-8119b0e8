@@ -6,6 +6,10 @@ export type SourceType = 'youtube' | 'audio' | 'book' | 'web';
 
 export interface SourcePlatformBadgeProps {
   url?: string | null;
+  sourceType?: SourceType | null;
+  bookTitle?: string | null;
+  chapter?: string | null;
+  pageNumber?: number | null;
   timestampSeconds?: number | null;
   playbackStartSeconds?: number | null;
   channelName?: string | null;
@@ -53,6 +57,10 @@ export const formatTimeClock = (sec?: number | null): string => {
 
 export const SourcePlatformBadge: React.FC<SourcePlatformBadgeProps> = ({
   url,
+  sourceType,
+  bookTitle,
+  chapter,
+  pageNumber,
   timestampSeconds,
   playbackStartSeconds,
   channelName,
@@ -61,10 +69,43 @@ export const SourcePlatformBadge: React.FC<SourcePlatformBadgeProps> = ({
   showDomain = false,
   size = 'sm',
 }) => {
-  const isYt = isYouTubeUrl(url);
+  const isYt = sourceType === 'youtube' || isYouTubeUrl(url);
   const startSec = playbackStartSeconds ?? timestampSeconds;
   const timeLabel = startSec != null ? formatTimeClock(startSec) : null;
   const domain = getCleanDomain(url);
+  const isBook =
+    sourceType === 'book' ||
+    Boolean(bookTitle || pageNumber != null) ||
+    Boolean(url && (url.endsWith('.pdf') || url.includes('Sacred_Secrets') || url.includes('Sufkor')));
+
+  if (isBook) {
+    const label = bookTitle || 'Sacred Literature';
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium select-none shadow-2xs',
+          size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs',
+          className
+        )}
+        title={[bookTitle, chapter, pageNumber != null ? `Page ${pageNumber}` : null].filter(Boolean).join(' · ') || 'Authorized Book'}
+      >
+        <BookOpen className={cn('shrink-0 text-amber-600 dark:text-amber-400', size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5')} />
+        <span className="font-semibold truncate max-w-[140px]">{label}</span>
+        {chapter && (
+          <>
+            <span className="opacity-40">·</span>
+            <span className="truncate max-w-[90px] opacity-85">{chapter}</span>
+          </>
+        )}
+        {pageNumber != null && (
+          <>
+            <span className="opacity-40">·</span>
+            <span className="tabular-nums font-mono text-[9px] opacity-90">p.{pageNumber}</span>
+          </>
+        )}
+      </span>
+    );
+  }
 
   if (isYt) {
     return (

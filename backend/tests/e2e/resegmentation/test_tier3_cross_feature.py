@@ -13,27 +13,18 @@ Covers pairwise and multi-stage pipeline integrations:
 
 from __future__ import annotations
 
-import copy
 import json
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 import tests.test_repo_layout as trl
 from scripts.ops.collection_fingerprint import fingerprint_from_ids
 from scripts.ops.dry_run_resegmentation import (
-    ANALOGY_RESOLUTION_RE,
-    DANGLING_OPENER_RE,
-    ENUMERATION_ITEM_RE,
-    PROMISSORY_CAUSAL_RESOLUTION_RE,
     RhetoricalResegmentationEngine,
     run_dry_run,
 )
 from services.first_person_content_assessment import EVENT_MARKER_RE
-from services.qdrant.indexer import get_chunker_version
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -42,9 +33,10 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 # 1. Resegmentation -> Quality Gate -> Rejection Persistence Pipeline
 # ===========================================================================
 
+
 def test_x1_resegmentation_to_gate_filtering():
     """X1: Resegmented speech passage is inspected by EVENT_MARKER_RE quality gate."""
-    engine = RhetoricalResegmentationEngine()
+    _engine = RhetoricalResegmentationEngine()
     # Candidate passage that contains promotional text
     promo_candidate = (
         "There are four levels of seeking in our life. "
@@ -151,6 +143,7 @@ def test_x6_gate_filtering_live_v10_isolation(mock_qdrant, mock_rejections_db):
 # 2. Admin API -> Resegmentation Data Plane Consistency
 # ===========================================================================
 
+
 def test_x7_admin_status_api_probe_closure_consistency(admin_client: TestClient):
     """X7: GET /status probe summary strictly matches results from dry_run_resegmentation.py."""
     resp = admin_client.get("/api/admin/resegmentation/status")
@@ -225,6 +218,7 @@ def test_x12_admin_aal2_barrier_across_endpoints(aal1_client: TestClient):
 # 3. Shadow Indexing -> Collection Fingerprinting -> Graded Evaluation
 # ===========================================================================
 
+
 def test_x13_shadow_collection_indexing_to_fingerprint(mock_qdrant):
     """X13: Fingerprinting indexed shadow collection generates deterministic SHA256 digest."""
     # Seed 10 shadow points
@@ -292,6 +286,7 @@ def test_x18_truncation_resolution_to_probe_deltas(synthetic_eval_run: Path):
 # ===========================================================================
 # 4. Invariant Enforcement & Script Tree Parity
 # ===========================================================================
+
 
 def test_x19_script_tree_parity_ops_integrity():
     """X19: Ops scripts maintain 100% byte parity with backend tree per Invariant X1."""

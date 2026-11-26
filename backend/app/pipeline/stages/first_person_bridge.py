@@ -73,7 +73,9 @@ _DISTRESS_DECLINE_LEVEL = 2
 _HYDE_PROVIDER_WARNED: dict[str, bool] = {"said": False}
 
 # Deterministic in-memory HyDE caching to eliminate LLM jitter and timeouts (T-R1)
-_HYDE_CACHE: dict[str, tuple[str, list[float], float]] = {}  # query_hash -> (hyde_text, vector, expiry)
+_HYDE_CACHE: dict[
+    str, tuple[str, list[float], float]
+] = {}  # query_hash -> (hyde_text, vector, expiry)
 _HYDE_CACHE_MAX_SIZE = 1000
 _HYDE_CACHE_TTL_S = 86400.0 * 7  # 7 days
 
@@ -721,9 +723,7 @@ def _resolve_topic_shift(retrieval_query: str) -> FollowupResolution | None:
     )
 
 
-def _resolve_meta_followup(
-    retrieval_query: str, chat_history: list
-) -> FollowupResolution | None:
+def _resolve_meta_followup(retrieval_query: str, chat_history: list) -> FollowupResolution | None:
     """Typed resolution for a meta follow-up, else None.
 
     Flag ``first_person_meta_followup_enabled``; deterministic, no LLM. A meta follow-up
@@ -828,9 +828,7 @@ async def _resolve_question_parts(container: Any, question: str) -> list[str]:
     # Guard: skip LLM decompose for structurally single-topic queries.
     # Structural multi-part = at least 2 question marks, OR regex split match.
     is_structurally_multipart = (
-        q.count("?") >= 2
-        or bool(_PART_SPLIT_RE.search(q))
-        or bool(_DIFFERENCE_RE.search(q))
+        q.count("?") >= 2 or bool(_PART_SPLIT_RE.search(q)) or bool(_DIFFERENCE_RE.search(q))
     )
     if not is_structurally_multipart:
         return []  # single-topic — no LLM call, no phantom parts
@@ -842,7 +840,9 @@ async def _resolve_question_parts(container: Any, question: str) -> list[str]:
             if isinstance(sub_queries, list):
                 valid = [q.strip() for q in sub_queries if q and len(q.split()) >= _PART_MIN_WORDS]
                 clean_q = " ".join((question or "").split()).lower().rstrip("?.!")
-                distinct = [q for q in valid if " ".join(q.split()).lower().rstrip("?.!") != clean_q]
+                distinct = [
+                    q for q in valid if " ".join(q.split()).lower().rstrip("?.!") != clean_q
+                ]
                 if len(distinct) >= 2:
                     return distinct[:_MULTIPART_MAX_PARTS]
         except Exception as exc:
@@ -1216,9 +1216,7 @@ class FirstPersonBridgeStage(Stage):
         needs_add = needs_addiction_support_boundary(query)
         multipart_enabled = getattr(settings, "first_person_multipart_enabled", False)
         resolved_parts = (
-            await _resolve_question_parts(ctx.container, query)
-            if multipart_enabled
-            else []
+            await _resolve_question_parts(ctx.container, query) if multipart_enabled else []
         )
         has_multipart = len(resolved_parts) >= 2
         if (
@@ -1288,7 +1286,9 @@ class FirstPersonBridgeStage(Stage):
         max_context_spans: int | None = None
         _followup_input = retrieval_query
         shifted = _resolve_topic_shift(retrieval_query)
-        meta = None if shifted is not None else _resolve_meta_followup(retrieval_query, chat_history)
+        meta = (
+            None if shifted is not None else _resolve_meta_followup(retrieval_query, chat_history)
+        )
         if shifted is not None:
             # Explicit topic shift: the marker is dropped and history is never used.
             retrieval_query = shifted.retrieval_query
@@ -1418,7 +1418,9 @@ class FirstPersonBridgeStage(Stage):
                                 "HyDE is skipped for this deployment."
                             )
                     if _llm is not None:
-                        _hyde_to = float(getattr(settings, "first_person_hyde_timeout_s", 15.0) or 15.0)
+                        _hyde_to = float(
+                            getattr(settings, "first_person_hyde_timeout_s", 15.0) or 15.0
+                        )
                         hyde_text = await _asyncio.wait_for(
                             _llm.generate_hyde(question=retrieval_query),
                             timeout=_hyde_to,
@@ -1523,11 +1525,7 @@ class FirstPersonBridgeStage(Stage):
         # Skip when history was prepended or meta follow-up active; allow on topic-shift turns.
         parts = (
             resolved_parts
-            if (
-                resolved_parts
-                and not history_prepended
-                and meta_note is None
-            )
+            if (resolved_parts and not history_prepended and meta_note is None)
             else (
                 await _resolve_question_parts(container, retrieval_query)
                 if (
@@ -1604,7 +1602,11 @@ class FirstPersonBridgeStage(Stage):
                     getattr(ctx.container, "embedding", None), "encode_single_full_async", None
                 ),
                 **({"max_context_spans": max_context_spans} if max_context_spans else {}),
-                **({"answerability_prefetch": answerability_prefetch} if answerability_prefetch else {}),
+                **(
+                    {"answerability_prefetch": answerability_prefetch}
+                    if answerability_prefetch
+                    else {}
+                ),
             )
 
         # Calibrated gate: the pipeline's own is_direct decision (fitted
@@ -1693,10 +1695,7 @@ class FirstPersonBridgeStage(Stage):
                     bool(_STEP_INSTRUCTION_RE.search(_query_str))
                     or bool(_DIFFERENCE_SYNTHESIS_RE.search(_query_str))
                 ) and not (needs_rel or needs_add)
-                if (
-                    not is_meditation_imperative(_query_str)
-                    and not _is_allowed_practice_or_diff
-                ):
+                if not is_meditation_imperative(_query_str) and not _is_allowed_practice_or_diff:
                     _mild_compassion = (
                         not distress_compassion
                         and status not in ("error", "blocked")

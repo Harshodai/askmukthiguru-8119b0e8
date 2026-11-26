@@ -205,6 +205,3 @@ def test_quoted_source_and_contrastive_clauses_not_false_polarity_inversion():
     ans5 = "Practice Spiritual Right Action by acting from inner division, anger, or reactivity."
     res5 = svc.score_faithfulness("What is spiritual right action?", ctx3, ans5)
     assert res5.get("has_contradiction") is True
-
-
-

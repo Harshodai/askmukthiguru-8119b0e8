@@ -9,9 +9,7 @@ from scripts.ops.validate_human_review_packets import validate_packets
 
 
 def _write_blank_fixture(packet_dir) -> None:
-    (packet_dir / "PROVENANCE.json").write_text(
-        json.dumps({"inputs": {}}), encoding="utf-8"
-    )
+    (packet_dir / "PROVENANCE.json").write_text(json.dumps({"inputs": {}}), encoding="utf-8")
     (packet_dir / "01-clinician-crisis-copy.md").write_text(
         "| block | served when | decision | reviewer | date | notes |\n"
         "|---|---|---|---|---|---|\n"

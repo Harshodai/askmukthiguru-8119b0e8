@@ -11,33 +11,32 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 _BACKEND = Path(__file__).resolve().parents[1]
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from scripts.ops.windowed_ecapa_v1_scorer import (  # noqa: E402
+    GROUP_NOT_RUN,
+    GROUP_REFUSED,
+    GROUP_VERIFIED,
+    SILENCE_RMS_FLOOR,
     VERDICT_INDETERMINATE,
     VERDICT_REFUSED_FLOOR,
     VERDICT_REFUSED_HOST,
     VERDICT_REFUSED_MARGIN,
     VERDICT_VERIFIED,
-    GROUP_NOT_RUN,
-    GROUP_REFUSED,
-    GROUP_VERIFIED,
-    SILENCE_RMS_FLOOR,
+    _roc_auc,
+    _slide_windows,
     calibrate_windowed_floor,
     is_silent,
     windowed_verdict,
-    _roc_auc,
-    _slide_windows,
 )
-
 
 # ---------------------------------------------------------------------------
 # is_silent
 # ---------------------------------------------------------------------------
+
 
 def test_silence_skip_all_silent():
     """All-zeros audio is silent."""
@@ -71,6 +70,7 @@ def test_silence_just_above_floor():
 # ---------------------------------------------------------------------------
 # windowed_verdict — core cases
 # ---------------------------------------------------------------------------
+
 
 def _make_window_score(cosine: float, margin: float, predicted: str) -> dict:
     return {"cosine": cosine, "margin": margin, "predicted": predicted, "scores": {}}
@@ -164,6 +164,7 @@ def test_below_margin_threshold_window_refuses():
 # calibrate_windowed_floor
 # ---------------------------------------------------------------------------
 
+
 def test_calibration_threshold_selection():
     """Calibration from known distributions → FAR ≤ 1% and positive_pass_rate > 0.9."""
     rng = np.random.default_rng(7)
@@ -212,6 +213,7 @@ def test_calibration_no_positives_fails_closed():
 # _slide_windows
 # ---------------------------------------------------------------------------
 
+
 def test_slide_windows_short_audio_padded():
     """Audio shorter than window_frames gets padded to one full window."""
     sr = 16000
@@ -238,6 +240,7 @@ def test_slide_windows_empty_audio():
 # ---------------------------------------------------------------------------
 # _roc_auc
 # ---------------------------------------------------------------------------
+
 
 def test_roc_auc_perfect_separation():
     pos = [0.9, 0.85, 0.80]

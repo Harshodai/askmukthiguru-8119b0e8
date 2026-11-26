@@ -11,6 +11,7 @@ sys.path note: repo-root scripts/ (collection_fingerprint, etc.) live outside th
 backend/ package root.  Add the repo root so ``scripts.ops.*`` imports resolve when
 pytest is invoked from backend/.
 """
+
 from __future__ import annotations
 
 import sys as _sys
@@ -24,10 +25,9 @@ import copy
 import hashlib
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional
-from unittest.mock import MagicMock
+from typing import Any, Optional
 
 import pytest
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # 1. In-Memory Isolated Qdrant Harness (Invariants X6 & X22)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class QdrantPoint:
@@ -113,12 +114,30 @@ class InMemoryQdrantStore:
             "payload_schema": {
                 k: {}
                 for k in [
-                    "guru_id", "video_id", "parent_unit_id", "source_span_id",
-                    "record_type", "speaker_id", "speaker_role", "speaker_verified",
-                    "rights_cleared", "domain_rights_status", "embedding_model_family",
-                    "is_verbatim", "boundary_status", "completeness_status",
-                    "provenance_kind", "answer_role", "corpus_version", "start_ms",
-                    "end_ms", "topic_ids", "entity_ids", "tags", "category", "facet_ids",
+                    "guru_id",
+                    "video_id",
+                    "parent_unit_id",
+                    "source_span_id",
+                    "record_type",
+                    "speaker_id",
+                    "speaker_role",
+                    "speaker_verified",
+                    "rights_cleared",
+                    "domain_rights_status",
+                    "embedding_model_family",
+                    "is_verbatim",
+                    "boundary_status",
+                    "completeness_status",
+                    "provenance_kind",
+                    "answer_role",
+                    "corpus_version",
+                    "start_ms",
+                    "end_ms",
+                    "topic_ids",
+                    "entity_ids",
+                    "tags",
+                    "category",
+                    "facet_ids",
                 ]
             },
         }
@@ -149,8 +168,10 @@ class InMemoryQdrantStore:
                             class VectorParam:
                                 def __init__(self, p: dict[str, Any]):
                                     self.size = p.get("size", 1024)
+
                                     class Dist:
                                         name = p.get("distance", "COSINE").upper()
+
                                     self.distance = Dist()
 
                             self.vectors = {
@@ -176,11 +197,13 @@ class InMemoryQdrantStore:
             self.collections[collection_name] = {
                 "name": collection_name,
                 "points": {},
-                "vectors_config": vectors_config or {
+                "vectors_config": vectors_config
+                or {
                     "passage_dense": {"size": 1024, "distance": "Cosine"},
                     "question_dense": {"size": 1024, "distance": "Cosine"},
                 },
-                "sparse_vectors_config": sparse_vectors_config or {
+                "sparse_vectors_config": sparse_vectors_config
+                or {
                     "passage_sparse": {"index": {"on_disk": True}},
                 },
                 "payload_schema": {},
@@ -198,7 +221,9 @@ class InMemoryQdrantStore:
             vec = getattr(p, "vector", None) or p.get("vector")
             payload = getattr(p, "payload", None) or p.get("payload", {})
             coll["points"][pid] = QdrantPoint(id=pid, vector=vec, payload=copy.deepcopy(payload))
-        self._mutation_count[collection_name] = self._mutation_count.get(collection_name, 0) + len(points)
+        self._mutation_count[collection_name] = self._mutation_count.get(collection_name, 0) + len(
+            points
+        )
         return True
 
     def delete(self, collection_name: str, points_selector: Any) -> bool:
@@ -252,8 +277,10 @@ class InMemoryQdrantStore:
         limit: int = 10,
     ) -> Any:
         pts, _ = self.scroll(collection_name, limit=limit)
+
         class QueryResponse:
             points = pts
+
         return QueryResponse()
 
     def get_aliases(self) -> Any:
@@ -286,6 +313,7 @@ class InMemoryQdrantStore:
 # 2. Mock Rejections Database (Invariant X40)
 # ---------------------------------------------------------------------------
 
+
 class MockRejectionsDB:
     """Mock for public.corpus_gate_rejections table in Supabase."""
 
@@ -303,7 +331,7 @@ class MockRejectionsDB:
     def __init__(self) -> None:
         self.rows: list[dict[str, Any]] = []
 
-    def insert(self, rows: list[dict[str, Any]]) -> "MockRejectionsDB":
+    def insert(self, rows: list[dict[str, Any]]) -> MockRejectionsDB:
         for r in rows:
             missing = self.REQUIRED_FIELDS - set(r.keys())
             if missing:
@@ -320,7 +348,7 @@ class MockRejectionsDB:
     def execute(self) -> dict[str, Any]:
         return {"data": self.rows, "count": len(self.rows)}
 
-    def select(self, *columns: str) -> "MockRejectionsDBQuery":
+    def select(self, *columns: str) -> MockRejectionsDBQuery:
         return MockRejectionsDBQuery(self.rows)
 
 
@@ -329,7 +357,7 @@ class MockRejectionsDBQuery:
         self._rows = rows
         self._filtered = list(rows)
 
-    def eq(self, column: str, value: Any) -> "MockRejectionsDBQuery":
+    def eq(self, column: str, value: Any) -> MockRejectionsDBQuery:
         self._filtered = [r for r in self._filtered if r.get(column) == value]
         return self
 
@@ -501,6 +529,7 @@ if "/api/admin/resegmentation/status" not in _route_paths:
 # 4. Pytest Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def mock_qdrant() -> InMemoryQdrantStore:
     """Provides an isolated in-memory Qdrant store with live v10 protection."""
@@ -526,6 +555,7 @@ def admin_user() -> dict[str, Any]:
 @pytest.fixture
 def admin_client(admin_user: dict[str, Any]) -> TestClient:
     """TestClient authenticated as superuser with AAL2 MFA."""
+
     async def _get_admin():
         return admin_user
 
@@ -538,6 +568,7 @@ def admin_client(admin_user: dict[str, Any]) -> TestClient:
 @pytest.fixture
 def unauthed_client() -> TestClient:
     """TestClient simulating unauthenticated requests (HTTP 401)."""
+
     async def _no_user():
         raise HTTPException(status_code=401, detail="Authentication required")
 
@@ -550,6 +581,7 @@ def unauthed_client() -> TestClient:
 @pytest.fixture
 def non_admin_client() -> TestClient:
     """TestClient authenticated as non-superuser (HTTP 403)."""
+
     async def _non_admin():
         return {
             "id": "user-test-uuid",
@@ -567,6 +599,7 @@ def non_admin_client() -> TestClient:
 @pytest.fixture
 def aal1_client() -> TestClient:
     """TestClient authenticated as superuser with only AAL1 (HTTP 403)."""
+
     async def _aal1_user():
         return {
             "id": "admin-aal1-uuid",
@@ -700,7 +733,9 @@ def synthetic_eval_run(tmp_path: Path) -> Path:
         "target_collection": "first_person_v12_shadow",
         "collection_fingerprint": {
             "points": 4224,
-            "ids_sha256": hashlib.sha256(b"mock_fingerprint_sha256_hash_value_for_v12_shadow").hexdigest(),
+            "ids_sha256": hashlib.sha256(
+                b"mock_fingerprint_sha256_hash_value_for_v12_shadow"
+            ).hexdigest(),
         },
         "probe_rows": 202,
         "judges": ["claude-sonnet-5.5", "gemini-3.6-flash"],
@@ -713,17 +748,19 @@ def synthetic_eval_run(tmp_path: Path) -> Path:
         row_id = f"q{i:03d}"
         is_crisis = 110 <= i < 117
         is_unans = 117 <= i < 130
-        rows.append({
-            "row_id": row_id,
-            "is_crisis": is_crisis,
-            "is_unanswerable": is_unans,
-            "crisis_redirect_passed": True if is_crisis else None,
-            "unanswerable_abstain_passed": True if is_unans else None,
-            "grader_1_verdict": "showable",
-            "grader_2_verdict": "showable",
-            "concordance": True,
-            "latency_ms": 3200,
-        })
+        rows.append(
+            {
+                "row_id": row_id,
+                "is_crisis": is_crisis,
+                "is_unanswerable": is_unans,
+                "crisis_redirect_passed": True if is_crisis else None,
+                "unanswerable_abstain_passed": True if is_unans else None,
+                "grader_1_verdict": "showable",
+                "grader_2_verdict": "showable",
+                "concordance": True,
+                "latency_ms": 3200,
+            }
+        )
 
     grades_data = {
         "run_id": "mock_shadow_eval_20261116",
@@ -742,7 +779,12 @@ def synthetic_eval_run(tmp_path: Path) -> Path:
             "verdict": "PASS",
         },
         "bar2": {"name": "2_served_share_core", "score": 0.52, "verdict": "PASS"},
-        "bar3": {"name": "3_p95_latency", "score_ms": 4500, "threshold_ms": 10000, "verdict": "PASS"},
+        "bar3": {
+            "name": "3_p95_latency",
+            "score_ms": 4500,
+            "threshold_ms": 10000,
+            "verdict": "PASS",
+        },
         "bar4": {"name": "4_harmful_zero", "harmful_count": 0, "verdict": "PASS"},
         "bar5": {"name": "5_unanswerable_set", "score": 1.0, "verdict": "PASS"},
         "bar6": {"name": "6_core_abstain_rate", "score": 1.0, "verdict": "PASS"},

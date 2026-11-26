@@ -12,7 +12,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.config import settings
-from rag.nodes.generation import _clean_inline_citations, _polish_and_weave_clips, verify_verbatim_spans
+from rag.nodes.generation import (
+    _clean_inline_citations,
+    _polish_and_weave_clips,
+    verify_verbatim_spans,
+)
 from services.first_person_pipeline import _HARNESS_JUDGE_CONCURRENCY, FirstPersonPipeline
 
 
@@ -37,7 +41,9 @@ def test_clean_inline_citations_removes_trailing_prepositions():
 def test_verify_verbatim_spans_passes_for_exact_quote():
     """Quotes physically matching source docs pass verbatim verification."""
     source_docs = [
-        {"text": "Sri Krishnaji teaches: When you are in the Beautiful State, life flows effortlessly."}
+        {
+            "text": "Sri Krishnaji teaches: When you are in the Beautiful State, life flows effortlessly."
+        }
     ]
     original = "Life is peace. Sri Krishnaji says: > When you are in the Beautiful State, life flows effortlessly."
     polished = "Life is peace. Sri Krishnaji teaches: > When you are in the Beautiful State, life flows effortlessly."
@@ -49,7 +55,9 @@ def test_verify_verbatim_spans_passes_for_exact_quote():
 def test_verify_verbatim_spans_fails_for_altered_quote():
     """Altered quotes fail verbatim verification and revert to the original text."""
     source_docs = [
-        {"text": "Sri Krishnaji teaches: When you are in the Beautiful State, life flows effortlessly."}
+        {
+            "text": "Sri Krishnaji teaches: When you are in the Beautiful State, life flows effortlessly."
+        }
     ]
     original = 'Sri Krishnaji says: "When you are in the Beautiful State, life flows effortlessly."'
     polished = 'Sri Krishnaji says: "When you are in the Beautiful State, life is totally easy and smooth."'
@@ -66,12 +74,12 @@ async def test_polish_and_weave_clips_preserves_quotes_and_cleans():
     ]
     original = (
         'Here is the wisdom: "The mind in a state of suffering perceives separation." '
-        'You can read about it on Amazon.in at'
+        "You can read about it on Amazon.in at"
     )
     expected_polished = (
-        'Here is the wisdom from the teachers:\n\n'
+        "Here is the wisdom from the teachers:\n\n"
         '> "The mind in a state of suffering perceives separation."\n\n'
-        'You can read more about this in the published teachings on Amazon.in.'
+        "You can read more about this in the published teachings on Amazon.in."
     )
 
     mock_llm = MagicMock()

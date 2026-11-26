@@ -109,7 +109,6 @@ def test_zero_max_neighbors_short_circuits(monkeypatch):
     assert expand_query_concepts(QUERY, max_neighbors=0) == []
 
 
-
 def test_throwaway_loop_disables_dynamic_llm_resolution(monkeypatch):
     monkeypatch.setattr("app.dependencies.get_container", lambda: _container_with(_fake_driver()))
     seen: dict[str, object] = {}

@@ -14,7 +14,7 @@ import inspect
 import json
 import logging
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, Optional
 
 from services.untrusted import fence_inline, neutralise
 

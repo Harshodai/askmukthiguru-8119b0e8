@@ -1,4 +1,5 @@
 """Tests for enhanced speech endpoints (STT and TTS) supporting flexible form fields and optional auth."""
+
 from __future__ import annotations
 
 import base64
@@ -102,7 +103,9 @@ async def test_tts_accepts_anonymous_user(mock_client_cls, mock_settings):
     request.headers = {}
     request.client.host = "127.0.0.1"
 
-    req = SpeechTTSRequest(text="Peace is within you.", target_language_code="en-IN", speaker="priya")
+    req = SpeechTTSRequest(
+        text="Peace is within you.", target_language_code="en-IN", speaker="priya"
+    )
     res = await text_to_speech_endpoint(request=request, req=req, user=None)
 
     assert "audio_base64" in res

@@ -7,7 +7,7 @@ import importlib.util
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -58,9 +58,7 @@ def test_verify_rdb_rejects_checksum_mismatch(tmp_path):
 
 def test_redis_url_client_does_not_put_password_in_command_line(monkeypatch):
     redis_module = SimpleNamespace(
-        Redis=SimpleNamespace(
-            from_url=MagicMock(return_value=SimpleNamespace(ping=MagicMock()))
-        )
+        Redis=SimpleNamespace(from_url=MagicMock(return_value=SimpleNamespace(ping=MagicMock())))
     )
     monkeypatch.setitem(sys.modules, "redis", redis_module)
     monkeypatch.setenv("REDIS_URL", "redis://:secret-value@127.0.0.1:6379/0")

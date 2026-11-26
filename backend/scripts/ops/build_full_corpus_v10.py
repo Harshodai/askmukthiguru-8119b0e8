@@ -790,7 +790,7 @@ def _embedding_provenance() -> tuple[str | None, str | None]:
     return model, getattr(settings, "embedding_model_revision", None)
 
 
-def _write_verifier_report(args: "argparse.Namespace", report: dict[str, object]) -> None:
+def _write_verifier_report(args: argparse.Namespace, report: dict[str, object]) -> None:
     """Record which verifier actually ran, and why, next to the build artifacts.
 
     Silence was the defect: an init failure downgraded the whole build to the legacy

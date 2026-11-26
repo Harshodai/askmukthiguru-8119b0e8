@@ -1,10 +1,10 @@
 """Tests for co-guru founder context hydration, speaker gate, and sub-10s latency guards."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from domain.first_person_context import (
-    _is_same_or_shared_guru,
     BoundaryStatus,
     CompletenessStatus,
     ParentContext,
@@ -12,18 +12,19 @@ from domain.first_person_context import (
     ProvenanceKind,
     SourceSpan,
     SpeakerRole,
+    _is_same_or_shared_guru,
     clip_text_hash,
     make_source_span_id,
+)
+from rag.nodes.reranking import _limit_rerank_candidates
+from services.first_person_context_harness import (
+    FirstPersonContextHarness,
+    HarnessPolicy,
 )
 from services.first_person_context_store import (
     FirstPersonContextStore,
     FirstPersonContextStoreError,
 )
-from services.first_person_context_harness import (
-    FirstPersonContextHarness,
-    HarnessPolicy,
-)
-from rag.nodes.reranking import _limit_rerank_candidates
 
 
 def _dummy_span(
@@ -34,7 +35,9 @@ def _dummy_span(
     **overrides,
 ) -> SourceSpan:
     text = "The four sacred secrets lead to a life of inner freedom."
-    span_index = overrides.pop("source_span_index", 0 if span_id == "s1" else abs(hash(span_id)) % 1000 + 1)
+    span_index = overrides.pop(
+        "source_span_index", 0 if span_id == "s1" else abs(hash(span_id)) % 1000 + 1
+    )
     word_start = overrides.pop("word_start", span_index * 10)
     word_end = overrides.pop("word_end", word_start + 10)
     corpus_version = overrides.get("corpus_version", "fp-context-v1")
@@ -90,7 +93,9 @@ def _dummy_span(
     return SourceSpan(**data)
 
 
-def _dummy_parent(spans: tuple[SourceSpan, ...], guru_id: str = "krishnaji", **overrides) -> ParentUnit:
+def _dummy_parent(
+    spans: tuple[SourceSpan, ...], guru_id: str = "krishnaji", **overrides
+) -> ParentUnit:
     data = {
         "corpus_version": "fp-context-v1",
         "guru_id": guru_id,

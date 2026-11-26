@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 import time
 import urllib.error
 import urllib.request
@@ -106,7 +105,9 @@ def abstain_cause(body: dict) -> str:
     return str(ver.get("abstain_cause") or body.get("route_decision") or "unknown")
 
 
-def floor_check(report: Report, name: str, hits: int, total: int, floor: float, causes: list[str] | None = None) -> None:
+def floor_check(
+    report: Report, name: str, hits: int, total: int, floor: float, causes: list[str] | None = None
+) -> None:
     from collections import Counter
 
     rate = hits / total if total else 0.0
@@ -130,10 +131,12 @@ class Client:
         if not faculty:
             try:
                 from app.config import settings
+
                 faculty = getattr(settings, "faculty_access_code", "") or ""
             except Exception:
                 try:
                     from backend.app.config import settings
+
                     faculty = getattr(settings, "faculty_access_code", "") or ""
                 except Exception:
                     pass
@@ -164,7 +167,12 @@ class Client:
 
     def ask(self, session: str, text: str, history: list[dict]) -> dict:
         hdr = {"X-Session-Id": session}
-        body = {"messages": history, "user_message": text, "session_id": session, "cache_bypass": True}
+        body = {
+            "messages": history,
+            "user_message": text,
+            "session_id": session,
+            "cache_bypass": True,
+        }
         status, _, job = self.call("POST", "/api/chat", body, hdr)
         if status == 200:
             return job  # answered inline (the crisis pre-check replies without a job)
@@ -194,11 +202,18 @@ def run(client: Client, serve_floor: float, followup_floor: float) -> Report:
     status, headers, _ = client.call(
         "OPTIONS",
         "/api/chat",
-        headers={"Origin": client.origin, "Access-Control-Request-Method": "POST",
-                 "Access-Control-Request-Headers": "content-type,x-session-id"},
+        headers={
+            "Origin": client.origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type,x-session-id",
+        },
     )
     allowed = {k.lower(): v for k, v in headers.items()}.get("access-control-allow-origin", "")
-    report.add("cors preflight", status in (200, 204) and allowed == client.origin, f"HTTP {status} allow-origin={allowed or '-'}")
+    report.add(
+        "cors preflight",
+        status in (200, 204) and allowed == client.origin,
+        f"HTTP {status} allow-origin={allowed or '-'}",
+    )
     for path in CLOSED_PATHS:
         status, _, _ = client.call("GET", path)
         report.add(f"closed {path}", status in (401, 403, 404), f"HTTP {status}")
@@ -208,10 +223,18 @@ def run(client: Client, serve_floor: float, followup_floor: float) -> Report:
 
     report.add("crisis helpline", crisis_ok(single(CRISIS)))
     jb = single(JAILBREAK)
-    jb_status = str(jb.get("route_decision") or jb.get("status") or ("blocked" if jb.get("blocked") else "refused" if refused(jb) else "unhandled"))
+    jb_status = str(
+        jb.get("route_decision")
+        or jb.get("status")
+        or ("blocked" if jb.get("blocked") else "refused" if refused(jb) else "unhandled")
+    )
     report.add("jailbreak refused", refused(jb), jb_status)
     ooc = single(OUT_OF_CORPUS)
-    ooc_status = str(ooc.get("route_decision") or ooc.get("status") or ("blocked" if ooc.get("blocked") else "refused" if refused(ooc) else "unhandled"))
+    ooc_status = str(
+        ooc.get("route_decision")
+        or ooc.get("status")
+        or ("blocked" if ooc.get("blocked") else "refused" if refused(ooc) else "unhandled")
+    )
     report.add("out-of-corpus refused", refused(ooc), ooc_status)
     hindi = single(HINDI)
     hindi_ok = served(hindi)
@@ -236,15 +259,19 @@ def run(client: Client, serve_floor: float, followup_floor: float) -> Report:
     for first, follow in CONVERSATIONS:
         session = client.session()
         r1 = client.ask(session, first, [])
-        hist = [{"role": "user", "content": first}, {"role": "assistant", "content": r1.get("response") or ""}]
+        hist = [
+            {"role": "user", "content": first},
+            {"role": "assistant", "content": r1.get("response") or ""},
+        ]
         ans = client.ask(session, follow, hist)
         if served(ans):
             hits += 1
         else:
             followup_causes.append(abstain_cause(ans))
-    floor_check(report, "follow-up serve rate", hits, len(CONVERSATIONS), followup_floor, followup_causes)
+    floor_check(
+        report, "follow-up serve rate", hits, len(CONVERSATIONS), followup_floor, followup_causes
+    )
     return report
-
 
 
 def main(argv: list[str] | None = None) -> int:

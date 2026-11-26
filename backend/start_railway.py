@@ -691,9 +691,10 @@ def _run_on_demand_worker() -> int:
 
     from celery_config import CELERY_BROKER_URL
 
-    queues = _parse_celery_queues(
-        os.environ.get("CELERY_QUEUES", _ON_DEMAND_DEFAULT_QUEUES)
-    ) + _ON_DEMAND_EXTRA_QUEUES
+    queues = (
+        _parse_celery_queues(os.environ.get("CELERY_QUEUES", _ON_DEMAND_DEFAULT_QUEUES))
+        + _ON_DEMAND_EXTRA_QUEUES
+    )
     concurrency = _parse_celery_concurrency(os.environ.get("CELERY_CONCURRENCY", "1"))
     client = redis.Redis.from_url(CELERY_BROKER_URL)
     # Once per 24 h (Redis SET NX): send the tasks beat used to schedule, so
@@ -719,7 +720,10 @@ def _run_on_demand_worker() -> int:
             except redis.RedisError:
                 logger.warning("celery-on-demand: backlog check failed", exc_info=True)
                 idle = 0
-            if idle >= _ON_DEMAND_IDLE_POLLS or time.monotonic() - started > _ON_DEMAND_MAX_RUNTIME_S:
+            if (
+                idle >= _ON_DEMAND_IDLE_POLLS
+                or time.monotonic() - started > _ON_DEMAND_MAX_RUNTIME_S
+            ):
                 logger.info("celery-on-demand: queues drained (or runtime cap hit), stopping")
                 os.kill(os.getpid(), signal.SIGTERM)  # _supervise_celery_child forwards it
                 return

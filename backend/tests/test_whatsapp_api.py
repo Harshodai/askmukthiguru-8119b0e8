@@ -5,22 +5,20 @@ Tests for WhatsApp Meta Cloud API Webhook, Account Linking, and DPDP Consent.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
 from services.whatsapp_service import (
-    CRISIS_HELPLINE_COPY,
     clean_phone,
     create_link_challenge,
     format_whatsapp_message,
     generate_link_token,
-    get_link_status,
     hash_phone,
     hash_token,
     likely_crisis,
@@ -43,6 +41,7 @@ def client():
 # ---------------------------------------------------------------------------
 # Unit Tests: Phone Utilities & Cryptography
 # ---------------------------------------------------------------------------
+
 
 def test_clean_and_mask_phone():
     assert clean_phone("whatsapp:+919876543210") == "+919876543210"
@@ -110,6 +109,7 @@ def test_whatsapp_formatting():
 # Integration Tests: Meta Webhook GET Verification
 # ---------------------------------------------------------------------------
 
+
 def test_meta_webhook_verification_success(client, monkeypatch):
     monkeypatch.setattr(settings, "meta_verify_token", "my_secret_verify_token")
 
@@ -156,6 +156,7 @@ def test_meta_webhook_verification_invalid_mode(client, monkeypatch):
 # ---------------------------------------------------------------------------
 # Integration Tests: Meta Webhook POST Inbound Handling
 # ---------------------------------------------------------------------------
+
 
 def test_meta_webhook_post_signature_rejected(client, monkeypatch):
     monkeypatch.setattr(settings, "meta_app_secret", "super_secret_app_key")
@@ -233,8 +234,10 @@ def test_meta_webhook_post_link_command(client, monkeypatch):
     mock_db = MagicMock()
     mock_db.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{}])
 
-    with patch("app.dependencies.ServiceContainer.supabase_client", mock_db, create=True), \
-         patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
+    with (
+        patch("app.dependencies.ServiceContainer.supabase_client", mock_db, create=True),
+        patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send,
+    ):
         resp = client.post("/api/whatsapp/webhook", json=payload)
         assert resp.status_code == 200
         assert mock_send.called
@@ -248,14 +251,25 @@ def test_meta_webhook_post_privacy_commands(client, monkeypatch):
 
     # STOP command
     payload_stop = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "100200300"},
-                    "messages": [{"id": "wamid.stop_1", "from": "919876543210", "type": "text", "text": {"body": "STOP"}}],
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "100200300"},
+                            "messages": [
+                                {
+                                    "id": "wamid.stop_1",
+                                    "from": "919876543210",
+                                    "type": "text",
+                                    "text": {"body": "STOP"},
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
     }
     with patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
         resp = client.post("/api/whatsapp/webhook", json=payload_stop)
@@ -264,14 +278,25 @@ def test_meta_webhook_post_privacy_commands(client, monkeypatch):
 
     # RESET command
     payload_reset = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "100200300"},
-                    "messages": [{"id": "wamid.reset_1", "from": "919876543210", "type": "text", "text": {"body": "RESET"}}],
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "100200300"},
+                            "messages": [
+                                {
+                                    "id": "wamid.reset_1",
+                                    "from": "919876543210",
+                                    "type": "text",
+                                    "text": {"body": "RESET"},
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
     }
     with patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
         resp = client.post("/api/whatsapp/webhook", json=payload_reset)
@@ -283,14 +308,25 @@ def test_meta_webhook_deduplication(client, monkeypatch):
     monkeypatch.setattr(settings, "meta_app_secret", "")
 
     payload = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "100200300"},
-                    "messages": [{"id": "wamid.dedup_test_100", "from": "919876543210", "type": "text", "text": {"body": "HELP"}}],
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "100200300"},
+                            "messages": [
+                                {
+                                    "id": "wamid.dedup_test_100",
+                                    "from": "919876543210",
+                                    "type": "text",
+                                    "text": {"body": "HELP"},
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
     }
     with patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
         # First delivery
@@ -305,6 +341,7 @@ def test_meta_webhook_deduplication(client, monkeypatch):
 # ---------------------------------------------------------------------------
 # Account Linking & DPDP Consent Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_account_linking_lifecycle():
@@ -326,20 +363,22 @@ async def test_account_linking_lifecycle():
         "phone_number_masked": challenge["phone_number_masked"],
         "phone_number_raw": phone,
         "consumed_at": None,
-        "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(),
+        "expires_at": (datetime.now(UTC) + timedelta(minutes=10)).isoformat(),
     }
     fake_db.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
         data=[challenge_row]
     )
     fake_db.table.return_value.upsert.return_value.execute.return_value = MagicMock(
-        data=[{
-            "user_id": user_id,
-            "phone_number_masked": "+9198*** **210",
-            "status": "active",
-            "sync_history_consent": False,
-            "memory_write_consent": False,
-            "linked_at": datetime.now(timezone.utc).isoformat(),
-        }]
+        data=[
+            {
+                "user_id": user_id,
+                "phone_number_masked": "+9198*** **210",
+                "status": "active",
+                "sync_history_consent": False,
+                "memory_write_consent": False,
+                "linked_at": datetime.now(UTC).isoformat(),
+            }
+        ]
     )
 
     linked = await verify_link_challenge(fake_db, token, user_id)
@@ -348,24 +387,26 @@ async def test_account_linking_lifecycle():
     assert linked["memory_write_consent"] is False
 
     # 3. Attempt replay (should fail)
-    challenge_row["consumed_at"] = datetime.now(timezone.utc).isoformat()
+    challenge_row["consumed_at"] = datetime.now(UTC).isoformat()
     with pytest.raises(ValueError, match="already been used"):
         await verify_link_challenge(fake_db, token, user_id)
 
     # 4. Attempt expired token (should fail)
     challenge_row["consumed_at"] = None
-    challenge_row["expires_at"] = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    challenge_row["expires_at"] = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
     with pytest.raises(ValueError, match="expired"):
         await verify_link_challenge(fake_db, token, user_id)
 
     # 5. Consent decoupling update
     fake_db.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
-        data=[{
-            "phone_number_masked": "+9198*** **210",
-            "sync_history_consent": True,
-            "memory_write_consent": False,
-            "linked_at": datetime.now(timezone.utc).isoformat(),
-        }]
+        data=[
+            {
+                "phone_number_masked": "+9198*** **210",
+                "sync_history_consent": True,
+                "memory_write_consent": False,
+                "linked_at": datetime.now(UTC).isoformat(),
+            }
+        ]
     )
     consent = await update_link_consent(fake_db, user_id, sync_history_consent=True)
     assert consent["sync_history_consent"] is True
@@ -381,6 +422,7 @@ async def test_account_linking_lifecycle():
 # ---------------------------------------------------------------------------
 # Celery Durable Task Tests
 # ---------------------------------------------------------------------------
+
 
 def test_celery_task_crisis_preemption():
     with patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
@@ -402,24 +444,32 @@ def test_meta_webhook_unlinked_user_gated(client, monkeypatch):
     monkeypatch.setattr(settings, "meta_app_secret", "")
 
     payload = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "100200300"},
-                    "messages": [{
-                        "id": "wamid.unlinked_query_1",
-                        "from": "919876543210",
-                        "type": "text",
-                        "text": {"body": "How can I attain inner peace?"},
-                    }],
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "100200300"},
+                            "messages": [
+                                {
+                                    "id": "wamid.unlinked_query_1",
+                                    "from": "919876543210",
+                                    "type": "text",
+                                    "text": {"body": "How can I attain inner peace?"},
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
     }
 
     mock_db = MagicMock()
     # No active link row
-    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(data=[])
+    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
+        data=[]
+    )
     # Challenge insert succeeds
     mock_db.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{}])
 
@@ -447,26 +497,34 @@ def test_meta_webhook_linked_user_start_greeting(client, monkeypatch):
     monkeypatch.setattr(settings, "meta_app_secret", "")
 
     payload = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "100200300"},
-                    "messages": [{
-                        "id": "wamid.linked_start_1",
-                        "from": "919876543210",
-                        "type": "text",
-                        "text": {"body": "START"},
-                    }],
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "100200300"},
+                            "messages": [
+                                {
+                                    "id": "wamid.linked_start_1",
+                                    "from": "919876543210",
+                                    "type": "text",
+                                    "text": {"body": "START"},
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
     }
 
     mock_db = MagicMock()
     mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
         data=[{"user_id": "usr-123", "status": "active"}]
     )
-    mock_db.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[{}])
+    mock_db.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[{}]
+    )
     mock_container = MagicMock()
     mock_container.supabase_client = mock_db
 
@@ -489,6 +547,7 @@ def test_meta_webhook_linked_user_start_greeting(client, monkeypatch):
 # ---------------------------------------------------------------------------
 # Unit & Integration Tests: Message Splitting, Interactive Buttons, Coexistence & Pause
 # ---------------------------------------------------------------------------
+
 
 def test_split_whatsapp_message():
     from tasks.whatsapp_tasks import _split_whatsapp_message
@@ -536,15 +595,21 @@ def test_build_meta_interactive_buttons():
 
 
 def test_whatsapp_ai_pause_and_resume():
-    from services.whatsapp_service import is_whatsapp_ai_paused, pause_whatsapp_ai, resume_whatsapp_ai
+    from services.whatsapp_service import (
+        is_whatsapp_ai_paused,
+        pause_whatsapp_ai,
+        resume_whatsapp_ai,
+    )
 
     fake_store = {}
 
     class MockRedis:
         def set(self, key, val, ex=None):
             fake_store[key] = val
+
         def exists(self, key):
             return 1 if key in fake_store else 0
+
         def delete(self, *keys):
             for k in keys:
                 fake_store.pop(k, None)
@@ -563,8 +628,12 @@ async def test_optout_and_resume_account_by_phone():
     from services.whatsapp_service import optout_account_by_phone, resume_account_by_phone
 
     mock_db = MagicMock()
-    mock_db.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"status": "opted_out"}])
-    mock_db.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"status": "active"}])
+    mock_db.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[{"status": "opted_out"}]
+    )
+    mock_db.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[{"status": "active"}]
+    )
 
     res_opt = await optout_account_by_phone(mock_db, "+919876543210")
     assert res_opt is True
@@ -580,26 +649,34 @@ def test_meta_webhook_human_coexistence_pause(client, monkeypatch):
     monkeypatch.setattr(settings, "meta_app_secret", "")
 
     payload = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "100200300"},
-                    "messages": [{
-                        "id": "wamid.human_req_1",
-                        "from": "919876543210",
-                        "type": "text",
-                        "text": {"body": "HUMAN"},
-                    }],
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "100200300"},
+                            "messages": [
+                                {
+                                    "id": "wamid.human_req_1",
+                                    "from": "919876543210",
+                                    "type": "text",
+                                    "text": {"body": "HUMAN"},
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
     }
 
     mock_container = MagicMock()
     app.dependency_overrides[get_container_async] = lambda: mock_container
     try:
-        with patch("app.api.whatsapp.pause_whatsapp_ai") as mock_pause, \
-             patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
+        with (
+            patch("app.api.whatsapp.pause_whatsapp_ai") as mock_pause,
+            patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send,
+        ):
             resp = client.post("/api/whatsapp/webhook", json=payload)
             assert resp.status_code == 200
             assert mock_pause.called
@@ -618,32 +695,40 @@ def test_meta_webhook_interactive_reply_received(client, monkeypatch):
     monkeypatch.setattr(settings, "meta_app_secret", "")
 
     payload = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "100200300"},
-                    "messages": [{
-                        "id": "wamid.btn_reply_1",
-                        "from": "919876543210",
-                        "type": "interactive",
-                        "interactive": {
-                            "type": "button_reply",
-                            "button_reply": {
-                                "id": "btn_human",
-                                "title": "Human Help",
-                            },
-                        },
-                    }],
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "100200300"},
+                            "messages": [
+                                {
+                                    "id": "wamid.btn_reply_1",
+                                    "from": "919876543210",
+                                    "type": "interactive",
+                                    "interactive": {
+                                        "type": "button_reply",
+                                        "button_reply": {
+                                            "id": "btn_human",
+                                            "title": "Human Help",
+                                        },
+                                    },
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
     }
 
     mock_container = MagicMock()
     app.dependency_overrides[get_container_async] = lambda: mock_container
     try:
-        with patch("app.api.whatsapp.pause_whatsapp_ai") as mock_pause, \
-             patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
+        with (
+            patch("app.api.whatsapp.pause_whatsapp_ai") as mock_pause,
+            patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send,
+        ):
             resp = client.post("/api/whatsapp/webhook", json=payload)
             assert resp.status_code == 200
             assert mock_pause.called
@@ -659,19 +744,25 @@ def test_meta_webhook_mismatched_phone_id_rejected(client, monkeypatch):
     monkeypatch.setattr(settings, "meta_phone_number_id", "999888777")
 
     payload = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "100200300"},  # Mismatched ID
-                    "messages": [{
-                        "id": "wamid.spoof_1",
-                        "from": "919876543210",
-                        "type": "text",
-                        "text": {"body": "HELP"},
-                    }],
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "100200300"},  # Mismatched ID
+                            "messages": [
+                                {
+                                    "id": "wamid.spoof_1",
+                                    "from": "919876543210",
+                                    "type": "text",
+                                    "text": {"body": "HELP"},
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
     }
 
     with patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
@@ -679,5 +770,3 @@ def test_meta_webhook_mismatched_phone_id_rejected(client, monkeypatch):
         assert resp.status_code == 200
         # Mismatched phone_number_id was ignored
         assert not mock_send.called
-
-

@@ -5,12 +5,14 @@ retrieval text, and delegates writes to FirstPersonContextStore. Speaker identit
 is never inferred from titles or channel metadata. Rejected windows are recorded
 before any Qdrant write; raw ASR text is preserved verbatim and never rewritten.
 """
+
 from __future__ import annotations
 
 import math
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any
 
 from qdrant_client.http.models import SparseVector
 
@@ -28,10 +30,9 @@ from domain.first_person_context import (
 )
 from ingest.verbatim.asr_cleaner import asr_cleaner_flags
 from ingest.verbatim.boundaries import boundary_defects
+from services.guru_registry import shared_attribution
 from services.qdrant.indexer import resolve_source_rights_status
 from services.text_quality_filter import find_artifact
-
-from services.guru_registry import shared_attribution
 
 CORPUS_VERSION = "fp-context-resegment-v2"
 CHUNKER_VERSION = "boundary_v1:sentence_closing_18-25s"
@@ -138,7 +139,9 @@ def _group_windows(windows: list[Window]) -> list[list[Window]]:
     groups: list[list[Window]] = []
     current: list[Window] = []
     for window in windows:
-        exceeds_duration = bool(current) and window.end_ms - current[0].start_ms > MAX_PARENT_DURATION_MS
+        exceeds_duration = (
+            bool(current) and window.end_ms - current[0].start_ms > MAX_PARENT_DURATION_MS
+        )
         exceeds_count = len(current) >= MAX_PARENT_SPANS
         long_gap = bool(current) and window.start_ms - current[-1].end_ms > MAX_PARENT_GAP_MS
         if exceeds_duration or exceeds_count or long_gap:
@@ -354,7 +357,9 @@ def build_context_records(
                 update={
                     "previous_span_id": group_spans[index - 1].source_span_id if index else None,
                     "next_span_id": (
-                        group_spans[index + 1].source_span_id if index + 1 < len(group_spans) else None
+                        group_spans[index + 1].source_span_id
+                        if index + 1 < len(group_spans)
+                        else None
                     ),
                 }
             )
@@ -381,7 +386,9 @@ def build_context_records(
     return parents, spans, rejected_count
 
 
-def encode_vectors(embedding_service: Any, spans: Iterable[SourceSpan]) -> dict[str, dict[str, Any]]:
+def encode_vectors(
+    embedding_service: Any, spans: Iterable[SourceSpan]
+) -> dict[str, dict[str, Any]]:
     span_list = list(spans)
     if not span_list:
         raise ValueError("cannot embed an empty span list")

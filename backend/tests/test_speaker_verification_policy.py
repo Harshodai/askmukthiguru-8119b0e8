@@ -30,7 +30,6 @@ def test_failed_or_non_string_window_verdict_never_verifies(verdict: object) -> 
     assert is_verified_windowed_verdict(verdict) is False
 
 
-
 def test_pending_audio_patch_revokes_stale_positive_and_records_reason() -> None:
     from scripts.ops.windowed_ecapa_v1_scorer import pending_voice_check_patch
 

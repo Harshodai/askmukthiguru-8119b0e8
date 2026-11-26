@@ -40,11 +40,17 @@ def test_no_reviewed_csv_carries_unattributed_human_labels():
             rows = list(csv.DictReader(f))
         if not rows:
             continue
-        label_cols = [c for c in rows[0] if c.upper().startswith("LABEL") or c.upper().startswith("HUMAN TEACHER")]
+        label_cols = [
+            c
+            for c in rows[0]
+            if c.upper().startswith("LABEL") or c.upper().startswith("HUMAN TEACHER")
+        ]
         reviewer_cols = [c for c in rows[0] if "reviewer" in c.lower()]
         for col in label_cols:
             filled = [r for r in rows if (r.get(col) or "").strip()]
-            unattributed = [r for r in filled if not any((r.get(c) or "").strip() for c in reviewer_cols)]
+            unattributed = [
+                r for r in filled if not any((r.get(c) or "").strip() for c in reviewer_cols)
+            ]
             if unattributed:
                 bad.append(f"{path.relative_to(root)}:{col} ({len(unattributed)} rows)")
     assert not bad, f"human label column filled without a reviewer: {bad}"

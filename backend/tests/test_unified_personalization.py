@@ -233,9 +233,7 @@ async def test_personalize_stage_fallback_to_state_memory(monkeypatch):
     from app.pipeline.stages.personalize_stage import PersonalizeStage
     from app.schemas import ChatRequest
 
-    monkeypatch.setattr(
-        "services.first_person_pipeline.is_youtube_video_available", lambda _: True
-    )
+    monkeypatch.setattr("services.first_person_pipeline.is_youtube_video_available", lambda _: True)
     monkeypatch.setattr(
         "services.first_person_pipeline.source_is_authoritatively_licensed",
         lambda **kwargs: True,
@@ -395,7 +393,10 @@ async def test_false_abstention_recovery_soul_sync_instructions(monkeypatch):
     from rag.meditation import is_meditation_practice_query
 
     assert is_meditation_practice_query("How do I practice Serene Mind meditation?") is True
-    assert is_meditation_practice_query("How does Ekam meditation help relieve mental stress?") is False
+    assert (
+        is_meditation_practice_query("How does Ekam meditation help relieve mental stress?")
+        is False
+    )
     assert classify_with_reason("How do I practice Serene Mind meditation?")[0] == "MEDITATION"
     sm_res = await handle_meditation(
         {"question": "How do I practice Serene Mind meditation?", "meditation_step": 0}
@@ -408,7 +409,10 @@ async def test_false_abstention_recovery_soul_sync_instructions(monkeypatch):
 
     planner = get_default_planner()
     assert planner.plan("What does Sri Krishnaji teach about fear?").teacher_scope == "krishnaji"
-    assert planner.plan("What does Sri Preethaji teach about relationships?").teacher_scope == "preethaji"
+    assert (
+        planner.plan("What does Sri Preethaji teach about relationships?").teacher_scope
+        == "preethaji"
+    )
     assert (
         planner.plan(
             "What is the root cause of all human suffering according to Sri Krishnaji and Sri Preethaji?"
@@ -446,15 +450,13 @@ async def test_false_abstention_recovery_difference_synthesis():
 @pytest.mark.asyncio
 async def test_personalize_stage_dataclass_profile_and_memory_merging(monkeypatch):
     """Test PersonalizeStage extracts attributes from UserProfile dataclass and unifies memories."""
+    import app.pipeline.stages.personalize_stage as stage_module
     from app.pipeline.stages.context import PipelineContext
     from app.pipeline.stages.personalize_stage import PersonalizeStage
-    import app.pipeline.stages.personalize_stage as stage_module
     from app.schemas import ChatRequest
     from services.user_profile_service import LanguagePreference, SpiritualLevel, UserProfile
 
-    monkeypatch.setattr(
-        "services.first_person_pipeline.is_youtube_video_available", lambda _: True
-    )
+    monkeypatch.setattr("services.first_person_pipeline.is_youtube_video_available", lambda _: True)
     monkeypatch.setattr(
         "services.first_person_pipeline.source_is_authoritatively_licensed",
         lambda **kwargs: True,

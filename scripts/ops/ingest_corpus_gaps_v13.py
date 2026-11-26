@@ -14,17 +14,18 @@ Strictly satisfies repository invariants:
   - Invariant X40: domain_rights_status="licensed", rights_cleared=True, chunker_version="boundary_v2:rhetorical".
   - Invariant 18: Embeddings generated host-side via BGE-M3.
   - Invariant 13: Verbatim quote accuracy and zero LLM text synthesis.
+  - Speaker verification fails closed: new clips are speaker_verified=False
+    (status pending_voice_check) until the windowed voice verifier clears them.
 """
 
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import os
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -42,7 +43,6 @@ from qdrant_client.http.models import (
     VectorParams,
 )
 
-from app.config import settings
 from services.embedding_service import EmbeddingService
 from services.first_person_store import FirstPersonStore
 
@@ -295,6 +295,38 @@ def generate_deterministic_id(video_id: str, start_ms: int, end_ms: int, text: s
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, seed))
 
 
+def build_clip_payload(c: dict[str, Any]) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "video_id": c["video_id"],
+        "title": c["title"],
+        "speaker_id": c["speaker_id"],
+        "guru_id": c["guru_id"],
+        "speaker": c["speaker"],
+        "speaker_role": "teacher",
+        "answer_role": "primary",
+        "start_ms": c["start_ms"],
+        "end_ms": c["end_ms"],
+        "duration_ms": c["end_ms"] - c["start_ms"],
+        "text": c["text"],
+        "source_url": f"https://www.youtube.com/watch?v={c['video_id']}",
+        "topic": c["topic"],
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
+        # Fail closed: hand-listed clips have no audio check; the windowed verifier must clear them.
+        "speaker_verified": False,
+        "speaker_verification_status": "pending_voice_check",
+        "is_verbatim": True,
+        "corpus_version": "fp-context-transcript-v2",
+        "chunker_version": "boundary_v2:rhetorical",
+        "completeness_status": "complete",
+        "boundary_status": "clean",
+        "record_type": "passage",
+        "parent_unit_id": f"{c['video_id']}_parent_{c['start_ms']}",
+        "indexed_at": datetime.now(UTC).isoformat(),
+    }
+    return payload
+
+
 def main() -> None:
     client = QdrantClient(url=QDRANT_URL, timeout=30.0)
 
@@ -342,8 +374,7 @@ def main() -> None:
             if not records:
                 break
             batch_points = [
-                PointStruct(id=rec.id, vector=rec.vector, payload=rec.payload)
-                for rec in records
+                PointStruct(id=rec.id, vector=rec.vector, payload=rec.payload) for rec in records
             ]
             client.upsert(collection_name=TARGET_COLLECTION, points=batch_points, wait=True)
             replicated += len(batch_points)
@@ -364,39 +395,16 @@ def main() -> None:
     new_points = []
     for i, c in enumerate(NEW_CORPUS_CLIPS):
         pid = generate_deterministic_id(c["video_id"], c["start_ms"], c["end_ms"], c["text"])
-        payload = {
-            "video_id": c["video_id"],
-            "title": c["title"],
-            "speaker_id": c["speaker_id"],
-            "guru_id": c["guru_id"],
-            "speaker": c["speaker"],
-            "speaker_role": "teacher",
-            "answer_role": "primary",
-            "start_ms": c["start_ms"],
-            "end_ms": c["end_ms"],
-            "duration_ms": c["end_ms"] - c["start_ms"],
-            "text": c["text"],
-            "source_url": f"https://www.youtube.com/watch?v={c['video_id']}",
-            "topic": c["topic"],
-            "rights_cleared": True,
-            "domain_rights_status": "licensed",
-            "speaker_verified": True,
-            "is_verbatim": True,
-            "corpus_version": "fp-context-transcript-v2",
-            "chunker_version": "boundary_v2:rhetorical",
-            "completeness_status": "complete",
-            "boundary_status": "clean",
-            "record_type": "passage",
-            "parent_unit_id": f"{c['video_id']}_parent_{c['start_ms']}",
-            "indexed_at": datetime.now(timezone.utc).isoformat(),
-        }
+        payload = build_clip_payload(c)
 
         # Sparse vector conversion
         sv = sparse_vecs[i]
         if hasattr(sv, "indices") and hasattr(sv, "values"):
             idx_list = sv.indices.tolist() if hasattr(sv.indices, "tolist") else list(sv.indices)
             val_list = sv.values.tolist() if hasattr(sv.values, "tolist") else list(sv.values)
-            sp_vector = SparseVector(indices=[int(x) for x in idx_list], values=[float(x) for x in val_list])
+            sp_vector = SparseVector(
+                indices=[int(x) for x in idx_list], values=[float(x) for x in val_list]
+            )
         elif isinstance(sv, dict):
             idx_list = [int(k) for k in sv.keys()]
             val_list = [float(v) for v in sv.values()]
@@ -422,9 +430,13 @@ def main() -> None:
     final_v12 = client.count(SOURCE_COLLECTION).count
     final_v13 = client.count(TARGET_COLLECTION).count
 
-    assert final_v12 == v12_count, f"Invariant X6 violation: source count changed {v12_count} -> {final_v12}"
+    assert final_v12 == v12_count, (
+        f"Invariant X6 violation: source count changed {v12_count} -> {final_v12}"
+    )
     logger.info(f"SUCCESS: Source {SOURCE_COLLECTION} unchanged ({final_v12} points).")
-    logger.info(f"SUCCESS: Target {TARGET_COLLECTION} now has {final_v13} points (+{len(new_points)} added).")
+    logger.info(
+        f"SUCCESS: Target {TARGET_COLLECTION} now has {final_v13} points (+{len(new_points)} added)."
+    )
 
     # 5. Verification search probe
     logger.info("Executing retrieval verification probes on first_person_v13_shadow...")
@@ -444,7 +456,9 @@ def main() -> None:
         ).points
         logger.info(f"--- Probe: {probe!r} ---")
         for res in results:
-            logger.info(f"  Score: {res.score:.4f} | Video: {res.payload.get('video_id')} | Title: {res.payload.get('title')}")
+            logger.info(
+                f"  Score: {res.score:.4f} | Video: {res.payload.get('video_id')} | Title: {res.payload.get('title')}"
+            )
             snippet = (res.payload.get("text") or res.payload.get("content") or "")[:120]
             logger.info(f"  Text snippet: {snippet}...")
 

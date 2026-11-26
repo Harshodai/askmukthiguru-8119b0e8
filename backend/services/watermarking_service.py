@@ -221,7 +221,8 @@ class WatermarkingService:
         )
         id3_tag = b"ID3\x04\x00\x00" + id3_syncsafe_size + bytes(frames_bytes)
 
-        fmt_lower = format.lower() if format else "mp3"
+        # NOTE: unused, so the `format` argument currently has no effect here.
+        fmt_lower = format.lower() if format else "mp3"  # noqa: F841
 
         if audio_bytes.startswith(b"RIFF"):
             # Inject "id3 " RIFF chunk before final data or at end

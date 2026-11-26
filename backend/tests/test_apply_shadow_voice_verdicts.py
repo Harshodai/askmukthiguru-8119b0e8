@@ -24,9 +24,14 @@ PENDING = {
 
 def _v(group="verified", **kw):
     row = {
-        "source_span_id": "s1", "verdict_group": group, "cosine": 0.7, "margin": 0.3,
-        "cosine_floor": 0.28, "margin_threshold": 0.05,
-        "speaker_model_revision": "rev", "calibration_revision": "cal",
+        "source_span_id": "s1",
+        "verdict_group": group,
+        "cosine": 0.7,
+        "margin": 0.3,
+        "cosine_floor": 0.28,
+        "margin_threshold": 0.05,
+        "speaker_model_revision": "rev",
+        "calibration_revision": "cal",
     }
     row.update(kw)
     return row

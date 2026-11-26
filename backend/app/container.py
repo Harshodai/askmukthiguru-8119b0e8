@@ -742,6 +742,7 @@ class ServiceContainer:
                         consent_lookup=_cm_consent,
                         judge_factory=_cm_build_judge,
                     )
+
                     async def _cm_index_row(row: dict) -> None:
                         await _cm_index.upsert(
                             user_id=str(row["user_id"]),

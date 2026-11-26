@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from celery_config import celery_app
@@ -24,14 +24,13 @@ def purge_ended_event_media(client: Any | None = None, now: datetime | None = No
     the loop if any event failed, so a stuck file is visible and never silently kept.
     """
     if client is None:
-        from supabase import create_client
-
         from app.config import settings
+        from supabase import create_client
 
         client = create_client(
             settings.supabase_url, settings.supabase_service_key or settings.supabase_key
         )
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
 
     rows = (
         client.table("upcoming_events")
@@ -75,34 +74,34 @@ if __name__ == "__main__":
             self.data = data
 
     class _Query:
-        def __init__(self, store: "_Fake"):
+        def __init__(self, store: _Fake):
             self.store, self.not_ = store, self
 
-        def select(self, *_a: Any) -> "_Query":
+        def select(self, *_a: Any) -> _Query:
             return self
 
-        def is_(self, *_a: Any) -> "_Query":
+        def is_(self, *_a: Any) -> _Query:
             return self
 
-        def update(self, values: dict[str, Any]) -> "_Query":
+        def update(self, values: dict[str, Any]) -> _Query:
             self.store.updates.append(values)
             return self
 
-        def eq(self, *_a: Any) -> "_Query":
+        def eq(self, *_a: Any) -> _Query:
             return self
 
         def execute(self) -> _Result:
             return _Result(self.store.rows)
 
     class _Bucket:
-        def __init__(self, store: "_Fake"):
+        def __init__(self, store: _Fake):
             self.store = store
 
         def remove(self, paths: list[str]) -> None:
             self.store.removed.extend(paths)
 
     class _Storage:
-        def __init__(self, store: "_Fake"):
+        def __init__(self, store: _Fake):
             self.store = store
 
         def from_(self, _bucket: str) -> _Bucket:
@@ -118,10 +117,20 @@ if __name__ == "__main__":
 
     fake = _Fake(
         [
-            {"id": "a", "media_path": "old.mp4", "starts_at": "2026-01-01T10:00:00Z", "ends_at": None},
-            {"id": "b", "media_path": "live.mp3", "starts_at": "2026-01-01T10:00:00Z", "ends_at": "2026-12-31T10:00:00Z"},
+            {
+                "id": "a",
+                "media_path": "old.mp4",
+                "starts_at": "2026-01-01T10:00:00Z",
+                "ends_at": None,
+            },
+            {
+                "id": "b",
+                "media_path": "live.mp3",
+                "starts_at": "2026-01-01T10:00:00Z",
+                "ends_at": "2026-12-31T10:00:00Z",
+            },
         ]
     )
-    assert purge_ended_event_media(fake, datetime(2026, 6, 1, tzinfo=timezone.utc)) == 1
+    assert purge_ended_event_media(fake, datetime(2026, 6, 1, tzinfo=UTC)) == 1
     assert fake.removed == ["old.mp4"] and len(fake.updates) == 1
     print("event_media_tasks self-check OK")

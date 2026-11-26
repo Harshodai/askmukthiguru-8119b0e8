@@ -236,6 +236,7 @@ def test_execute_first_person_video_ingestion_executes_pipeline(monkeypatch, tmp
         "ingest.audio_transcriber.download_audio_stream",
         lambda url, target_dir: test_wav,
     )
+
     def _fake_run(*args, **kwargs):
         cmd = args[0] if args else []
         if cmd and len(cmd) > 0 and str(cmd[-1]).endswith(".wav"):

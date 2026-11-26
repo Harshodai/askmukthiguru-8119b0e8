@@ -496,6 +496,7 @@ class PipelineCoordinator:
             if db is None:
                 return False
             try:
+
                 def _check_db():
                     resp = (
                         db.table("canonical_memories")
@@ -679,14 +680,16 @@ class PipelineCoordinator:
         )
         prompt_version = getattr(settings, "prompt_version", "v1")
         cache_version = getattr(settings, "cache_key_version", "v2")
+        ontology_version = getattr(settings, "ontology_version", "v1")
         version_scope_str = (
             f":rel:{manifest.release_id}:pol:{manifest.policy_version}"
-            f":col:{collection}:pv:{prompt_version}:cv:{cache_version}"
+            f":col:{collection}:ont:{ontology_version}:pv:{prompt_version}:cv:{cache_version}"
         )
         if (
             ":" in manifest.release_id
             or ":" in manifest.policy_version
             or ":" in collection
+            or ":" in ontology_version
             or ":" in prompt_version
             or ":" in cache_version
         ):

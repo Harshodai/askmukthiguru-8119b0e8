@@ -1,13 +1,14 @@
 """Regression tests for sub-10s latency SLA, fast HyDE, and retry time bounding."""
 
 import time
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from app.config import settings
 from app.services.llm_queue import LLMPriority, QueuedLLMProvider
-from services.openrouter_service import OpenRouterService
 from rag.graph_strategies import route_after_formatting
+from services.openrouter_service import OpenRouterService
 
 
 def test_first_person_hyde_timeout_bounded():
@@ -18,7 +19,11 @@ def test_first_person_hyde_timeout_bounded():
 def test_openrouter_generation_model_defaults_to_fast_70b():
     """Verify default generation model is high-throughput llama-3.3-70b-instruct."""
     from app.config import Settings
-    assert Settings.model_fields["openrouter_generation_model"].default == "meta-llama/llama-3.3-70b-instruct"
+
+    assert (
+        Settings.model_fields["openrouter_generation_model"].default
+        == "meta-llama/llama-3.3-70b-instruct"
+    )
 
 
 @pytest.mark.asyncio

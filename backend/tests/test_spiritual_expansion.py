@@ -23,8 +23,7 @@ from app.pipeline.stages.context import PipelineContext
 from app.pipeline.stages.personalize_stage import PersonalizeStage
 from rag.nodes.generation import generate_answer
 from rag.nodes.utils import _llm_retrieval_expansions
-from domain.first_person_context import ParentContext, ParentUnit
-from services.first_person_pipeline import FirstPersonPipeline, FirstPersonPipelineResult
+from services.first_person_pipeline import FirstPersonPipeline
 from services.personalization.models import (
     MoodSpiritualJournalContext,
     PrePracticeLogContext,
@@ -37,7 +36,6 @@ from services.personalization.models import (
 )
 from services.spiritual_expansion import (
     SpiritualConceptExpansion,
-    get_spiritual_concept_expansion,
     set_spiritual_concept_expansion,
 )
 
@@ -76,7 +74,11 @@ async def test_spiritual_expansion_in_memory_lru_cache():
 async def test_spiritual_expansion_redis_cache():
     """Verify that Redis persistent cache is queried on in-memory cache miss."""
     mock_redis = MagicMock()
-    cached_data = ["dissolving hurt and resentment", "healing emotional wounds", "freedom from anger"]
+    cached_data = [
+        "dissolving hurt and resentment",
+        "healing emotional wounds",
+        "freedom from anger",
+    ]
     mock_redis.get.return_value = json.dumps(cached_data)
 
     mock_llm = MagicMock()
@@ -98,9 +100,9 @@ async def test_spiritual_expansion_llm_parsing():
     mock_llm = MagicMock()
     raw_llm_output = (
         '1. "conscious parenting inner state"\n'
-        '- children absorbing parent state\n'
-        '* family connection beautiful state\n'
-        '4. Fourth item that should be excluded'
+        "- children absorbing parent state\n"
+        "* family connection beautiful state\n"
+        "4. Fourth item that should be excluded"
     )
     mock_llm.generate_fast = AsyncMock(return_value=raw_llm_output)
 
@@ -154,9 +156,13 @@ async def test_spiritual_expansion_error_fallback_to_okf():
 async def test_rag_utils_llm_retrieval_expansions_wiring():
     """Verify that _llm_retrieval_expansions in utils.py delegates to SpiritualConceptExpansion."""
     mock_svc = MagicMock()
-    mock_svc.expand_query = AsyncMock(return_value=["facing sorrow without resistance", "nature of suffering"])
+    mock_svc.expand_query = AsyncMock(
+        return_value=["facing sorrow without resistance", "nature of suffering"]
+    )
 
-    with patch("services.spiritual_expansion.get_spiritual_concept_expansion", return_value=mock_svc):
+    with patch(
+        "services.spiritual_expansion.get_spiritual_concept_expansion", return_value=mock_svc
+    ):
         state = {
             "question": "How to handle sorrow?",
             "rewritten_query": "How to handle deep sorrow?",
@@ -186,7 +192,9 @@ async def test_personalize_stage_serializes_all_7_facets():
         has_unlocked_vault=True,
         seeker_profile=SeekerProfileContext(
             spiritual_readiness="advanced",
-            custom_attributes={"topics_of_interest": ["dissolving resentment", "conscious parenting"]},
+            custom_attributes={
+                "topics_of_interest": ["dissolving resentment", "conscious parenting"]
+            },
         ),
         second_brain=SecondBrainContext(
             canonical_memories=[{"statement": "I often feel resentful when unrecognized at work"}],
@@ -250,12 +258,15 @@ async def test_personalize_stage_serializes_all_7_facets():
         "voice_verification_method": "ecapa_tdnn",
     }
 
-    with patch(
-        "services.personalization.unified_engine.UnifiedPersonalizationEngine.hydrate_seeker_context",
-        AsyncMock(return_value=seeker_ctx),
-    ), patch(
-        "app.pipeline.stages.personalize_stage._lookup_servable_clip",
-        return_value=dummy_clip,
+    with (
+        patch(
+            "services.personalization.unified_engine.UnifiedPersonalizationEngine.hydrate_seeker_context",
+            AsyncMock(return_value=seeker_ctx),
+        ),
+        patch(
+            "app.pipeline.stages.personalize_stage._lookup_servable_clip",
+            return_value=dummy_clip,
+        ),
     ):
         await stage.run(ctx)
 
@@ -293,7 +304,10 @@ async def test_generation_instructions_relaxation_and_harmonization():
     mock_llm = MagicMock()
     mock_llm.generate = AsyncMock(return_value="Wisdom grounded in the teaching clip.")
 
-    with patch("rag.nodes._services._llm_gateway", mock_llm), patch("rag.nodes._services._ollama", mock_llm):
+    with (
+        patch("rag.nodes._services._llm_gateway", mock_llm),
+        patch("rag.nodes._services._ollama", mock_llm),
+    ):
         state = {
             "question": "Please personalize this teaching on forgiveness for me.",
             "documents": [
@@ -320,6 +334,7 @@ async def test_generation_instructions_relaxation_and_harmonization():
         }
 
         from rag.nodes.generation import context_engineer
+
         res = await context_engineer(state)
         state.update(res)
 
@@ -330,8 +345,14 @@ async def test_generation_instructions_relaxation_and_harmonization():
         system_prompt = kwargs.get("system_prompt") or (args[0] if args else "")
 
         # 1. Rule 1 & Rule 2 harmonized
-        assert "1. For the spiritual teaching core, base your wisdom ONLY on the provided Knowledge" in system_prompt
-        assert "2. For personalization, seamlessly weave the seeker's recorded personal memories" in system_prompt
+        assert (
+            "1. For the spiritual teaching core, base your wisdom ONLY on the provided Knowledge"
+            in system_prompt
+        )
+        assert (
+            "2. For personalization, seamlessly weave the seeker's recorded personal memories"
+            in system_prompt
+        )
 
         # 2. Instruction 9 relaxed to only apply when Knowledge actually contains the terms
         assert "only when the retrieved Knowledge explicitly discusses them" in system_prompt
@@ -361,6 +382,7 @@ async def test_first_person_adaptive_try2_feedback_loop_success(monkeypatch):
     parent_ctx = make_test_context([span1])
 
     mock_ctx_store = MagicMock()
+
     # Try 1 returns empty candidate contexts
     # Try 2 returns parent_ctx matching expanded concepts
     def mock_retrieve(**kwargs):
@@ -373,7 +395,9 @@ async def test_first_person_adaptive_try2_feedback_loop_success(monkeypatch):
     mock_ctx_store.fetch_preceding_span.return_value = None
 
     mock_llm = MagicMock()
-    mock_llm.generate_fast = AsyncMock(return_value="facing sorrow without resistance\ndissolving grief inner peace")
+    mock_llm.generate_fast = AsyncMock(
+        return_value="facing sorrow without resistance\ndissolving grief inner peace"
+    )
 
     from services.first_person_context_harness import HarnessDecision
 
@@ -403,13 +427,14 @@ async def test_first_person_adaptive_try2_feedback_loop_success(monkeypatch):
 
     monkeypatch.setattr("services.first_person_pipeline._relevance_select", fake_select)
 
-    with patch.object(settings, "first_person_context_harness_enabled", True), \
-         patch.object(settings, "first_person_adaptive_try2_enabled", True), \
-         patch.object(settings, "first_person_relevance_gate_enabled", True), \
-         patch("services.first_person_judge.judge_active", return_value=False), \
-         patch("services.first_person_pipeline._passes_integrity_gate", return_value=True), \
-         patch("services.first_person_pipeline._passes_content_quality_gate", return_value=True):
-
+    with (
+        patch.object(settings, "first_person_context_harness_enabled", True),
+        patch.object(settings, "first_person_adaptive_try2_enabled", True),
+        patch.object(settings, "first_person_relevance_gate_enabled", True),
+        patch("services.first_person_judge.judge_active", return_value=False),
+        patch("services.first_person_pipeline._passes_integrity_gate", return_value=True),
+        patch("services.first_person_pipeline._passes_content_quality_gate", return_value=True),
+    ):
         res = await pipeline._serve_from_context_harness(
             query="How do I overcome grief from death of loved one?",
             query_dense_vector=[0.05] * 1024,
@@ -474,6 +499,7 @@ async def test_spiritual_expansion_fallback_query_not_cached():
 
     # Verify cache was NOT polluted with the fallback
     import hashlib
+
     key = hashlib.sha256(unmatched_query.lower().encode("utf-8")).hexdigest()
     assert svc._get_from_cache(key) is None
 
@@ -513,6 +539,7 @@ async def test_first_person_adaptive_try2_runs_when_try1_candidates_rejected(mon
     ctx_try2 = make_test_context([span_try2])
 
     mock_ctx_store = MagicMock()
+
     # Try 1 returns ctx_try1; Try 2 returns ctx_try2
     def mock_retrieve(**kwargs):
         if kwargs.get("concept_ids"):
@@ -524,7 +551,9 @@ async def test_first_person_adaptive_try2_runs_when_try1_candidates_rejected(mon
     mock_ctx_store.fetch_preceding_span.return_value = None
 
     mock_llm = MagicMock()
-    mock_llm.generate_fast = AsyncMock(return_value="dissolving hurt and resentment\nhealing emotional pain")
+    mock_llm.generate_fast = AsyncMock(
+        return_value="dissolving hurt and resentment\nhealing emotional pain"
+    )
 
     from services.first_person_context_harness import HarnessDecision
 
@@ -565,13 +594,14 @@ async def test_first_person_adaptive_try2_runs_when_try1_candidates_rejected(mon
 
     monkeypatch.setattr("services.first_person_pipeline._relevance_select", fake_select)
 
-    with patch.object(settings, "first_person_context_harness_enabled", True), \
-         patch.object(settings, "first_person_adaptive_try2_enabled", True), \
-         patch.object(settings, "first_person_relevance_gate_enabled", True), \
-         patch("services.first_person_judge.judge_active", return_value=False), \
-         patch("services.first_person_pipeline._passes_integrity_gate", return_value=True), \
-         patch("services.first_person_pipeline._passes_content_quality_gate", return_value=True):
-
+    with (
+        patch.object(settings, "first_person_context_harness_enabled", True),
+        patch.object(settings, "first_person_adaptive_try2_enabled", True),
+        patch.object(settings, "first_person_relevance_gate_enabled", True),
+        patch("services.first_person_judge.judge_active", return_value=False),
+        patch("services.first_person_pipeline._passes_integrity_gate", return_value=True),
+        patch("services.first_person_pipeline._passes_content_quality_gate", return_value=True),
+    ):
         res = await pipeline._serve_from_context_harness(
             query="How to forgive my spouse for betrayal?",
             query_dense_vector=[0.02] * 1024,
@@ -608,13 +638,24 @@ async def test_first_person_adaptive_try2_runs_on_joint_insufficiency(monkeypatc
             lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
         )
 
-    span_try1 = make_test_span(n=0, text="Partial clip that is insufficient.", video_id="video_try1", parent_unit_id="parent_try1")
+    span_try1 = make_test_span(
+        n=0,
+        text="Partial clip that is insufficient.",
+        video_id="video_try1",
+        parent_unit_id="parent_try1",
+    )
     ctx_try1 = make_test_context([span_try1])
 
-    span_try2 = make_test_span(n=1, text="Complete teaching on discovering svadharma.", video_id="video_try2", parent_unit_id="parent_try2")
+    span_try2 = make_test_span(
+        n=1,
+        text="Complete teaching on discovering svadharma.",
+        video_id="video_try2",
+        parent_unit_id="parent_try2",
+    )
     ctx_try2 = make_test_context([span_try2])
 
     mock_ctx_store = MagicMock()
+
     def mock_retrieve(**kwargs):
         if kwargs.get("concept_ids"):
             return [ctx_try2]
@@ -625,7 +666,9 @@ async def test_first_person_adaptive_try2_runs_on_joint_insufficiency(monkeypatc
     mock_ctx_store.fetch_preceding_span.return_value = None
 
     mock_llm = MagicMock()
-    mock_llm.generate_fast = AsyncMock(return_value="svadharma and right action\ninner purpose calling")
+    mock_llm.generate_fast = AsyncMock(
+        return_value="svadharma and right action\ninner purpose calling"
+    )
 
     from services.first_person_context_harness import HarnessDecision
 
@@ -665,16 +708,19 @@ async def test_first_person_adaptive_try2_runs_on_joint_insufficiency(monkeypatc
             return "INSUFFICIENT"
         return "SUFFICIENT"
 
-    monkeypatch.setattr("services.first_person_pipeline._joint_sufficiency_verdict", fake_joint_verdict)
+    monkeypatch.setattr(
+        "services.first_person_pipeline._joint_sufficiency_verdict", fake_joint_verdict
+    )
 
-    with patch.object(settings, "first_person_context_harness_enabled", True), \
-         patch.object(settings, "first_person_adaptive_try2_enabled", True), \
-         patch.object(settings, "first_person_joint_sufficiency_enabled", True), \
-         patch.object(settings, "first_person_relevance_gate_enabled", True), \
-         patch("services.first_person_judge.judge_active", return_value=False), \
-         patch("services.first_person_pipeline._passes_integrity_gate", return_value=True), \
-         patch("services.first_person_pipeline._passes_content_quality_gate", return_value=True):
-
+    with (
+        patch.object(settings, "first_person_context_harness_enabled", True),
+        patch.object(settings, "first_person_adaptive_try2_enabled", True),
+        patch.object(settings, "first_person_joint_sufficiency_enabled", True),
+        patch.object(settings, "first_person_relevance_gate_enabled", True),
+        patch("services.first_person_judge.judge_active", return_value=False),
+        patch("services.first_person_pipeline._passes_integrity_gate", return_value=True),
+        patch("services.first_person_pipeline._passes_content_quality_gate", return_value=True),
+    ):
         res = await pipeline._serve_from_context_harness(
             query="What is right action and finding purpose in career?",
             query_dense_vector=[0.03] * 1024,

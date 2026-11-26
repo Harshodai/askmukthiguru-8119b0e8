@@ -445,9 +445,7 @@ def test_uncapped_spend_refused_in_production_unless_recorded():
         brain_kek="k" * 44,
         faculty_access_code="x",
     )
-    for kw in (
-        {"openrouter_budget_guard_enabled": False},
-    ):
+    for kw in ({"openrouter_budget_guard_enabled": False},):
         with pytest.raises(ValueError, match="spend cap"):
             Settings(**base, **kw)
     ok = Settings(**base, openrouter_budget_guard_enabled=False, allow_uncapped_llm_spend=True)

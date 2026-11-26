@@ -21,7 +21,14 @@ def _service(rows: list[dict], kek: bytes | None) -> SecondBrainService:
 
 def test_all_keys_unwrap_with_the_current_kek():
     kek = os.urandom(32)
-    rows = [{"user_id": f"u{i}", "wrapped_dek": wrap_dek(generate_dek(), kek), "wrap_mode": "server_wrapped"} for i in range(3)]
+    rows = [
+        {
+            "user_id": f"u{i}",
+            "wrapped_dek": wrap_dek(generate_dek(), kek),
+            "wrap_mode": "server_wrapped",
+        }
+        for i in range(3)
+    ]
 
     assert asyncio.run(_service(rows, kek).check_kek_against_stored_keys()) == (3, 0)
 
@@ -29,8 +36,16 @@ def test_all_keys_unwrap_with_the_current_kek():
 def test_keys_wrapped_by_another_kek_are_counted_as_failed():
     current, old = os.urandom(32), os.urandom(32)
     rows = [
-        {"user_id": "ok", "wrapped_dek": wrap_dek(generate_dek(), current), "wrap_mode": "server_wrapped"},
-        {"user_id": "stale", "wrapped_dek": wrap_dek(generate_dek(), old), "wrap_mode": "server_wrapped"},
+        {
+            "user_id": "ok",
+            "wrapped_dek": wrap_dek(generate_dek(), current),
+            "wrap_mode": "server_wrapped",
+        },
+        {
+            "user_id": "stale",
+            "wrapped_dek": wrap_dek(generate_dek(), old),
+            "wrap_mode": "server_wrapped",
+        },
     ]
 
     assert asyncio.run(_service(rows, current).check_kek_against_stored_keys()) == (2, 1)

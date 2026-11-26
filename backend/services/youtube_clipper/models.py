@@ -10,10 +10,11 @@ from typing import Optional
 @dataclass
 class Chapter:
     """Represents a semantic video chapter."""
+
     index: int
     title: str
     start_time: float  # in seconds
-    end_time: float    # in seconds
+    end_time: float  # in seconds
     summary: str
     keywords: list[str] = field(default_factory=list)
 
@@ -25,6 +26,7 @@ class Chapter:
 @dataclass
 class ChapterCoverageValidation:
     """Result of chapter coverage verification."""
+
     is_valid: bool
     total_duration: float
     covered_duration: float
@@ -37,6 +39,7 @@ class ChapterCoverageValidation:
 @dataclass
 class ClipperOptions:
     """Options for processing selected chapters."""
+
     burn_subtitles: bool = True
     translate_bilingual: bool = True
     target_lang: str = "zh"
@@ -46,6 +49,7 @@ class ClipperOptions:
 @dataclass
 class ClipperArtifacts:
     """Output deliverables generated for a chapter."""
+
     chapter_index: int
     chapter_title: str
     chapter_dir: Path
