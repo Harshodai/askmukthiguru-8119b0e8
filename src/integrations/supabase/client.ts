@@ -49,20 +49,30 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 });
 
 /**
- * Whitelist of allowed email domains for signup/signin.
- * Kept alongside the client so all auth-guard code has one import site.
+ * Configurable email domain policy for signup/signin.
+ * Defaults to consumer domains unless VITE_ALLOWED_EMAIL_DOMAINS overrides
+ * (e.g. "ekam.org,gmail.com" or "*" to allow organizational/editorial domains).
  */
-const ALLOWED_EMAIL_DOMAINS = new Set([
+const DEFAULT_ALLOWED_EMAIL_DOMAINS = [
   'gmail.com',
   'googlemail.com',
   'hotmail.com',
   'outlook.com',
   'live.com',
   'msn.com',
-]);
+];
+
+const RAW_DOMAINS = (import.meta.env.VITE_ALLOWED_EMAIL_DOMAINS as string | undefined)?.trim();
+const ALLOW_ALL_DOMAINS = RAW_DOMAINS === '*';
+const ALLOWED_EMAIL_DOMAINS = new Set(
+  RAW_DOMAINS && !ALLOW_ALL_DOMAINS
+    ? RAW_DOMAINS.split(',').map((d) => d.trim().toLowerCase()).filter(Boolean)
+    : DEFAULT_ALLOWED_EMAIL_DOMAINS,
+);
 
 export function isEmailAllowed(email: string | null | undefined): boolean {
   if (!email) return false;
   const domain = email.split('@')[1]?.toLowerCase();
-  return !!domain && ALLOWED_EMAIL_DOMAINS.has(domain);
+  if (!domain) return false;
+  return ALLOW_ALL_DOMAINS || ALLOWED_EMAIL_DOMAINS.has(domain);
 }
