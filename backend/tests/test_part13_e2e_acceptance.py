@@ -393,6 +393,7 @@ def test_part13_editorial_end_to_end_workflow_and_gates():
         title="Why Resistance Creates Suffering",
         topic="inner peace",
         objective="10m YouTube teaching",
+        author_id="author-1",
     )
     dossier = svc.generate_dossier(topic=proj.topic, objective=proj.objective)
     proj = svc.attach_dossier(proj.project_id, dossier)

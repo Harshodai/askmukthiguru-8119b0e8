@@ -2786,6 +2786,9 @@ class Settings(BaseSettings):
     # contexts, or abstains. Needs the judge active. It changes served answers,
     # so it may only be turned on through a registered graded run.
     first_person_comparative_judge_enabled: bool = False
+    # Persist editorial projects/audit to Supabase (needs migration
+    # 20261126120000_editorial_persistence.sql). Off = in-memory store, as before.
+    editorial_persistence_enabled: bool = False
 
 
 @lru_cache
