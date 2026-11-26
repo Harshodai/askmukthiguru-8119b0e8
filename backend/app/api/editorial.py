@@ -162,7 +162,15 @@ def get_editorial_service(container: ServiceContainer) -> EditorialIntelligenceS
             logger.debug("[EditorialAPI] seeker demand unavailable: %s", exc)
         return []
 
+    def _resolve_evidence(ids: list[str]) -> dict[str, EvidenceCandidate]:
+        client = getattr(container, "qdrant_client", None)
+        col = settings.first_person_context_collection or settings.first_person_collection
+        if client is None:
+            return {}
+        return QdrantEvidenceAdapter(client, col).fetch_by_ids(ids)
+
     _EDITORIAL_SINGLETON = EditorialIntelligenceService(
+        evidence_resolver=_resolve_evidence,
         search_fn=_search_fn,
         concept_graph_fn=_graph_fn,
         seeker_demand_fn=_seeker_demand_fn,
@@ -192,7 +200,8 @@ class ProjectCreateRequest(BaseModel):
 
 class FactCheckRequest(BaseModel):
     blocks: list[ScriptBlock]
-    evidence_pool: list[EvidenceCandidate]
+    # Deprecated: ignored as a source of truth. Only compared to the server record of the same id.
+    evidence_pool: list[EvidenceCandidate] = Field(default_factory=list)
 
 
 class ScriptAttachRequest(BaseModel):
@@ -240,12 +249,9 @@ async def fact_check_script(
     _admin: dict = Depends(_require_admin),
     container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
-    # SECURITY NOTE (not fixed yet): the evidence pool is client-supplied, so retrieval_source and
-    # speaker_verified are client-asserted. An admin could fake an exact quote. Verification must
-    # move to server-held dossier evidence; until then responses carry evidence_pool_trust.
     svc = get_editorial_service(container)
-    report = svc.fact_check_blocks(body.blocks, body.evidence_pool)
-    return {**report.model_dump(mode="json"), "evidence_pool_trust": "client_supplied"}
+    report = await asyncio.to_thread(svc.fact_check_blocks, body.blocks, body.evidence_pool)
+    return {**report.model_dump(mode="json"), "evidence_pool_trust": "server"}
 
 
 @router.get("/projects")
@@ -297,20 +303,17 @@ async def attach_editorial_script(
     proj = svc.get_project(project_id)
     if proj is None:
         raise HTTPException(status_code=404, detail="Editorial project not found")
-    # SECURITY NOTE (not fixed yet): the evidence pool is client-supplied, so retrieval_source and
-    # speaker_verified are client-asserted. An admin could fake an exact quote. Verification must
-    # move to server-held dossier evidence; until then responses carry evidence_pool_trust.
-    client_supplied = bool(body.evidence_pool)
-    pool = body.evidence_pool or (proj.dossier.evidence_items if proj.dossier else [])
-    script = svc.build_verified_script(
+    script = await asyncio.to_thread(
+        svc.build_verified_script,
         title=body.title,
         topic=body.topic,
         blocks=body.blocks,
-        evidence_pool=pool,
+        evidence_pool=body.evidence_pool,
+        trusted_evidence=proj.dossier.evidence_items if proj.dossier else [],
     )
     updated = svc.attach_script(project_id, script)
     out = updated.model_dump(mode="json")
-    out["evidence_pool_trust"] = "client_supplied" if client_supplied else "server"
+    out["evidence_pool_trust"] = "server"
     return out
 
 

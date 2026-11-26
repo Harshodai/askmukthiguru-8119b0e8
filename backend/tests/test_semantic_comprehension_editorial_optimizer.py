@@ -283,7 +283,7 @@ def test_editorial_workflow_blocks_misattributed_scripts_and_requires_human_appr
                 evidence_ids=["ev-ed-1"],
             )
         ],
-        evidence_pool=[ev],
+        trusted_evidence=[ev],
     )
     assert bad_script.verification.passed is False
     svc.attach_script(proj.project_id, bad_script)
@@ -309,7 +309,7 @@ def test_editorial_workflow_blocks_misattributed_scripts_and_requires_human_appr
                 text="Notice how this connects directly to daily relationship conflicts.",
             ),
         ],
-        evidence_pool=[ev],
+        trusted_evidence=[ev],
     )
     svc.attach_script(proj.project_id, good_script)
     approved = svc.approve_project(

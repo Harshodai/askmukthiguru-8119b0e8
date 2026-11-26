@@ -215,6 +215,7 @@ class EditorialIntelligenceService:
         seeker_demand_fn: Callable[[], list[dict[str, Any]]] | None = None,
         ingestion_status_fn: Callable[[], dict[str, Any]] | None = None,
         verifier: ClaimVerificationService | None = None,
+        evidence_resolver: Callable[[list[str]], dict[str, EvidenceCandidate]] | None = None,
         provenance_versions: dict[str, str] | None = None,
     ) -> None:
         self._search_fn = search_fn
@@ -222,6 +223,7 @@ class EditorialIntelligenceService:
         self._seeker_demand_fn = seeker_demand_fn
         self._ingestion_status_fn = ingestion_status_fn
         self._verifier = verifier or ClaimVerificationService()
+        self._evidence_resolver = evidence_resolver
         self._provenance = provenance_versions or {}
         self._projects: dict[str, EditorialProject] = {}
 
@@ -339,13 +341,46 @@ class EditorialIntelligenceService:
             )
         return opportunities
 
+    def _server_pool(
+        self,
+        blocks: list[ScriptBlock],
+        client_pool: list[EvidenceCandidate],
+        trusted: list[EvidenceCandidate],
+    ) -> tuple[list[EvidenceCandidate], dict[str, str]]:
+        """Build the evidence pool from server records only.
+
+        Client-supplied evidence never contributes text, teacher, source or speaker_verified:
+        a client item is only compared to the server record of the same id and, if it differs
+        (text and content hash), the id is reported as a conflict and left out of the pool.
+        """
+        by_id = {e.evidence_id: e for e in trusted}
+        wanted = {i for b in blocks for i in b.evidence_ids} | {c.evidence_id for c in client_pool}
+        missing = [i for i in wanted if i not in by_id]
+        if missing and self._evidence_resolver is not None:
+            for key, ev in self._evidence_resolver(missing).items():
+                if key in wanted:
+                    by_id[key] = ev.model_copy(update={"evidence_id": key})
+        conflicts: dict[str, str] = {}
+        for c in client_pool:
+            rec = by_id.get(c.evidence_id)
+            if rec is None:
+                conflicts[c.evidence_id] = "client-supplied evidence id not found on the server"
+            elif c.text != rec.text and not (c.content_hash and c.content_hash == rec.content_hash):
+                conflicts[c.evidence_id] = (
+                    "client-supplied evidence does not match the server record"
+                )
+        pool = [e for i, e in by_id.items() if i not in conflicts]
+        return pool, conflicts
+
     def fact_check_blocks(
         self,
         blocks: list[ScriptBlock],
-        evidence_pool: list[EvidenceCandidate],
+        evidence_pool: list[EvidenceCandidate] | None = None,
         *,
         expected_source_versions: dict[str, str] | None = None,
+        trusted_evidence: list[EvidenceCandidate] | None = None,
     ) -> ClaimVerificationReport:
+        pool, conflicts = self._server_pool(blocks, evidence_pool or [], trusted_evidence or [])
         claims = [
             ClaimEvidenceMapping(
                 claim_id=b.block_id,
@@ -356,11 +391,17 @@ class EditorialIntelligenceService:
             )
             for b in blocks
         ]
-        return self._verifier.verify_claims(
+        report = self._verifier.verify_claims(
             claims,
-            evidence_pool,
+            pool,
             expected_source_versions=expected_source_versions,
         )
+        if conflicts:
+            for m in report.mappings:
+                bad = [f"{i}: {conflicts[i]}" for i in m.evidence_ids if i in conflicts]
+                if bad:
+                    m.notes = f"{m.notes} Rejected client evidence: {'; '.join(bad)}".strip()
+        return report
 
     def build_verified_script(
         self,
@@ -368,9 +409,10 @@ class EditorialIntelligenceService:
         title: str,
         topic: str,
         blocks: list[ScriptBlock],
-        evidence_pool: list[EvidenceCandidate],
+        evidence_pool: list[EvidenceCandidate] | None = None,
+        trusted_evidence: list[EvidenceCandidate] | None = None,
     ) -> EditorialScript:
-        report = self.fact_check_blocks(blocks, evidence_pool)
+        report = self.fact_check_blocks(blocks, evidence_pool, trusted_evidence=trusted_evidence)
         return EditorialScript(
             script_id=str(uuid.uuid4()),
             title=title,

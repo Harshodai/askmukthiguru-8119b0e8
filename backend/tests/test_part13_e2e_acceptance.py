@@ -414,7 +414,7 @@ def test_part13_editorial_end_to_end_workflow_and_gates():
                 evidence_ids=[ev1.evidence_id],
             )
         ],
-        evidence_pool=dossier.evidence_items,
+        trusted_evidence=dossier.evidence_items,
     )
     proj = svc.attach_script(proj.project_id, bad_script)
     with pytest.raises(EditorialApprovalError):
@@ -436,7 +436,7 @@ def test_part13_editorial_end_to_end_workflow_and_gates():
                 evidence_ids=[ev1.evidence_id],
             ),
         ],
-        evidence_pool=dossier.evidence_items,
+        trusted_evidence=dossier.evidence_items,
     )
     proj = svc.attach_script(proj.project_id, good_script)
     with pytest.raises(EditorialApprovalError):
