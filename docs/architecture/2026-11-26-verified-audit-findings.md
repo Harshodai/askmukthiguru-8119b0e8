@@ -124,3 +124,50 @@ join, facet planner and set selector in production, one canonical id scheme.
 - **Finding fixed:** `anon` and `authenticated` could TRUNCATE `editorial_audit_log` (cascading into dossiers, scripts and approvals); RLS does not cover TRUNCATE. `20261126120000` now revokes ALL on those tables from PUBLIC/anon/authenticated; re-tested, every attack is denied and the service role still works. Same default-grant pattern exists on other public tables (a direct database connection as those roles is needed; PostgREST does not expose TRUNCATE): not changed here.
 - **Not covered by this test:** the Supabase adapter's HTTP path (PostgREST) was not run; the 10 incompatible older migrations; a real Supabase project.
 - **Node 24:** lint, typecheck, unit tests, production build and bundle budget run in a clean `node:24-alpine` container with a fresh `npm ci` (results in the PR description).
+
+## 11. Post-merge verification and cleanup (2026-11-26, later session)
+
+All runs below were executed locally on the merged head; nothing here is copied from CI alone.
+
+- **PR 120 merged** at `21202303f`, final head `0f8731efa`, every check green (including
+  `Validate Pre-commit Hooks`, which had failed on `b91585fe7` because the TU graph manifest was
+  committed without a trailing newline; the fix also makes `build_teaching_unit_graph.py::_write_manifest`
+  write one, in both byte-identical `scripts/` mirrors).
+- **Full backend suite** on `0f8731efa`: **15,648 passed, 65 skipped, 2 deselected, 1 xfailed, 0 failed**
+  (333 s). One earlier run showed `test_c20_async_lane_does_not_starve_the_executor` failing while
+  `npm ci` ran concurrently; the file passes alone (36 passed) and passed in the clean run — it is a
+  timing assertion (`async_s < 2.5 * one_request_s`), not a regression.
+- **Frontend:** `npm run lint` 0 errors (69 warnings), `npm run typecheck` 0 errors,
+  `npx vitest run` 213 files / **1,331 passed, 6 skipped, 0 failed**.
+- **ruff scope correction:** CI's only ruff steps run with `working-directory: backend`, so the
+  CI-equivalent `ruff check .` / `ruff format --check .` from `backend/` are clean (1,938 files
+  formatted). A repo-root ruff run reports 185 errors and 42 unformatted files — pre-existing root
+  debt that no CI step checks; do not read it as a PR failure.
+- **`fetch_by_ids` verified read-only against live local Qdrant** (`first_person_v13_shadow`, 4,730
+  points; only `scroll`/`retrieve`/`count`/`get_collections` used): the result dict is keyed under
+  BOTH the stored id and the point id (2 keys per point, same shared object); duplicate input ids
+  collapse; two ids resolving to one point yield 2 keys mapping to the same candidate
+  (`out[uuid] is out[span]` is True); unknown ids are silently absent (no exception); `[]` → `{}`;
+  a `None` client is a 503 at the route, but an UNREACHABLE Qdrant raised
+  `qdrant_client...ResponseHandlingException` and escaped as HTTP 500 — a real gap against the
+  "missing Qdrant is a 503" claim, being closed as an uncommitted follow-up. Exact quote with
+  `teacher_attributed=None` stays `passed=False`.
+- **Consent-revocation 503 decision: keep it.** The revocation receipt is persisted before any
+  Redis-dependent step, so a 503 reports incomplete *cleanup*, not a lost revocation, and a retry is
+  safe (receipts append). Returning 200 would leave `mukthiguru:cache:*` holding answers rendered
+  from the user's memory with no sweeper to retry. Correction for the handoff: the consent leg's
+  `container.redis_client` is never assigned in production (only in one test), so the 503 comes from
+  the exact-cache invalidation at `app/api/memory.py:1018`, not from `services/seeker/consent.py`.
+  Alternative if the owner wants completion-during-outage instead of retryability: the
+  `/memory/all` pattern — 200 with `status: "revoked_cleanup_incomplete"` and `failures[]` — never
+  a plain success body. Pinned tests that would change if the posture changes:
+  `tests/test_seeker_comprehension_consent_2026_11_26.py:184-196`.
+- **Migrations:** the owner deferred the real-Supabase apply this session ("ignore supabase").
+  `20261126000000`, `20261126000100` and `20261126120000` remain unapplied to any real project;
+  both new flags remain off.
+- **Cleanup:** worktrees `wcomb`, `wnode` and the three `agent-*` worktrees removed and pruned, their
+  five merged branches deleted; scratch containers `scratch-pg`/`scratch-mg` were already gone.
+  The two other sessions' worktrees under `/private/tmp/askmukthiguru-*` were not touched. The two
+  files that blocked the `main` pull (the local manifest change and a stale untracked copy of this
+  document) were backed up byte-for-byte to
+  `<scratchpad>/pre_pull_backup_20261126/` before removal — nothing was lost.
