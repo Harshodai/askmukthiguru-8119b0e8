@@ -242,3 +242,27 @@ def test_store_error_is_503_on_non_approve_route(monkeypatch: pytest.MonkeyPatch
         "/api/editorial/projects", json={"title": "Title", "topic": "Topic"}
     )
     assert r.status_code == 503
+
+
+def test_migration_revokes_all_privileges_from_public_roles() -> None:
+    """RLS does not stop TRUNCATE, and Supabase grants it to anon/authenticated by default.
+
+    Verified against a scratch Supabase Postgres on 2026-11-26: with only UPDATE/DELETE revoked,
+    both roles could TRUNCATE the audit log, which cascades into dossiers, scripts and approvals.
+    """
+    import re
+    from pathlib import Path
+
+    sql = (
+        Path(__file__).resolve().parents[2]
+        / "supabase"
+        / "migrations"
+        / "20261126120000_editorial_persistence.sql"
+    ).read_text(encoding="utf-8")
+    flat = re.sub(r"\s+", " ", sql)
+    assert "REVOKE ALL ON public.editorial_audit_log FROM PUBLIC, anon, authenticated" in flat
+    assert "REVOKE ALL ON SEQUENCE public.editorial_audit_log_id_seq" in flat
+    assert (
+        "REVOKE ALL ON public.editorial_projects, public.editorial_dossiers, "
+        "public.editorial_scripts, public.editorial_approvals FROM PUBLIC, anon, authenticated"
+    ) in flat
