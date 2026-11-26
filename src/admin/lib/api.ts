@@ -54,6 +54,7 @@ function guardMock(label: string): void {
 
 /* ── Auth helper ─────────────────────────────────────────────────────────── */
 // T defaults to `any` so untyped callers keep the pre-generic behaviour (response.json() was `any`).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function fetchWithAuth<T = any>(path: string, options: RequestInit = {}): Promise<T> {
   let { data: { session } } = await supabase.auth.getSession();
   if (session && session.expires_at && session.expires_at * 1000 < Date.now() + 60000) {
