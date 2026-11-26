@@ -100,9 +100,9 @@ The exception ceiling was raised 754 to 759 with the owner's approval.
 - **13 `passage` points in `first_person_v13_shadow`** (8 videos) had `speaker_verified=true` with no voice evidence.
   Patched to `speaker_verified=false`, `speaker_verification_status=pending_voice_check`; only those two fields changed.
   Qdrant snapshot: `first_person_v13_shadow-1111874297854021-2026-11-26-05-52-22-7.snapshot`.
-  Verified: `speaker_verified=true` count 2,540 to 2,527; collection still 4,730 points. Not traced: whether serving reads `passage` records.
+  Verified: `speaker_verified=true` count 2,540 to 2,527; collection still 4,730 points. Traced afterwards: serving never reads `passage` records (every retrieval and servability filter requires `retrieval_child`; 0 of the 13 are one), so the demotion changed no served answer.
 - **Memgraph teaching-unit layer** rebuilt from `first_person_v13_shadow` after deleting `TU*` labels only.
-  Snapshot copied to `~/mukthiguru_attribution_data/memgraph_snapshot_pre_tu_rebuild_20261126/` (restore not tested).
+  Snapshot copied to `~/mukthiguru_attribution_data/memgraph_snapshot_pre_tu_rebuild_20261126/`. Restore tested in a scratch Memgraph container with `RECOVER SNAPSHOT`: 9,910 nodes (3,257 TU + 6,653 non-TU), 2,760 teaching units, identical to the pre-rebuild graph.
   Before: 2,760 units, 429 resolving. After: 2,999 units, 2,999 of 2,999 resolving; non-TU labels and relationships identical.
   New TU concept (511) and topic (104) layers, 11,279 concept and 6,519 topic edges. Build record: `backend/config/teaching_unit_graph_manifest.json`.
   Graph-on against graph-off retrieval must be re-measured before any quality claim.
@@ -114,5 +114,13 @@ The exception ceiling was raised 754 to 759 with the owner's approval.
 
 Human gates: clinician and native-speaker review of the distress layer (first-turn paraphrases such as "Nothing makes me
 happy anymore"), 299-pair gold labels, faculty invitations, speaker sign-off, rights confirmation, helpline calls.
-Code or data, owner decides: apply the two unapplied migrations, turn the two new flags on, id-level OKF/graph to Qdrant
-join, facet planner and set selector in production, one canonical id scheme, trace whether serving reads `passage` records.
+Code or data, owner decides: apply the two unapplied migrations to the real Supabase project (needs the `lovable-reviewed` label per `src/CLAUDE.md`), turn the two new flags on, id-level OKF/graph to Qdrant
+join, facet planner and set selector in production, one canonical id scheme.
+
+## 10. Verification run after the fixes (2026-11-26, scratch containers, nothing real touched)
+
+- **Migrations on a scratch Supabase Postgres** (`supabase/postgres:15.8.1.085`): all 162 applied except 10 older ones that need parts of the real stack the bare image lacks (realtime schema, storage `public` column, `auth.users.email_confirmed_at`, `auth.jwt()`); this session's three migrations applied cleanly and re-apply idempotently.
+- **Behaviour of the consent policies** (real roles, JWT claims): insert allowed only with the user's own active receipt; another user's receipt, no receipt, a revoked consent, a declined grant, an insert for another user and an anon request without a `sub` were all denied; repointing a row to someone else's receipt was denied by the UPDATE policy; deleting a receipt or a user cascades away the signals.
+- **Finding fixed:** `anon` and `authenticated` could TRUNCATE `editorial_audit_log` (cascading into dossiers, scripts and approvals); RLS does not cover TRUNCATE. `20261126120000` now revokes ALL on those tables from PUBLIC/anon/authenticated; re-tested, every attack is denied and the service role still works. Same default-grant pattern exists on other public tables (a direct database connection as those roles is needed; PostgREST does not expose TRUNCATE): not changed here.
+- **Not covered by this test:** the Supabase adapter's HTTP path (PostgREST) was not run; the 10 incompatible older migrations; a real Supabase project.
+- **Node 24:** lint, typecheck, unit tests, production build and bundle budget run in a clean `node:24-alpine` container with a fresh `npm ci` (results in the PR description).

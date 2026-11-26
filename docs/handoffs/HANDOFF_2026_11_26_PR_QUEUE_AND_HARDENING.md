@@ -23,14 +23,14 @@ and the recorded Memgraph build manifest.
 
 ## Data state (local stack)
 - `first_person_v13_shadow`: 4,730 points; 13 `passage` points demoted to `pending_voice_check`; snapshot `first_person_v13_shadow-1111874297854021-2026-11-26-05-52-22-7.snapshot` is the rollback.
-- Memgraph TU layer rebuilt: 2,999 of 2,999 spans resolve; snapshot copy in `~/mukthiguru_attribution_data/memgraph_snapshot_pre_tu_rebuild_20261126/` (restore untested). Build with the `backend/scripts/ops` copy of `build_teaching_unit_graph.py` (the root copy resolves paths wrongly); the builder only MERGEs, so delete `TU*` labels first with the `drop_projection` query.
+- Memgraph TU layer rebuilt: 2,999 of 2,999 spans resolve; snapshot copy in `~/mukthiguru_attribution_data/memgraph_snapshot_pre_tu_rebuild_20261126/` (restore verified in a scratch Memgraph with `RECOVER SNAPSHOT`). Build with the `backend/scripts/ops` copy of `build_teaching_unit_graph.py` (the root copy resolves paths wrongly); the builder only MERGEs, so delete `TU*` labels first with the `drop_projection` query.
 - Railway untouched and still stopped. The running Memgraph image is `memgraph-mage:latest`, not the 2.20.1 pinned in docs.
 
 ## Known gaps, none blocking
-- Editorial: Supabase adapter errors other than a missing client surface as 500, not 503; service_role can still edit the audit table; the adapter and both migrations have never run against a real database.
+- Editorial: Supabase adapter errors other than a missing client surface as 500, not 503; service_role can still edit the audit table. The migrations were applied to a scratch Supabase Postgres and their policies tested (audit doc section 10); the adapter's HTTP path and a real Supabase project were not.
 - Consent: revocation now returns 503 if Redis is configured but unreachable, even with both flags off; two consent lookups per turn when a flag is on; seen-clip tenant (`ctx.tenant_id or "default"`) can differ from `TenantContext`.
 - Evidence: the claim verifier also matches quotes against `surrounding_context`, which may lie outside the speaker-verified span (pre-existing).
-- Not traced: whether serving reads the 13 demoted `passage` records.
+- Traced and closed: serving never reads `passage` records; the 13 demotions changed no served answer.
 
 ## Human-only gates (still pending; agents never fake-close them)
 Clinician and native-speaker review of distress detection (first-turn paraphrases are still rated NONE), 299-pair gold labels (the
