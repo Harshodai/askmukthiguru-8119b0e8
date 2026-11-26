@@ -7,6 +7,11 @@
 # Updated 2026-11-25: +23 legitimate fail-open / webhook handlers added in Nov 18-25 commits
 # (whatsapp.py webhook/DB endpoints, Try-2 adaptive judge fallback, Memgraph sizing, KEK check);
 # narrowed container/tracing/JSON catches (-5) and removed final silent pass in guardrail_stage.py.
-max_broad_exceptions=754
+# Updated 2026-11-26 (owner-approved in chat): +5. app/api/editorial.py +2 (one shared lane guard
+# that records each failure in lane_errors, plus the seeker-demand fail-open; four per-lane handlers
+# were folded into the guard) and rag/kg_expansion.py +3 (fail-open flag/ontology resolution
+# handlers added with the async concept-resolution fix). This ratchet test had never run in CI
+# on main before this date.
+max_broad_exceptions=759
 max_silent_swallows=0
 max_silent_swallows_fp=0

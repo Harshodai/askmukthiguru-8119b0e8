@@ -1125,6 +1125,8 @@ async def test_weak_match_with_llm_fallback_passes_related_clips_and_yields_to_g
 ):
     monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    # Related clips reach graph state only with grounded synthesis on (both default off).
+    monkeypatch.setattr(settings, "first_person_grounded_synthesis_enabled", True)
     fp_pipeline.execute.return_value = _fp_result(
         answer=f"**Sri Preethaji**\n\n{_CLIP_TEXT}",
         status="weak_match",
