@@ -14,6 +14,8 @@ Strictly satisfies repository invariants:
   - Invariant X40: domain_rights_status="licensed", rights_cleared=True, chunker_version="boundary_v2:rhetorical".
   - Invariant 18: Embeddings generated host-side via BGE-M3.
   - Invariant 13: Verbatim quote accuracy and zero LLM text synthesis.
+  - Speaker verification fails closed: new clips are speaker_verified=False
+    (status pending_voice_check) until the windowed voice verifier clears them.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ import sys
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 # Ensure backend modules are on sys.path
 _BACKEND = Path(__file__).resolve().parents[2] / "backend"
@@ -292,6 +295,38 @@ def generate_deterministic_id(video_id: str, start_ms: int, end_ms: int, text: s
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, seed))
 
 
+def build_clip_payload(c: dict[str, Any]) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "video_id": c["video_id"],
+        "title": c["title"],
+        "speaker_id": c["speaker_id"],
+        "guru_id": c["guru_id"],
+        "speaker": c["speaker"],
+        "speaker_role": "teacher",
+        "answer_role": "primary",
+        "start_ms": c["start_ms"],
+        "end_ms": c["end_ms"],
+        "duration_ms": c["end_ms"] - c["start_ms"],
+        "text": c["text"],
+        "source_url": f"https://www.youtube.com/watch?v={c['video_id']}",
+        "topic": c["topic"],
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
+        # Fail closed: hand-listed clips have no audio check; the windowed verifier must clear them.
+        "speaker_verified": False,
+        "speaker_verification_status": "pending_voice_check",
+        "is_verbatim": True,
+        "corpus_version": "fp-context-transcript-v2",
+        "chunker_version": "boundary_v2:rhetorical",
+        "completeness_status": "complete",
+        "boundary_status": "clean",
+        "record_type": "passage",
+        "parent_unit_id": f"{c['video_id']}_parent_{c['start_ms']}",
+        "indexed_at": datetime.now(UTC).isoformat(),
+    }
+    return payload
+
+
 def main() -> None:
     client = QdrantClient(url=QDRANT_URL, timeout=30.0)
 
@@ -360,32 +395,7 @@ def main() -> None:
     new_points = []
     for i, c in enumerate(NEW_CORPUS_CLIPS):
         pid = generate_deterministic_id(c["video_id"], c["start_ms"], c["end_ms"], c["text"])
-        payload = {
-            "video_id": c["video_id"],
-            "title": c["title"],
-            "speaker_id": c["speaker_id"],
-            "guru_id": c["guru_id"],
-            "speaker": c["speaker"],
-            "speaker_role": "teacher",
-            "answer_role": "primary",
-            "start_ms": c["start_ms"],
-            "end_ms": c["end_ms"],
-            "duration_ms": c["end_ms"] - c["start_ms"],
-            "text": c["text"],
-            "source_url": f"https://www.youtube.com/watch?v={c['video_id']}",
-            "topic": c["topic"],
-            "rights_cleared": True,
-            "domain_rights_status": "licensed",
-            "speaker_verified": True,
-            "is_verbatim": True,
-            "corpus_version": "fp-context-transcript-v2",
-            "chunker_version": "boundary_v2:rhetorical",
-            "completeness_status": "complete",
-            "boundary_status": "clean",
-            "record_type": "passage",
-            "parent_unit_id": f"{c['video_id']}_parent_{c['start_ms']}",
-            "indexed_at": datetime.now(UTC).isoformat(),
-        }
+        payload = build_clip_payload(c)
 
         # Sparse vector conversion
         sv = sparse_vecs[i]

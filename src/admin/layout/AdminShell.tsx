@@ -46,6 +46,7 @@ const NAV = [
   { to: "/admin/data-sources", label: "Data Sources", icon: Database },
   { to: "/admin/rag-flow", label: "RAG Flow", icon: Network },
   { to: "/admin/content", label: "Content", icon: BookOpen },
+  { to: "/admin/editorial", label: "Editorial Studio", icon: Quote },
   { to: "/admin/evals", label: "Evaluation", icon: ClipboardCheck },
   { to: "/admin/ingestion", label: "Ingestion", icon: Boxes },
   { to: "/admin/telemetry", label: "Observability", icon: Activity },
