@@ -36,11 +36,25 @@ class _FakeDriver:
 def test_record_user_state_transition_connects_from_state():
     """s1 (from_state) must appear in a relationship, not sit orphaned."""
     calls: list = []
-    svc = GuruKGService(neo4j_driver=_FakeDriver(calls))
-    svc.record_user_state_transition("user_1", "anxiety", "peace", "breathing practice")
+    svc = GuruKGService(
+        neo4j_driver=_FakeDriver(calls),
+        user_state_write_authorizer=lambda **_kwargs: True,
+    )
+    svc.record_user_state_transition(
+        "user_1",
+        "anxiety",
+        "peace",
+        "breathing practice",
+        tenant_id="oneness",
+        consent_receipt_id="consent-test-1",
+    )
     assert len(calls) == 1
     cypher, params = calls[0]
-    assert "MERGE (s1)-[:TRANSITIONS_TO]->(s2)" in cypher
+    assert "MERGE (s1)-[:TRANSITIONS_TO {tenant_id: $tenant_id}]->(s2)" in cypher
+    assert "context: $context" not in cypher
+    assert "context=" not in str(params)
+    assert params["tenant_id"] == "oneness"
+    assert params["consent_receipt_id"] == "consent-test-1"
     assert params["from_state"] == "anxiety"
     assert params["to_state"] == "peace"
 
@@ -51,26 +65,38 @@ def test_populate_ontology_arc_timestamps_each_merge_independently():
     (e.g. p, r5) would silently suppress timestamps on newly created earlier
     ones (e.g. d, r1)."""
     calls: list = []
-    svc = GuruKGService(neo4j_driver=_FakeDriver(calls))
+    svc = GuruKGService(
+        neo4j_driver=_FakeDriver(calls),
+        source_write_authorizer=lambda **_kwargs: True,
+    )
     svc.populate_ontology_arc(
         seeker_dilemma="fear of failure",
         limiting_belief="worth depends on outcomes",
         teaching="Present Moment Awareness",
         target_state="Beautiful State",
         practice_step="Observe the breath",
+        tenant_id="oneness",
+        source_asset_id="video-123",
+        source_url="https://youtube.com/watch?v=video-123",
+        video_id="video-123",
+        domain_rights_status="licensed",
+        speaker_verified=True,
+        speaker_verification_reference="speaker-review-123",
     )
     assert len(calls) == 1
     cypher, _ = calls[0]
-    # 5 nodes (d,b,t,s,p) + 5 relationships (r1-r5) = 10 independent
-    # ON CREATE SET clauses, each setting exactly one variable's property —
-    # the bug was a single shared ON CREATE SET setting all of them at once,
-    # gated only by whichever MERGE it happened to trail.
+    # Each of the five node merges and five source-scoped relationship merges
+    # carries its own ON CREATE SET. Relationship provenance is stored with the
+    # edge so a graph traversal cannot detach doctrine from its source asset.
     on_create_lines = [
         line.strip() for line in cypher.strip().splitlines() if "ON CREATE SET" in line
     ]
     assert len(on_create_lines) == 10
-    for line in on_create_lines:
-        assert line.count("=") == 1, f"expected exactly one assignment, got: {line}"
+    for variable in ("d", "b", "t", "s", "p", "r1", "r2", "r3", "r4", "r5"):
+        assert any(line.startswith(f"ON CREATE SET {variable}.") for line in on_create_lines)
+    assert "r1.source_asset_id" not in cypher  # source identity is a relationship MERGE key
+    assert "source_url = $source_url" in cypher
+    assert "domain_rights_status = $rights_status" in cypher
 
 
 def test_tone_extractor_phrasing_dna():

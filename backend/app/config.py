@@ -1462,6 +1462,10 @@ class Settings(BaseSettings):
     retrieval_deep_budget_ms: int = 8000
     kg_max_hops: int = 2
     kg_max_entities: int = 20
+    # LLM-derived concept mapping is opt-in: compare relevance, p95 latency and
+    # cost on held-out graph queries before enabling it in a deployed posture.
+    kg_dynamic_concept_resolution_enabled: bool = False
+    kg_dynamic_concept_resolution_timeout_s: float = Field(default=0.75, gt=0.0, le=1.2)
     contradiction_resolution_enabled: bool = True
 
     # --- Retrieval Quality Gates ---

@@ -785,6 +785,51 @@ def _conversation_context_limit_response(chat_body: ChatRequest) -> JSONResponse
     )
 
 
+def _fast_crisis_response(helpline_response: str, matched_pattern: str | None) -> JSONResponse:
+    """Return the public contract for deterministic intake crisis preemption.
+
+    This path intentionally bypasses the pipeline so urgent support is never
+    delayed by a provider or retrieval dependency.  It still publishes the
+    same explicit verification envelope as other terminal responses: the
+    safety decision passed, while no teaching citations were evaluated.
+    """
+    return JSONResponse(
+        status_code=200,
+        content={
+            "response": helpline_response,
+            "answer": helpline_response,
+            "sources": [],
+            "status": "crisis_redirect",
+            "grounding_state": "safety_redirect",
+            "intent": "distress",
+            "route_decision": "fast_safety_kernel_preemption",
+            "blocked": False,
+            "crisis": True,
+            "matched_pattern": matched_pattern,
+            "verification": {
+                "passed": True,
+                "method": "fast_safety_kernel_preemption",
+                "citations_verified": False,
+            },
+            "citations_verified": False,
+            "helplines": [
+                {
+                    "name": "Tele-MANAS",
+                    "number": "14416",
+                    "hours": "24/7",
+                    "country": "India",
+                },
+                {
+                    "name": "Vandrevala Foundation",
+                    "number": "+91 9999 666 555",
+                    "hours": "24/7",
+                    "country": "India",
+                },
+            ],
+        },
+    )
+
+
 @router.post("/chat", response_model=None)
 @limiter.limit(settings.chat_rate_limit)
 @record_token_usage(endpoint="/api/chat")
@@ -816,33 +861,9 @@ async def chat_endpoint(
                 "FastSafetyKernel preemption triggered at intake: %s",
                 _safety_verdict.matched_pattern,
             )
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "response": _safety_verdict.helpline_response,
-                    "answer": _safety_verdict.helpline_response,
-                    "sources": [],
-                    "status": "crisis_redirect",
-                    "grounding_state": "safety_redirect",
-                    "intent": "distress",
-                    "blocked": False,
-                    "crisis": True,
-                    "matched_pattern": _safety_verdict.matched_pattern,
-                    "helplines": [
-                        {
-                            "name": "Tele-MANAS",
-                            "number": "14416",
-                            "hours": "24/7",
-                            "country": "India",
-                        },
-                        {
-                            "name": "Vandrevala Foundation",
-                            "number": "+91 9999 666 555",
-                            "hours": "24/7",
-                            "country": "India",
-                        },
-                    ],
-                },
+            return _fast_crisis_response(
+                _safety_verdict.helpline_response or "",
+                _safety_verdict.matched_pattern,
             )
     except Exception as _e:
         logger.debug("FastSafetyKernel intake check skipped: %s", _e)

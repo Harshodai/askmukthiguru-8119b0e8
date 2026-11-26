@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import json
 import logging
 import re
@@ -146,15 +147,37 @@ async def resolve_query_concepts_llm_async(
 
         user_prompt = f"Query: {clean_query}"
         
-        call_coro = llm_service.generate(
-            system_prompt=_SYSTEM_PROMPT,
-            user_prompt=user_prompt,
-            **kwargs,
-        )
-        if asyncio.iscoroutine(call_coro) or asyncio.isfuture(call_coro):
-            raw_response = await asyncio.wait_for(call_coro, timeout=timeout_s)
+        generate = llm_service.generate
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + max(0.01, float(timeout_s))
+
+        if inspect.iscoroutinefunction(generate):
+            raw_response = await asyncio.wait_for(
+                generate(
+                    system_prompt=_SYSTEM_PROMPT,
+                    user_prompt=user_prompt,
+                    **kwargs,
+                ),
+                timeout=max(0.01, deadline - loop.time()),
+            )
         else:
-            raw_response = await asyncio.wait_for(asyncio.to_thread(lambda: call_coro), timeout=timeout_s)
+            # Run synchronous provider adapters off the request loop. Some
+            # decorated adapters return an awaitable despite not being detected
+            # by inspect.iscoroutinefunction, so await that result as well.
+            raw_response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    generate,
+                    system_prompt=_SYSTEM_PROMPT,
+                    user_prompt=user_prompt,
+                    **kwargs,
+                ),
+                timeout=max(0.01, deadline - loop.time()),
+            )
+            if inspect.isawaitable(raw_response):
+                raw_response = await asyncio.wait_for(
+                    raw_response,
+                    timeout=max(0.01, deadline - loop.time()),
+                )
 
         raw_text = str(raw_response or "").strip()
         # Parse JSON

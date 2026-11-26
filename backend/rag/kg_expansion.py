@@ -127,21 +127,66 @@ def _concept_token(name: str) -> str:
 
 
 def resolve_concepts_in_query(query: str) -> list[str]:
-    """Return canonical ontology entity IDs mentioned in a user query.
+    """Synchronous compatibility helper; async request paths use the async resolver below.
 
-    Combines deterministic keyword matching with dynamic LLM-driven ontology concept
-    resolution (services.ontology_resolver) so natural language synonyms, emotional states,
-    and situational queries dynamically map to Neo4j concepts without brittle hardcoding.
+    When called from an already-running event loop, the synchronous ontology
+    wrapper intentionally degrades to token fallback. Do not use this helper
+    from async retrieval code.
     """
     found = list(_find_concepts_in_query(query))
     try:
         from services.ontology_resolver import resolve_query_concepts_llm
-        llm_concepts = resolve_query_concepts_llm(query)
-        for c in llm_concepts:
-            if c not in found:
-                found.append(c)
+
+        for concept in resolve_query_concepts_llm(query):
+            if concept and concept not in found:
+                found.append(concept)
     except Exception as exc:
-        logger.debug("[KGExpansion] Dynamic LLM concept resolution failed: %s", exc)
+        logger.debug("[KGExpansion] Synchronous concept resolution failed: %s", exc)
+    return found
+
+
+async def resolve_concepts_in_query_async(
+    query: str,
+    *,
+    timeout_s: float = 0.75,
+    allow_dynamic: bool = True,
+) -> list[str]:
+    """Resolve query concepts without blocking or creating a nested event loop.
+
+    Deterministic canonical matches are always retained. Dynamic LLM resolution
+    is opt-in because it adds provider latency/cost; its result is bounded and
+    additive, never a replacement for the known ontology matches.
+    """
+    found = list(_find_concepts_in_query(query))
+    try:
+        from app.config import settings as app_settings
+
+        enabled = bool(
+            getattr(app_settings, "kg_dynamic_concept_resolution_enabled", False)
+        )
+    except Exception as exc:
+        logger.debug(
+            "[KGExpansion] Dynamic concept setting unavailable; using token matches: %s",
+            exc,
+        )
+        enabled = False
+    if not allow_dynamic or not enabled or not query.strip():
+        return found
+
+    try:
+        from services.ontology_resolver import resolve_query_concepts_llm_async
+
+        dynamic = await resolve_query_concepts_llm_async(
+            query,
+            timeout_s=max(0.01, float(timeout_s)),
+        )
+        for concept in dynamic:
+            if isinstance(concept, str) and concept.strip() and concept not in found:
+                found.append(concept.strip())
+            if len(found) >= 10:
+                break
+    except Exception as exc:
+        logger.debug("[KGExpansion] Async dynamic concept resolution failed: %s", exc)
     return found
 
 
@@ -191,6 +236,7 @@ async def expand_query_via_kg(
     max_hops: int | None = None,
     max_entities: int | None = None,
     timeout: float | None = None,
+    allow_dynamic_concepts: bool = True,
 ) -> list[str]:
     """Execute Neo4j graph ontology expansion bounded by hops, entity limit, and timeout.
 
@@ -212,21 +258,32 @@ async def expand_query_via_kg(
     if not query or neo4j_driver is None:
         return []
 
-    concepts = _find_concepts_in_query(query)
-    if not concepts:
-        return []
-
     default_hops = getattr(settings, "kg_max_hops", 2) if settings else 2
     default_entities = getattr(settings, "kg_max_entities", 20) if settings else 20
     default_timeout = getattr(settings, "kg_ontology_expansion_timeout", 2.0) if settings else 2.0
+    timeout_val = max(0.01, float(timeout if timeout is not None else default_timeout))
+    deadline = asyncio.get_running_loop().time() + timeout_val
+    concept_timeout = min(
+        float(getattr(settings, "kg_dynamic_concept_resolution_timeout_s", 0.75)) if settings else 0.75,
+        max(0.01, timeout_val * 0.4),
+    )
+    try:
+        concepts = await resolve_concepts_in_query_async(
+            query,
+            timeout_s=concept_timeout,
+            allow_dynamic=allow_dynamic_concepts,
+        )
+    except Exception as exc:
+        logger.debug("[KGExpansion] Concept resolution failed open: %s", exc)
+        concepts = _find_concepts_in_query(query)
+    if not concepts:
+        return []
 
     hops_val = max_hops if max_hops is not None else default_hops
     hops_clamped = min(max(1, int(hops_val)), 2)
 
     limit_val = max_entities if max_entities is not None else default_entities
     limit_clamped = min(max(1, int(limit_val)), 20)
-
-    timeout_val = float(timeout if timeout is not None else default_timeout)
 
     from services.tenant_context import TenantContext
 
@@ -276,7 +333,8 @@ async def expand_query_via_kg(
         return out
 
     try:
-        return await asyncio.wait_for(asyncio.to_thread(_run), timeout=timeout_val)
+        remaining_s = max(0.01, deadline - asyncio.get_running_loop().time())
+        return await asyncio.wait_for(asyncio.to_thread(_run), timeout=remaining_s)
     except TimeoutError:
         logger.warning(
             f"expand_query_via_kg timed out after {timeout_val:.2f}s; continuing without neighbor terms"

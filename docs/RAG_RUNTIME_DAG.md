@@ -1,6 +1,6 @@
 # RAG Runtime DAG — reconstructed from source
 
-**Reconstructed:** 2026-09-11 · **Evidence:** `PROVEN FROM CODE` unless noted.
+**Reconstructed:** 2026-11-26 · **Evidence:** static source inspection of `main`; hosted runtime and current production env were not inspected.
 
 This replaces the "12-layer pipeline" narrative in `CLAUDE.md`, which does not
 match the code. Where they disagree, the code wins. Nothing here was observed
@@ -22,36 +22,31 @@ thin facades over `PipelineCoordinator.execute()`
 
 ## Stage chain — actual order
 
-Defined in `app/pipeline/stages/pipeline_builder.py:36-53`. The order documented
-in both `CLAUDE.md` files is wrong: `CircuitBreaker` runs **fourth**, not
-second, and `BoundedComparisonShortCircuit` is absent from the docs entirely.
+The source of truth is `backend/app/pipeline/stages/pipeline_builder.py`.
+First-person routing is dispatched inside `GraphStage`; it is not a separate
+stage in this ordered list.
 
-> **Correction 2026-11-05 (code at `c9b42d3e`).** The table below predates three changes.
-> `build_default_pipeline()` (`backend/app/pipeline/stages/pipeline_builder.py:53-92`) now runs:
-> KillSwitch, CacheCheck, RequestState, InputGuardrail, **Distress**, CircuitBreaker, DoctrineCache,
-> CasualShortCircuit, **OffTopic**, BoundedComparisonShortCircuit, **Personalize**, Graph, MeditationGen,
-> Translation, ToneAdapter, OutputGuardrail, Memory, CacheUpdate, ResultAssembly.
-> KillSwitch, OffTopic and Personalize are missing from the table, and Distress runs before
-> CircuitBreaker (comment at `pipeline_builder.py:57-58`). The `file:line` values below were not re-checked.
-
-| # | Stage | file:line | Runs when | LLM calls |
-|---|---|---|---|---|
-| 1 | CacheCheck | `cache_stage.py:137` | not benchmark-disabled, not incognito | 0-1 |
-| 2 | RequestState | `glue_stages.py:314` | always | 0 |
-| 3 | InputGuardrail | `guardrail_stage.py:91` | always | provider-dependent |
-| 4 | CircuitBreaker | `guardrail_stage.py:35` | always (short-circuits when open) | 0 |
-| 5 | DoctrineCache | `doctrine_cache_stage.py:37` | `doctrine_cache_enabled` — **false in `.env`, dead** | 0 |
-| 6 | CasualShortCircuit | `glue_stages.py:334` | deterministic greeting | 0 |
-| 7 | Distress | `distress_stage.py:124` | always (assess is regex) | 0-1 |
-| 8 | BoundedComparisonShortCircuit | `glue_stages.py:255` | en + bounded meditation comparison | 0 |
-| 9 | **Graph** | `graph_stage.py:101` | always | **1-8** |
-| 10 | MeditationGen | `meditation_gen_stage.py:59` | proactive triggered + citations | 1 |
-| 11 | Translation | `glue_stages.py:392` | indic request, english answer | 0 |
-| 12 | ToneAdapter | `tone_adapter_stage.py:31` | **body is `del ctx; return None` — no-op** | 0 |
-| 13 | OutputGuardrail | `guardrail_stage.py:202` | always | provider-dependent |
-| 14 | Memory | `memory_stage.py:65` | not incognito + persistable user | 0 |
-| 15 | CacheUpdate | `cache_stage.py:402` | not incognito/blocked/unfaithful | 0 |
-| 16 | ResultAssembly | `glue_stages.py:441` | always (terminal) | 0 |
+| # | Stage | Implementation | Runs when | LLM calls |
+|---:|---|---|---|---|
+| 1 | KillSwitch | `kill_switch_stage.py` | always, before cache | 0 |
+| 2 | CacheCheck | `cache_stage.py` | eligible non-incognito cache lookup | 0-1 |
+| 3 | RequestState | `glue_stages.py` | always | 0 |
+| 4 | InputGuardrail | `guardrail_stage.py` | always | provider-dependent |
+| 5 | Distress | `distress_stage.py` | always; graduated assessment | 0-1 |
+| 6 | CircuitBreaker | `guardrail_stage.py` | always; short-circuits when open | 0 |
+| 7 | DoctrineCache | `doctrine_cache_stage.py` | feature/configuration dependent | 0 |
+| 8 | CasualShortCircuit | `glue_stages.py` | exact greeting route | 0 |
+| 9 | OffTopic | `off_topic_stage.py` | sets routing metadata; does not independently serve a refusal | 0-1 |
+| 10 | BoundedComparisonShortCircuit | `glue_stages.py` | bounded comparison carve-out | 0 |
+| 11 | Personalize | `personalize_stage.py` | validated personalization route | 0 |
+| 12 | Graph | `graph_stage.py` | general graph; dispatches first-person route when enabled | 1+ |
+| 13 | MeditationGen | `meditation_gen_stage.py` | proactive trigger and citation requirements | 1 |
+| 14 | Translation | `glue_stages.py` | Indic request/English answer | 0 |
+| 15 | ToneAdapter | `tone_adapter_stage.py` | current implementation is a no-op | 0 |
+| 16 | OutputGuardrail | `guardrail_stage.py` | always | provider-dependent |
+| 17 | Memory | `memory_stage.py` | not incognito and persistable user | 0; post-response work is async |
+| 18 | CacheUpdate | `cache_stage.py` | not incognito/blocked/unfaithful | 0 |
+| 19 | ResultAssembly | `glue_stages.py` | always; terminal | 0 |
 
 ## Strategy selection
 
@@ -131,38 +126,42 @@ cost, because the stack was not running.
 Previously-documented serial `expand_query_with_ontology` tax: **fixed** — the
 coroutine is created un-awaited (`:1161-1173`) and gathered at `:1299`.
 
-## Dead on live config
+## Graph capabilities: exact code paths
 
-| Thing | Why dead | file:line |
+The previous version of this section was stale: it said `query_neo4j_subgraph`
+had no production callers and that no graph-derived text reached generation.
+That is not true of the current source.
+
+| Path | How it is called | What reaches the request | Evidence boundary |
+|---|---|---|---|
+| Ontology-neighbor expansion | `expand_query_via_kg` from `retrieve_documents`; relational lane gathers it alongside primary Qdrant retrieval, deep lane awaits it after primary retrieval | Neighbor IDs are appended as a bounded additional query and retrieved from Qdrant | Graph topology expands recall; it is not itself teacher speech |
+| Neo4j subgraph context | `query_neo4j_subgraph(base_question, scope=scope)` under `rag_graph_context_injection_enabled`, for relational/deep lanes or multi-concept queries | A `knowledge_source=neo4j_subgraph`, `type=graph_context` document is appended to `all_docs` with a low graph score (default 0.35) | Generation receives the relationship context, but quote filtering excludes `neo4j_subgraph` from teacher-quotation evidence |
+| LightRAG context | For multi-concept, non-casual queries when `rag_lightrag_context_injection_enabled` is on; calls `lightrag.aquery(..., only_need_context=True)` under a timeout and character cap | A `knowledge_source=lightrag`, `type=graph_context` document is appended to `all_docs` | Supporting graph-linked context only; quote filtering excludes it from teacher-quotation evidence |
+| GraphRAG fusion / graph prefetch | Separate opt-in flags | No general GraphRAG fusion unless enabled | Do not equate this with the above graph-context paths |
+
+The ontology expansion budget is currently `max(1, 4 - len(primary_queries))`,
+not the old `2 - len(primary_queries)`. The KG-generated query is added after
+the planner outputs and shares this bounded expansion budget. It is not
+automatically discarded whenever there are two or more primary sub-queries.
+
+Graph context is therefore present in the general RAG generation context, but
+must remain categorically separate from verified teacher utterances. The graph
+can describe a relationship between concepts; it cannot establish that a
+teacher said a sentence, prove a timestamp, or replace a source span. The
+first-person route has separate graph/TU/OKF expansion flags and remains
+default-off in code until its own measured evaluation and release gates pass.
+
+## Dead or separately disabled paths
+
+| Thing | Why dormant | file:line |
 |---|---|---|
 | `ToneAdapterStage` | body is `del ctx; return None` | `tone_adapter_stage.py:31` |
-| `DoctrineCacheStage` | `DOCTRINE_CACHE_ENABLED=false` | `.env` |
-| `regenerate_gate` node | `rag_regenerate_before_rewrite=False` | `config.py:680` |
-| `agentic_graph_traversal` | `agentic_graph_traversal_enabled=False` | `config.py:1210` |
-| BM25 lane | `BM25_RETRIEVAL_ENABLED=false` | `.env` |
-| `lightrag` param of `retrieve_for_single_query` | declared, **never referenced in the body**; both call sites pass `None` | `retrieval.py:794`, `:1276`, `:1421` |
-| `query_neo4j_subgraph` | **zero production callers** (tests only) | `retrieval.py:245` |
-| GraphRAG fusion, graph prefetch | `graphrag_fusion_enabled=False` | `container.py:406` |
-
-## Where the knowledge graph actually goes
-
-```
-expand_query_via_kg (rag/kg_expansion.py:167)   <- the ONLY live Neo4j call per request
-  gated: retrieval.py:1138-1143
-  concurrent with the dense fan-out (:1299, relational lane)
-      -> kg_neighbors
-  -> augment_query(...)          retrieval.py:1395
-  -> appended LAST to expansion_queries (:1397)
-  -> [...][:remaining_budget]    remaining_budget = 2 - len(primary_queries)
-        == 0 whenever there are 2+ sub-queries  ->  DISCARDED
-        == 1 and planner empty                  ->  one extra retrieval, no provenance
-```
-
-The prompt's "RELATIONSHIPS & DOCTRINE ONTOLOGY (sacred graph)" block is built
-from multi-chunk bookkeeping (`generation.py:1032-1043`), not graph edges.
-
-**Conclusion: no Neo4j-derived text reaches the LLM prompt.** The graph's only
-possible live influence is extra query *terms*, in a narrow case.
+| `DoctrineCacheStage` | `DOCTRINE_CACHE_ENABLED=false` in the inspected local env | `doctrine_cache_stage.py` |
+| `regenerate_gate` node | `rag_regenerate_before_rewrite=False` | `config.py` |
+| `agentic_graph_traversal` | `agentic_graph_traversal_enabled=False` | `config.py` |
+| BM25 lane | environment-dependent; do not treat an old `.env` snapshot as current hosted posture | `retrieval.py` |
+| `lightrag` argument of `retrieve_for_single_query` | the argument is passed as `None` at the ordinary retrieval call sites; a separate multi-concept LightRAG context path exists | `retrieval.py` |
+| GraphRAG fusion / graph prefetch | `graphrag_fusion_enabled=False` by code default | `container.py` |
 
 ## What this does not tell you
 

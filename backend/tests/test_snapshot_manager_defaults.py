@@ -207,7 +207,8 @@ def test_graph_restore_never_replays_over_a_populated_graph(monkeypatch, tmp_pat
     monkeypatch.setattr(mod, "NEO4J_BACKUP_PATH", str(backup))
     calls = []
     _fake_memgraph(monkeypatch, mod, count=3, dump="", calls=calls)
-    assert mod.restore_neo4j() is True
+    # A populated target is a failed restore (nothing was verified), not a silent success.
+    assert mod.restore_neo4j() is False
     assert not any("CREATE" in (inp or "") for _, inp in calls)
 
 

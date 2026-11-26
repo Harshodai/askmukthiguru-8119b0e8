@@ -132,6 +132,9 @@ def expand_query_concepts(
             max_hops=1,
             max_entities=limit,
             timeout=timeout_val,
+            # This helper runs on a throwaway event loop. Do not pass the shared
+            # request-loop LLM client into that loop; stay deterministic here.
+            allow_dynamic_concepts=False,
         ),
         timeout_val,
     )

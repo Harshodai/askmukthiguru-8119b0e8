@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import asyncio
+import threading
+from types import SimpleNamespace
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 try:
@@ -73,3 +77,30 @@ async def test_ontology_resolver_24h_redis_cache_roundtrip(monkeypatch):
     second = await mod.resolve_query_concepts_llm_async("How do I forgive my partner?", llm_service=mock_llm)
     assert second == ["Forgiveness", "Relationship"]
     assert mock_llm.generate.await_count == 1
+
+
+
+@pytest.mark.asyncio
+async def test_sync_provider_adapter_runs_off_the_event_loop(monkeypatch) -> None:
+    import services.ontology_resolver as mod
+
+    mod._RESOLVER_CACHE.clear()
+    monkeypatch.setattr(mod, "_redis_get_concepts", lambda _key: None)
+    monkeypatch.setattr(mod, "_redis_set_concepts", lambda *_args: None)
+    loop_thread = threading.get_ident()
+    provider_threads: list[int] = []
+
+    def sync_generate(**_kwargs):
+        provider_threads.append(threading.get_ident())
+        return '{"concepts": ["Emotional Hurt", "Forgiveness"]}'
+
+    llm = SimpleNamespace(generate=sync_generate)
+    concepts = await mod.resolve_query_concepts_llm_async(
+        "sync adapter offload regression case 9f2e7",
+        llm_service=llm,
+        timeout_s=1.0,
+    )
+
+    assert concepts == ["Emotional Hurt", "Forgiveness"]
+    assert provider_threads
+    assert provider_threads[0] != loop_thread
