@@ -5,6 +5,7 @@ so they never load SpeechBrain, never read real WAV files, and never hit Qdrant.
 
 Naming convention: test_<what it tests>_<expected outcome>.
 """
+
 from __future__ import annotations
 
 import json
@@ -17,6 +18,7 @@ import pytest
 # ---------------------------------------------------------------------------
 # Helpers — fake objects injected instead of real model/files
 # ---------------------------------------------------------------------------
+
 
 def _make_calibration(
     *,
@@ -62,9 +64,7 @@ class _FakeEmbedder:
         import torch
 
         rows = batch.shape[0] if hasattr(batch, "shape") else 1
-        return torch.from_numpy(
-            np.stack([self._vector] * rows, axis=0)[:, np.newaxis, :]
-        )
+        return torch.from_numpy(np.stack([self._vector] * rows, axis=0)[:, np.newaxis, :])
 
 
 def _make_wav(tmp_dir: Path, video_id: str, duration_s: float = 5.0) -> Path:
@@ -87,6 +87,7 @@ def _make_wav(tmp_dir: Path, video_id: str, duration_s: float = 5.0) -> Path:
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def tmp_dir(tmp_path):
@@ -117,6 +118,7 @@ def wav_dir(tmp_dir):
 # ---------------------------------------------------------------------------
 # Tests: WindowedEcapaVerifier construction
 # ---------------------------------------------------------------------------
+
 
 class TestWindowedEcapaVerifierInit:
     def test_raises_on_missing_calibration(self, tmp_dir, ref_file):
@@ -154,6 +156,7 @@ class TestWindowedEcapaVerifierInit:
 # Tests: verify_span outcomes
 # ---------------------------------------------------------------------------
 
+
 class TestVerifySpan:
     def _make_verifier(self, tmp_dir, cal_file, ref_file, embedder):
         from ingest.verbatim.windowed_speaker_verify import WindowedEcapaVerifier
@@ -165,9 +168,7 @@ class TestVerifySpan:
             embedder=embedder,
         )
 
-    def test_verified_span_returns_windowed_v1_method(
-        self, tmp_dir, cal_file, ref_file, wav_dir
-    ):
+    def test_verified_span_returns_windowed_v1_method(self, tmp_dir, cal_file, ref_file, wav_dir):
         """Good audio where every window scores high → method=ecapa_voxceleb_windowed_v1."""
         video_id = "vid_good"
         _make_wav(wav_dir, video_id, duration_s=6.0)
@@ -250,9 +251,7 @@ class TestVerifySpan:
         result = verifier.verify_span("any", start_ms=0, end_ms=3000, guru_id="krishnaji")
         assert result.get("speaker_verification_status") == "pending_voice_check"
 
-    def test_all_required_fields_present_on_verified(
-        self, tmp_dir, cal_file, ref_file, wav_dir
-    ):
+    def test_all_required_fields_present_on_verified(self, tmp_dir, cal_file, ref_file, wav_dir):
         """Verified result carries all AUTOMATED_PROVENANCE_KEYS."""
         from domain.speaker_provenance import AUTOMATED_PROVENANCE_KEYS
 
@@ -274,9 +273,7 @@ class TestVerifySpan:
         for key in AUTOMATED_PROVENANCE_KEYS:
             assert key in result, f"Missing key: {key}"
 
-    def test_verified_span_has_model_and_calibration_id(
-        self, tmp_dir, cal_file, ref_file, wav_dir
-    ):
+    def test_verified_span_has_model_and_calibration_id(self, tmp_dir, cal_file, ref_file, wav_dir):
         """Verified result carries model_revision and calibration_id from calibration JSON."""
         video_id = "vid_ids"
         _make_wav(wav_dir, video_id, duration_s=6.0)
@@ -322,6 +319,7 @@ class TestVerifySpan:
 # Tests: the recorded score is the WORST window, and refused rows carry no
 # verification timestamp (review F2 / F3).
 # ---------------------------------------------------------------------------
+
 
 class TestRecordedScoreIsGatedStatistic:
     def _verifier(self, tmp_dir, cal_file, ref_file):
@@ -400,6 +398,7 @@ class TestRecordedScoreIsGatedStatistic:
 # Tests: container import layout (review F7)
 # ---------------------------------------------------------------------------
 
+
 class TestScorerImportLayout:
     def test_shadowed_scripts_package_still_resolves_the_scorer(self, monkeypatch, tmp_path):
         """When ``scripts`` points at the repo-root bind mount, load by path instead.
@@ -424,7 +423,10 @@ class TestScorerImportLayout:
         ops.__path__ = [str(fake_root / "ops")]
         monkeypatch.setitem(sys.modules, "scripts", pkg)
         monkeypatch.setitem(sys.modules, "scripts.ops", ops)
-        for name in ("scripts.ops.windowed_ecapa_v1_scorer", "backend_scripts.ops.windowed_ecapa_v1_scorer"):
+        for name in (
+            "scripts.ops.windowed_ecapa_v1_scorer",
+            "backend_scripts.ops.windowed_ecapa_v1_scorer",
+        ):
             monkeypatch.delitem(sys.modules, name, raising=False)
         monkeypatch.setattr(wsv, "_SCORER_MODULE_NAMES", ("scripts.ops.windowed_ecapa_v1_scorer",))
 

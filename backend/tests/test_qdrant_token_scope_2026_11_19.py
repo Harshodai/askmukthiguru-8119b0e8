@@ -13,7 +13,10 @@ def _jwt(claims: dict) -> str:
     return f"eyJhbGciOiJIUzI1NiJ9.{b}.sig"
 
 
-_ENV = {"FIRST_PERSON_COLLECTION": "first_person_v12", "QDRANT_COLLECTION": "spiritual_wisdom_contextual"}
+_ENV = {
+    "FIRST_PERSON_COLLECTION": "first_person_v12",
+    "QDRANT_COLLECTION": "spiritual_wisdom_contextual",
+}
 
 
 def test_new_collection_missing_from_token_is_caught():
@@ -36,13 +39,19 @@ def test_global_read_manage_and_static_keys_pass():
 
 def test_first_person_active_collection_is_checked():
     token = _jwt({"access": [{"collection": "first_person_v10", "access": "r"}]})
-    problems = scope_problems({"FIRST_PERSON_ACTIVE_COLLECTION": "first_person_v12_shadow", "QDRANT_API_KEY": token})
-    assert problems == ["collection 'first_person_v12_shadow' is configured but not readable by the token"]
+    problems = scope_problems(
+        {"FIRST_PERSON_ACTIVE_COLLECTION": "first_person_v12_shadow", "QDRANT_API_KEY": token}
+    )
+    assert problems == [
+        "collection 'first_person_v12_shadow' is configured but not readable by the token"
+    ]
 
 
 def test_expired_token_and_extra_requirement():
     token = _jwt({"exp": 100, "access": [{"collection": c, "access": "r"} for c in _ENV.values()]})
-    assert scope_problems({**_ENV, "QDRANT_API_KEY": token}, now=200) == ["QDRANT_API_KEY token is expired"]
+    assert scope_problems({**_ENV, "QDRANT_API_KEY": token}, now=200) == [
+        "QDRANT_API_KEY token is expired"
+    ]
     assert scope_problems({**_ENV, "QDRANT_API_KEY": token}, ["memories"], now=50) == [
         "collection 'memories' is configured but not readable by the token"
     ]

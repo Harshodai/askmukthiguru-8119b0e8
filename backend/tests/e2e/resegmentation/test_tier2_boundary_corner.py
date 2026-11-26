@@ -63,6 +63,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 # Group 1: Word Count Boundaries (180w, 220w, 350w, <12w min, empty)
 # ===========================================================================
 
+
 def test_b1_word_count_lower_target_180w():
     """B1.1: Exact 180-word boundary is accepted by target word budget."""
     words = ["truth"] * 180
@@ -115,6 +116,7 @@ def test_b1_word_count_minimum_clip_12w():
 # Group 2: Duration Limits & Bounds (160.0s, 160.1s, 0.5s fragments, large files)
 # ===========================================================================
 
+
 def test_b2_duration_max_boundary_160s_allowed():
     """B2.1: Exactly 160.0s is the maximum allowed duration for boundary_v2:rhetorical."""
     duration_s = 160.0
@@ -157,6 +159,7 @@ def test_b2_duration_negative_window_rejected():
 # Group 3: Pause Thresholds & Cadence (1.2s oral pause, 3.0s diarizer silence)
 # ===========================================================================
 
+
 def test_b3_oral_pause_exact_1_2s_boundary():
     """B3.1: Oral transition snapping aligns to the 1.2s pause threshold."""
     gap_s = 1.20
@@ -196,6 +199,7 @@ def test_b3_diarizer_silence_threshold_distinction():
 # ===========================================================================
 # Group 4: Whisper ASR Hallucinations (canned phrases, trailing clauses)
 # ===========================================================================
+
 
 def test_b4_whisper_hallucination_thank_you_stripped():
     """B4.1: Clean canned Whisper hallucination 'Thank you for watching'."""
@@ -238,6 +242,7 @@ def test_b4_clean_verbatim_text_preserves_valid_teachings():
 # Group 5: Whisper Token & Repetition Loops (char loops 6+, word loops 5+, chant exemptions)
 # ===========================================================================
 
+
 def test_b5_character_loop_6_or_more_quarantined():
     """B5.1: Character repetition of 6+ identical non-space chars is flagged as asr_char_loop."""
     text_loop = "The guru said aaaaaa and then paused."
@@ -276,12 +281,15 @@ def test_b5_stutter_repetition_collapse():
     stutter_text = "So, So we are talking about oneness."
     cleaned = clean_verbatim_text(stutter_text)
     assert "So, So" not in cleaned
-    assert "So we are talking about oneness." in cleaned or "we are talking about oneness." in cleaned
+    assert (
+        "So we are talking about oneness." in cleaned or "we are talking about oneness." in cleaned
+    )
 
 
 # ===========================================================================
 # Group 6: ASR Coordinates & Timestamp Monotonicity (start>=end, negatives, coords)
 # ===========================================================================
+
 
 def test_b6_timestamp_non_monotonic_detected():
     """B6.1: Segments where start >= end are detected as non-monotonic anomalies."""
@@ -310,7 +318,7 @@ def test_b6_missing_audio_coordinates_handled():
 def test_b6_audio_coordinates_beyond_file_duration():
     """B6.4: Timestamp exceeding declared audio_file_duration_ms is flagged."""
     audio_file_duration_ms = 60000  # 60s
-    segment_end_ms = 75000         # 75s
+    segment_end_ms = 75000  # 75s
     assert segment_end_ms > audio_file_duration_ms
 
 
@@ -325,6 +333,7 @@ def test_b6_timestamp_gap_drift_handling():
 # ===========================================================================
 # Group 7: Chunker Grammar Boundaries: Enumeration
 # ===========================================================================
+
 
 def test_b7_enum_single_item_not_multi_part():
     """B7.1: 'Only one level' does not trigger multi-part enumeration tracking."""
@@ -373,6 +382,7 @@ def test_b7_enum_multi_sentence_item_retention():
 # Group 8: Chunker Grammar Boundaries: Analogy & Metaphor
 # ===========================================================================
 
+
 def test_b8_analogy_short_sentence_handling():
     """B8.1: Compact analogy under 15 words matches vehicle without failure."""
     short = "Just like the body needs rest, the mind needs stillness."
@@ -412,6 +422,7 @@ def test_b8_analogy_without_resolution_fails_closure():
 # Group 9: Chunker Grammar Boundaries: Promissory Transitions
 # ===========================================================================
 
+
 def test_b9_promissory_zero_pause_transition():
     """B9.1: Promissory sentence immediately followed by explanation without pause is kept intact."""
     continuous = "Let us understand how suffering causes ill health within us. When you are stressed, the body reacts."
@@ -420,7 +431,9 @@ def test_b9_promissory_zero_pause_transition():
 
 def test_b9_promissory_multi_clause_setup():
     """B9.2: Multi-clause promissory setup ('let us look deeper and examine why') matches."""
-    clause = "Let us look a little deeper into it and let us understand why suffering causes sickness."
+    clause = (
+        "Let us look a little deeper into it and let us understand why suffering causes sickness."
+    )
     assert PROMISSORY_SETUP_RE.search(clause) is not None
 
 
@@ -453,6 +466,7 @@ def test_b9_promissory_unresolved_setup_fails_closure():
 # ===========================================================================
 # Group 10: Chunker Grammar Boundaries: Dangling Banter
 # ===========================================================================
+
 
 def test_b10_dangling_opener_whitespace_variations():
     """B10.1: Dangling opener matches despite leading/trailing newlines and tabs."""
@@ -498,6 +512,7 @@ def test_b10_dangling_opener_collapses_stutter():
 # Group 11: Rights Provenance & Licensing Boundaries (Invariant X40)
 # ===========================================================================
 
+
 def test_b11_rights_missing_never_defaults_to_licensed():
     """B11.1: Missing rights status defaults to unverified, NEVER to licensed."""
     payload: dict[str, Any] = {"video_id": "test_123"}
@@ -509,7 +524,9 @@ def test_b11_rights_missing_never_defaults_to_licensed():
 def test_b11_rights_revoked_status_excluded():
     """B11.2: Rights status 'revoked' excludes candidate from serving."""
     payload = {"domain_rights_status": "revoked", "rights_cleared": False}
-    is_servable = payload.get("domain_rights_status") == "licensed" and payload.get("rights_cleared") is True
+    is_servable = (
+        payload.get("domain_rights_status") == "licensed" and payload.get("rights_cleared") is True
+    )
     assert is_servable is False
 
 
@@ -520,7 +537,10 @@ def test_b11_rights_cleared_boolean_validation():
     assert payload_valid["rights_cleared"] is True
 
     payload_invalid = {"rights_cleared": "true"}
-    assert not (isinstance(payload_invalid["rights_cleared"], bool) and payload_invalid["rights_cleared"] is True)
+    assert not (
+        isinstance(payload_invalid["rights_cleared"], bool)
+        and payload_invalid["rights_cleared"] is True
+    )
 
 
 def test_b11_chunker_version_unknown_legacy_contract():
@@ -538,6 +558,7 @@ def test_b11_corpus_version_contract_v2():
 # ===========================================================================
 # Group 12: Ingestion Quality Gate Boundary Filters
 # ===========================================================================
+
 
 def test_b12_event_marker_webinar_announcement():
     """B12.1: EVENT_MARKER_RE catches webinar and course invitations."""
@@ -577,6 +598,7 @@ def test_b12_event_marker_case_insensitivity():
 # ===========================================================================
 # Group 13: Gate Rejection Persistence Extremes (Invariant X40)
 # ===========================================================================
+
 
 def test_b13_rejection_matched_span_exact_500_chars(mock_rejections_db):
     """B13.1: matched_span of exactly 500 characters is accepted without truncation."""
@@ -671,6 +693,7 @@ def test_b13_rejection_layer_provenance_stamped(mock_rejections_db):
 # Group 14: Runtime Budget Headroom Logging at Boot (Invariant X41)
 # ===========================================================================
 
+
 def test_b14_headroom_fraction_constant_70_pct():
     """B14.1: HEADROOM_WARN_FRACTION is exactly 0.70 (70% threshold)."""
     assert HEADROOM_WARN_FRACTION == 0.70
@@ -709,6 +732,7 @@ def test_b14_bounded_ledger_read_timeout():
 # ===========================================================================
 # Group 15: Admin API Security & Authentication Boundaries
 # ===========================================================================
+
 
 def test_b15_admin_missing_bearer_token(unauthed_client: TestClient):
     """B15.1: Missing authorization bearer token returns HTTP 401 or 403."""
@@ -749,6 +773,7 @@ def test_b15_admin_segments_unknown_video_id(admin_client: TestClient):
 # ===========================================================================
 # Group 16: Concurrency, Thread Safety & Malformed Inputs
 # ===========================================================================
+
 
 def test_b16_concurrent_dry_run_execution():
     """B16.1: Concurrent execution of dry-run engine across threads is thread-safe."""
@@ -803,6 +828,7 @@ def test_b16_qdrant_store_deep_copy_isolation(mock_qdrant):
 
 def test_b16_live_collection_read_only_concurrent_safety(mock_qdrant):
     """B16.5: Concurrent read queries on live collection first_person_v10 execute safely."""
+
     def _read_worker():
         pts, _ = mock_qdrant.scroll("first_person_v10", limit=50)
         return len(pts)

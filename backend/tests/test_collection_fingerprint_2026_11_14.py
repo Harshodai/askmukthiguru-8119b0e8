@@ -105,9 +105,7 @@ def test_write_refuses_a_conflicting_fingerprint(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     try:
-        cf.write_fingerprint(
-            tmp_path, {"points": 2, "ids_sha256": "1" * 64, "collection": "c"}
-        )
+        cf.write_fingerprint(tmp_path, {"points": 2, "ids_sha256": "1" * 64, "collection": "c"})
     except ValueError as exc:
         assert "different" in str(exc)
     else:  # pragma: no cover

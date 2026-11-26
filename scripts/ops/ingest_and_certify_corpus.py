@@ -67,11 +67,11 @@ def discover_pending_candidates(client: QdrantClient) -> dict[str, Path]:
             whisper_map[vid] = p
 
     # Fetch video IDs already in v13
-    points, _ = client.scroll(COLLECTION, limit=10000, with_payload=["video_id"], with_vectors=False)
+    points, _ = client.scroll(
+        COLLECTION, limit=10000, with_payload=["video_id"], with_vectors=False
+    )
     v13_video_ids = {
-        p.payload.get("video_id")
-        for p in points
-        if p.payload and p.payload.get("video_id")
+        p.payload.get("video_id") for p in points if p.payload and p.payload.get("video_id")
     }
 
     candidates = {}
@@ -88,8 +88,12 @@ def discover_pending_candidates(client: QdrantClient) -> dict[str, Path]:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--apply", action="store_true", help="Execute ingestion and writes to Qdrant")
-    parser.add_argument("--limit", type=int, default=0, help="Limit number of videos to ingest (0 = all)")
+    parser.add_argument(
+        "--apply", action="store_true", help="Execute ingestion and writes to Qdrant"
+    )
+    parser.add_argument(
+        "--limit", type=int, default=0, help="Limit number of videos to ingest (0 = all)"
+    )
     parser.add_argument("--video-id", type=str, default="", help="Single video ID to process")
     args = parser.parse_args()
 
@@ -119,13 +123,15 @@ def main():
         return 0
 
     if not args.apply:
-        logger.info("DRY-RUN mode: identified %d candidates. Run with --apply to execute.", len(candidates))
+        logger.info(
+            "DRY-RUN mode: identified %d candidates. Run with --apply to execute.", len(candidates)
+        )
         return 0
 
     # Load speech models and references
     logger.info("Initializing EmbeddingService...")
     emb_service = EmbeddingService()
-    
+
     cal = load_calibration()
     cosine_floor = float(cal["cosine_floor"])
     margin_threshold = float(cal["margin_threshold"])
@@ -141,7 +147,13 @@ def main():
 
     for idx, (video_id, whisper_path) in enumerate(candidates.items(), 1):
         t0 = time.time()
-        logger.info("[%d/%d] Ingesting video: %s (from %s)...", idx, len(candidates), video_id, whisper_path.name)
+        logger.info(
+            "[%d/%d] Ingesting video: %s (from %s)...",
+            idx,
+            len(candidates),
+            video_id,
+            whisper_path.name,
+        )
         try:
             whisper_data = json.loads(whisper_path.read_text(encoding="utf-8"))
             segments = whisper_data.get("segments", [])
@@ -163,7 +175,12 @@ def main():
             spans_count = res.get("spans_indexed", 0)
             total_spans += spans_count
             total_ingested += 1
-            logger.info("Upserted %d parents, %d spans for %s", res.get("parent_units_indexed", 0), spans_count, video_id)
+            logger.info(
+                "Upserted %d parents, %d spans for %s",
+                res.get("parent_units_indexed", 0),
+                spans_count,
+                video_id,
+            )
 
             # Step 2: Certify spans via ECAPA dual-anchor
             wav_path = AUDIO_DIR / f"{video_id}.wav"
@@ -183,7 +200,9 @@ def main():
                 COLLECTION,
                 scroll_filter=Filter(
                     must=[
-                        FieldCondition(key="record_type", match=MatchValue(value="retrieval_child")),
+                        FieldCondition(
+                            key="record_type", match=MatchValue(value="retrieval_child")
+                        ),
                         FieldCondition(key="video_id", match=MatchValue(value=video_id)),
                     ]
                 ),
@@ -206,13 +225,21 @@ def main():
 
                 # Score against both gurus
                 scores_k, _ = score_span_windows(slice_audio, "krishnaji", references, embedder)
-                v_k, _, stats_k = windowed_verdict(scores_k, "krishnaji", cosine_floor, margin_threshold, max_failing_windows=0)
+                v_k, _, stats_k = windowed_verdict(
+                    scores_k, "krishnaji", cosine_floor, margin_threshold, max_failing_windows=0
+                )
 
                 scores_p, _ = score_span_windows(slice_audio, "preethaji", references, embedder)
-                v_p, _, stats_p = windowed_verdict(scores_p, "preethaji", cosine_floor, margin_threshold, max_failing_windows=0)
+                v_p, _, stats_p = windowed_verdict(
+                    scores_p, "preethaji", cosine_floor, margin_threshold, max_failing_windows=0
+                )
 
-                mean_k = stats_k.get("mean_cosine") or (np.mean([s["scores"]["krishnaji"] for s in scores_k]) if scores_k else -1.0)
-                mean_p = stats_p.get("mean_cosine") or (np.mean([s["scores"]["preethaji"] for s in scores_p]) if scores_p else -1.0)
+                mean_k = stats_k.get("mean_cosine") or (
+                    np.mean([s["scores"]["krishnaji"] for s in scores_k]) if scores_k else -1.0
+                )
+                mean_p = stats_p.get("mean_cosine") or (
+                    np.mean([s["scores"]["preethaji"] for s in scores_p]) if scores_p else -1.0
+                )
 
                 best_guru = "krishnaji" if mean_k >= mean_p else "preethaji"
                 best_verdict = v_k if best_guru == "krishnaji" else v_p
@@ -221,7 +248,9 @@ def main():
                 is_verified = (best_verdict == "verified") or (best_score >= cosine_floor)
 
                 new_topics = sorted(list(set(pl.get("topic_ids") or []) | set(extract_tags(text))))
-                new_entities = sorted(list(set(pl.get("entity_ids") or []) | set(extract_entities(text))))
+                new_entities = sorted(
+                    list(set(pl.get("entity_ids") or []) | set(extract_entities(text)))
+                )
 
                 patch = {
                     "topic_ids": new_topics,
@@ -234,8 +263,13 @@ def main():
                     patch["speaker_id"] = best_guru
                     patch["voice_verification_method"] = "ecapa_voxceleb_windowed_v1"
                     patch["voice_model_revision"] = "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286"
-                    patch["voice_calibration_id"] = "a40b315babe98a75ee9328b4789b8df1895d124de60a5c7ef6c961224679ed2e"
-                    patch["voice_threshold_applied"] = {"cosine_floor": cosine_floor, "margin_threshold": margin_threshold}
+                    patch["voice_calibration_id"] = (
+                        "a40b315babe98a75ee9328b4789b8df1895d124de60a5c7ef6c961224679ed2e"
+                    )
+                    patch["voice_threshold_applied"] = {
+                        "cosine_floor": cosine_floor,
+                        "margin_threshold": margin_threshold,
+                    }
                     patch["voice_score"] = float(best_score)
                     patch["voice_margin"] = float(max(1e-4, abs(mean_k - mean_p)))
                     patch["voice_window_check"] = "pass"

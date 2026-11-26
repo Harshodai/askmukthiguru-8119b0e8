@@ -52,6 +52,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 # Feature 1: Enumeration Tracking (M1 / R1)
 # ===========================================================================
 
+
 def test_f1_enumeration_intro_pattern_match():
     """F1.1: Detect multi-part enumeration intros across ordinal/cardinal counts."""
     assert ENUMERATION_INTRO_RE.search("There are four levels of human seeking") is not None
@@ -107,6 +108,7 @@ def test_f1_enumeration_elastic_budget_conformance():
 # Feature 2: Analogy & Metaphor Preservation (M1 / R1)
 # ===========================================================================
 
+
 def test_f2_analogy_intro_pattern_match():
     """F2.1: Match analogy vehicles (human body, cellular communication, etc.)."""
     assert ANALOGY_INTRO_RE.search("take the human body as an example") is not None
@@ -119,8 +121,12 @@ def test_f2_analogy_intro_pattern_match():
 def test_f2_analogy_resolution_pattern_match():
     """F2.2: Match analogy resolution and interpersonal/family application markers."""
     assert ANALOGY_RESOLUTION_RE.search("so oneness is essential for families") is not None
-    assert ANALOGY_RESOLUTION_RE.search("in the same way, families must live in harmony") is not None
-    assert ANALOGY_RESOLUTION_RE.search("when this communication breaks down in the body") is not None
+    assert (
+        ANALOGY_RESOLUTION_RE.search("in the same way, families must live in harmony") is not None
+    )
+    assert (
+        ANALOGY_RESOLUTION_RE.search("when this communication breaks down in the body") is not None
+    )
     assert ANALOGY_RESOLUTION_RE.search("similarly we must understand this connection") is not None
     assert ANALOGY_RESOLUTION_RE.search("in the same way, so oneness is our true state") is not None
     assert ANALOGY_RESOLUTION_RE.search("let us continue speaking about food") is None
@@ -146,7 +152,9 @@ def test_f2_analogy_secondary_drift_exclusion():
 
 def test_f2_analogy_premature_cut_rejected():
     """F2.5: Termination inside vehicle without application fails closure."""
-    premature_vehicle_text = "All the 30 trillion cells are communicating with each other in complete oneness."
+    premature_vehicle_text = (
+        "All the 30 trillion cells are communicating with each other in complete oneness."
+    )
     has_resolution = bool(ANALOGY_RESOLUTION_RE.search(premature_vehicle_text))
     assert has_resolution is False
 
@@ -155,9 +163,15 @@ def test_f2_analogy_premature_cut_rejected():
 # Feature 3: Promissory Setup Prohibition (M1 / R1)
 # ===========================================================================
 
+
 def test_f3_promissory_setup_pattern_match():
     """F3.1: Match promissory transitions ('let us understand how... causes...')."""
-    assert PROMISSORY_SETUP_RE.search("let us understand how these states of suffering actually causes ill health within us") is not None
+    assert (
+        PROMISSORY_SETUP_RE.search(
+            "let us understand how these states of suffering actually causes ill health within us"
+        )
+        is not None
+    )
     assert PROMISSORY_SETUP_RE.search("here is why the physical body reacts") is not None
     assert PROMISSORY_SETUP_RE.search("the reason why illness manifests") is not None
     assert PROMISSORY_SETUP_RE.search("let us look into how stress leads to breakdown") is not None
@@ -180,14 +194,25 @@ def test_f3_promissory_causal_mechanism_extension():
     assert res.rhetorical_end_s >= 100.0
     assert res.rhetorical_words > 100
     snippet_lower = res.rhetorical_text_snippet.lower()
-    assert any(term in snippet_lower for term in ["parasympathetic", "immune", "illness", "health", "agitation"])
+    assert any(
+        term in snippet_lower
+        for term in ["parasympathetic", "immune", "illness", "health", "agitation"]
+    )
 
 
 def test_f3_promissory_causal_resolution_match():
     """F3.4: Match PROMISSORY_CAUSAL_RESOLUTION_RE on biological and calm terms."""
-    assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("parasympathetic nervous system shuts off") is not None
-    assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("destroying our health and immune system") is not None
-    assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("hurting your physical body and illness") is not None
+    assert (
+        PROMISSORY_CAUSAL_RESOLUTION_RE.search("parasympathetic nervous system shuts off")
+        is not None
+    )
+    assert (
+        PROMISSORY_CAUSAL_RESOLUTION_RE.search("destroying our health and immune system")
+        is not None
+    )
+    assert (
+        PROMISSORY_CAUSAL_RESOLUTION_RE.search("hurting your physical body and illness") is not None
+    )
     assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("move into states of calm") is not None
     assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("talking about everyday mundane things") is None
 
@@ -203,6 +228,7 @@ def test_f3_promissory_closure_achieved_q074():
 # ===========================================================================
 # Feature 4: Dangling Opener Pruning (M1 / R1)
 # ===========================================================================
+
 
 def test_f4_dangling_opener_pattern_match():
     """F4.1: Match conversational preamble and mic check banter."""
@@ -244,12 +270,16 @@ def test_f4_dangling_opener_preserves_teaching_body():
     """F4.5: Pruning conversational opener does not truncate substantive body."""
     engine = RhetoricalResegmentationEngine()
     res = engine.resegment_video("x-mTRlE0TC4", "q019", "everybody asked me this question")
-    assert "30 trillion" in res.rhetorical_text_snippet.lower() or "oneness" in res.rhetorical_text_snippet.lower()
+    assert (
+        "30 trillion" in res.rhetorical_text_snippet.lower()
+        or "oneness" in res.rhetorical_text_snippet.lower()
+    )
 
 
 # ===========================================================================
 # Feature 5: Probe Query Closure Validation (M1 / R1)
 # ===========================================================================
+
 
 def test_f5_dry_run_evaluates_three_probes():
     """F5.1: Dry run resegmentation evaluates exactly 3 probe cases (q010, q019, q074)."""
@@ -301,6 +331,7 @@ def test_f5_dry_run_results_artifact_schema():
 # Feature 6: Script Tree Byte Parity (M1, M2 / Invariant X1)
 # ===========================================================================
 
+
 def test_f6_dry_run_resegmentation_byte_identical():
     """F6.1: scripts/ops/dry_run_resegmentation.py and backend twin are 100% byte-identical."""
     root_script = _REPO_ROOT / "scripts" / "ops" / "dry_run_resegmentation.py"
@@ -348,6 +379,7 @@ def test_f6_drift_detection_fails_closed(tmp_path: Path):
 # Feature 7: Shadow Collection Provisioning (M2 / R2)
 # ===========================================================================
 
+
 def test_f7_shadow_collection_created(mock_qdrant):
     """F7.1: Verify first_person_v12_shadow collection exists in store."""
     assert mock_qdrant.collection_exists("first_person_v12_shadow") is True
@@ -389,6 +421,7 @@ def test_f7_shadow_provisioning_idempotent(mock_qdrant):
 # ===========================================================================
 # Feature 8: Payload Contract Stamping (M2 / Invariant X40)
 # ===========================================================================
+
 
 def test_f8_chunker_version_stamped(mock_qdrant):
     """F8.1: Chunker version stamps boundary_v2:rhetorical on resegmented points."""
@@ -480,6 +513,7 @@ def test_f8_completeness_and_boundary_statuses(mock_qdrant):
 # Feature 9: Ingestion Quality Gate Checks (M2 / R2)
 # ===========================================================================
 
+
 def test_f9_promotional_phrasing_rejected():
     """F9.1: Match promotional phrases ('Ahead of us is Manifest 2026, register now')."""
     assert EVENT_MARKER_RE.search("Ahead of us is Manifest 2026, register now") is not None
@@ -494,7 +528,10 @@ def test_f9_upcoming_program_rejected():
 
 def test_f9_philosophical_manifest_allowed():
     """F9.3: Philosophical usage of word 'manifest' is NOT flagged as promotional."""
-    assert EVENT_MARKER_RE.search("this manifest universe is the expression of divine stillness") is None
+    assert (
+        EVENT_MARKER_RE.search("this manifest universe is the expression of divine stillness")
+        is None
+    )
     assert EVENT_MARKER_RE.search("truth manifests in silence when the seeker is ready") is None
 
 
@@ -517,6 +554,7 @@ def test_f9_word_cap_excess_rejected():
 # ===========================================================================
 # Feature 10: Rejection Persistence (M2 / Invariant X40)
 # ===========================================================================
+
 
 def test_f10_event_marker_rejection_persisted(mock_rejections_db):
     """F10.1: Persist promotional event marker rejection to corpus_gate_rejections."""
@@ -605,15 +643,20 @@ def test_f10_dry_run_zero_writes_to_rejections(mock_rejections_db):
 # Feature 11: Live Corpus Isolation (M2, M4 / Invariants X6, X22)
 # ===========================================================================
 
+
 def test_f11_live_v10_mutation_forbidden_on_upsert(mock_qdrant):
     """F11.1: Upsert targeting live collection first_person_v10 raises AssertionError."""
-    with pytest.raises(AssertionError, match="MUTATION ON LIVE COLLECTION first_person_v10 FORBIDDEN"):
+    with pytest.raises(
+        AssertionError, match="MUTATION ON LIVE COLLECTION first_person_v10 FORBIDDEN"
+    ):
         mock_qdrant.upsert("first_person_v10", [{"id": "bad_pt", "vector": [0.0] * 1024}])
 
 
 def test_f11_live_v10_mutation_forbidden_on_delete(mock_qdrant):
     """F11.2: Deletion targeting live collection first_person_v10 raises AssertionError."""
-    with pytest.raises(AssertionError, match="MUTATION ON LIVE COLLECTION first_person_v10 FORBIDDEN"):
+    with pytest.raises(
+        AssertionError, match="MUTATION ON LIVE COLLECTION first_person_v10 FORBIDDEN"
+    ):
         mock_qdrant.delete("first_person_v10", ["v10_pt_0001"])
 
 
@@ -633,10 +676,12 @@ def test_f11_alias_first_person_points_to_v10(mock_qdrant):
 
 def test_f11_explicit_target_collection_safety(mock_qdrant):
     """F11.5: Attempting to repoint public alias to shadow collection raises AssertionError."""
+
     class Op:
         class Create:
             alias_name = "first_person"
             collection_name = "first_person_v12_shadow"
+
         create_alias = Create()
 
     with pytest.raises(AssertionError, match="REPONTING PUBLIC ALIAS"):
@@ -646,6 +691,7 @@ def test_f11_explicit_target_collection_safety(mock_qdrant):
 # ===========================================================================
 # Feature 12: Admin Backend API Endpoints (M3 / R3)
 # ===========================================================================
+
 
 def test_f12_status_endpoint_success(admin_client: TestClient):
     """F12.1: GET /api/admin/resegmentation/status returns ready status and algorithm."""
@@ -694,7 +740,9 @@ def test_f12_segments_endpoint_success(admin_client: TestClient):
     assert seg["rhetorical"]["closure_achieved"] is True
 
 
-def test_f12_unauthorized_access_rejected(unauthed_client: TestClient, non_admin_client: TestClient):
+def test_f12_unauthorized_access_rejected(
+    unauthed_client: TestClient, non_admin_client: TestClient
+):
     """F12.5: Resegmentation endpoints reject unauthenticated (401/403) and non-admin (403) requests."""
     resp_unauth = unauthed_client.get("/api/admin/resegmentation/status")
     assert resp_unauth.status_code in (401, 403)
@@ -706,6 +754,7 @@ def test_f12_unauthorized_access_rejected(unauthed_client: TestClient, non_admin
 # ===========================================================================
 # Feature 13: Admin Frontend UI Contracts (M3 / R3)
 # ===========================================================================
+
 
 def test_f13_kpi_card_data_contract(admin_client: TestClient):
     """F13.1: Status endpoint output satisfies frontend KPI card property requirements."""
@@ -721,8 +770,11 @@ def test_f13_shadow_collection_card_contract(admin_client: TestClient):
     resp = admin_client.get("/api/admin/resegmentation/shadow-collection")
     data = resp.json()
     required_card_keys = {
-        "collection_name", "points_count", "vectors_config",
-        "live_collection_isolated", "zero_writes_to_live",
+        "collection_name",
+        "points_count",
+        "vectors_config",
+        "live_collection_isolated",
+        "zero_writes_to_live",
     }
     assert required_card_keys.issubset(data.keys())
 
@@ -761,6 +813,7 @@ def test_f13_error_alert_contract(aal1_client: TestClient):
 # ===========================================================================
 # Feature 14: Read-Only Collection Fingerprint (M4 / Invariant X41)
 # ===========================================================================
+
 
 def test_f14_deterministic_sha256_hash():
     """F14.1: Same set of collection IDs yields identical SHA256 digest regardless of input order."""
@@ -811,6 +864,7 @@ def test_f14_empty_ids_handled_safely():
 # Feature 15: Dual-Judge Graded Evaluation (M4 / R5)
 # ===========================================================================
 
+
 def test_f15_dual_judge_models_declared(synthetic_eval_run: Path):
     """F15.1: Evaluation records dual judge models (claude-sonnet-5.5 and gemini-3.6-flash)."""
     manifest = json.loads((synthetic_eval_run / "manifest.json").read_text(encoding="utf-8"))
@@ -850,6 +904,7 @@ def test_f15_concordance_scoring(synthetic_eval_run: Path):
 # ===========================================================================
 # Feature 16: Comparative Completeness Report (M4 / R5)
 # ===========================================================================
+
 
 def test_f16_report_files_generated(synthetic_eval_run: Path):
     """F16.1: Evaluation produces both report.json and report.md artifacts."""

@@ -61,6 +61,7 @@ def armed(monkeypatch):
 # Label -> guru
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "label,expected",
     [
@@ -81,20 +82,27 @@ def test_guru_for_speaker(label, expected):
 # Applicability
 # ---------------------------------------------------------------------------
 
+
 def test_disabled_gate_stamps_nothing(monkeypatch):
     monkeypatch.setattr(speaker_gate, "enabled", lambda: False)
-    assert speaker_gate.verify(
-        audio_path="/tmp/a.wav", start_ms=0, end_ms=1000, speaker="Sri Krishnaji"
-    ) == {}
+    assert (
+        speaker_gate.verify(
+            audio_path="/tmp/a.wav", start_ms=0, end_ms=1000, speaker="Sri Krishnaji"
+        )
+        == {}
+    )
 
 
 def test_compound_label_stamps_nothing(armed):
-    assert speaker_gate.verify(
-        audio_path="/tmp/a.wav",
-        start_ms=0,
-        end_ms=1000,
-        speaker="Sri Preethaji & Sri Krishnaji",
-    ) == {}
+    assert (
+        speaker_gate.verify(
+            audio_path="/tmp/a.wav",
+            start_ms=0,
+            end_ms=1000,
+            speaker="Sri Preethaji & Sri Krishnaji",
+        )
+        == {}
+    )
 
 
 def test_missing_bounds_are_pending_not_verified(armed):
@@ -117,6 +125,7 @@ def test_unavailable_verifier_is_pending_not_verified(armed, monkeypatch):
 # ---------------------------------------------------------------------------
 # Verdicts
 # ---------------------------------------------------------------------------
+
 
 def test_valid_verified_record_is_returned_unchanged(armed):
     stub = _StubVerifier(_verified_fields())
@@ -153,6 +162,7 @@ def test_verifier_exception_is_pending_not_a_crash(armed):
 # ---------------------------------------------------------------------------
 # annotate_chunks
 # ---------------------------------------------------------------------------
+
 
 def test_annotate_chunks_is_parallel_and_only_gates_teacher_labels(armed, monkeypatch):
     monkeypatch.setattr(speaker_gate, "max_spans_per_source", lambda: 10)
@@ -205,6 +215,7 @@ def test_annotate_chunks_without_timing_is_pending(armed):
 # ---------------------------------------------------------------------------
 # Boot / status reporting (X41)
 # ---------------------------------------------------------------------------
+
 
 def test_status_reports_off_when_disabled(monkeypatch):
     monkeypatch.setattr(speaker_gate, "enabled", lambda: False)

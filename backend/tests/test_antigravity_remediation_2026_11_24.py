@@ -278,7 +278,9 @@ class TestInfraAndScriptParity(unittest.TestCase):
         backend_env = prod["services"]["backend"]["environment"]
         self.assertIn("WEB_CONCURRENCY=${WEB_CONCURRENCY:-1}", backend_env)
         self.assertIn("FIRST_PERSON_LLM_FALLBACK_ENABLED=false", backend_env)
-        self.assertEqual(prod["services"]["backend"]["deploy"]["resources"]["limits"]["memory"], "4G")
+        self.assertEqual(
+            prod["services"]["backend"]["deploy"]["resources"]["limits"]["memory"], "4G"
+        )
         redis_hc = " ".join(prod["services"]["redis"]["healthcheck"]["test"])
         self.assertIn("REDISCLI_AUTH", redis_hc)
         self.assertNotIn(" -a ", redis_hc)
@@ -287,7 +289,6 @@ class TestInfraAndScriptParity(unittest.TestCase):
         a = (REPO_ROOT / "backend" / "scripts" / "ops" / "data_quality_audit.py").read_bytes()
         b = (REPO_ROOT / "scripts" / "ops" / "data_quality_audit.py").read_bytes()
         self.assertEqual(a, b)
-
 
 
 class TestIndependentReviewRegressions(unittest.TestCase):
@@ -345,7 +346,10 @@ class TestIndependentReviewRegressions(unittest.TestCase):
     def test_ontology_mutual_exclusivity_query_deduplicates_pairs(self):
         from services.ontology_guardrails import CHECK_MUTUAL_EXCLUSIVITY_CYPHER
 
-        self.assertIn("coalesce(a.entity_id, a.name) < coalesce(b.entity_id, b.name)", CHECK_MUTUAL_EXCLUSIVITY_CYPHER)
+        self.assertIn(
+            "coalesce(a.entity_id, a.name) < coalesce(b.entity_id, b.name)",
+            CHECK_MUTUAL_EXCLUSIVITY_CYPHER,
+        )
 
     def test_runtime_budget_preserves_v10_only_warning_label(self):
         from app import runtime_budget
@@ -360,6 +364,7 @@ class TestIndependentReviewRegressions(unittest.TestCase):
         )
         warnings = runtime_budget.serving_gate_warnings(s)
         self.assertTrue(any("v10-only context harness" in w for w in warnings))
+
 
 if __name__ == "__main__":
     unittest.main()

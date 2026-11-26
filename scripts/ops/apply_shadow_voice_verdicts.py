@@ -138,7 +138,9 @@ def decide_windowed(
     c_floor = windowed_verdict_row.get("cosine_floor") or cal.get("cosine_floor")
     m_floor = windowed_verdict_row.get("margin_threshold") or cal.get("margin_threshold")
 
-    model_rev = windowed_verdict_row.get("model_revision") or windowed_verdict_row.get("speaker_model_revision")
+    model_rev = windowed_verdict_row.get("model_revision") or windowed_verdict_row.get(
+        "speaker_model_revision"
+    )
     cal_id = windowed_verdict_row.get("windowed_calibration_revision") or windowed_verdict_row.get(
         "calibration_revision"
     )
@@ -183,7 +185,13 @@ def scroll_children(url: str, coll: str) -> list[tuple[str, dict]]:
     off = None
     flt = {"must": [{"key": "record_type", "match": {"value": "retrieval_child"}}]}
     while True:
-        body = {"limit": 500, "offset": off, "with_payload": True, "with_vector": False, "filter": flt}
+        body = {
+            "limit": 500,
+            "offset": off,
+            "with_payload": True,
+            "with_vector": False,
+            "filter": flt,
+        }
         r = _req(f"{url}/collections/{coll}/points/scroll", body)["result"]
         out += [(p["id"], p["payload"]) for p in r["points"]]
         off = r["next_page_offset"]
@@ -207,7 +215,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--snapshot", default="", help="snapshot name taken just before this apply")
     ap.add_argument("--before-out", default="")
     ap.add_argument("--verified-at", default=dt.datetime.now(dt.UTC).isoformat())
-    ap.add_argument("--windowed-verdicts-jsonl", default="", help="optional windowed ECAPA verdicts jsonl")
+    ap.add_argument(
+        "--windowed-verdicts-jsonl", default="", help="optional windowed ECAPA verdicts jsonl"
+    )
     ap.add_argument("--windowed-calibration", default="", help="optional windowed calibration json")
     ap.add_argument(
         "--recheck-windowed",
@@ -241,7 +251,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(f"refusing: this writer only targets {SHADOW_COLLECTION}", file=sys.stderr)
         return 2
     if a.clear_refused_timestamps and a.demote_invalid:
-        print("refusing: --clear-refused-timestamps and --demote-invalid are separate repairs", file=sys.stderr)
+        print(
+            "refusing: --clear-refused-timestamps and --demote-invalid are separate repairs",
+            file=sys.stderr,
+        )
         return 2
     if (
         not a.clear_refused_timestamps
@@ -249,7 +262,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         and not a.windowed_verdicts_jsonl
         and not (a.verdicts_jsonl and a.windows_jsonl)
     ):
-        print("refusing: either --windowed-verdicts-jsonl or both (--verdicts-jsonl and --windows-jsonl) required", file=sys.stderr)
+        print(
+            "refusing: either --windowed-verdicts-jsonl or both (--verdicts-jsonl and --windows-jsonl) required",
+            file=sys.stderr,
+        )
         return 2
     if a.apply and not (a.snapshot and a.before_out):
         print("refusing --apply: --snapshot and --before-out are required", file=sys.stderr)

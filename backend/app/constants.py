@@ -2,6 +2,7 @@
 
 Single source of truth to prevent hardcoding mismatches across the codebase.
 """
+
 from __future__ import annotations
 
 from enum import Enum
@@ -216,4 +217,3 @@ def canonicalize_book_url(raw_url: str | None, content_type: str | None = None) 
     if is_book_source(raw_url) or is_book_source(content_type):
         return BOOK_FOUR_SACRED_SECRETS_URL
     return raw_url or ""
-

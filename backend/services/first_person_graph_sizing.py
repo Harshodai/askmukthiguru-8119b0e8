@@ -119,7 +119,9 @@ class MemgraphHarnessSizer:
             )
 
         # NOTE: unused here, so this query path has no sizing timeout applied.
-        timeout_ms = float(getattr(settings, "first_person_memgraph_sizing_timeout_ms", 25.0) or 25.0)  # noqa: F841
+        timeout_ms = float(  # noqa: F841
+            getattr(settings, "first_person_memgraph_sizing_timeout_ms", 25.0) or 25.0
+        )
         unique_seeds = [
             s for s in dict.fromkeys(seed_span_ids) if isinstance(s, str) and s.strip()
         ][:16]
@@ -183,7 +185,13 @@ class MemgraphHarnessSizer:
         comparative_delta = 0
         is_comp = (
             guru_count > 1
-            or (teacher_id and (teacher_id.strip().lower() in ("both", "all", "shared") or is_shared_guru_scope(teacher_id)))
+            or (
+                teacher_id
+                and (
+                    teacher_id.strip().lower() in ("both", "all", "shared")
+                    or is_shared_guru_scope(teacher_id)
+                )
+            )
             or ("difference" in query.lower() or "compare" in query.lower())
         )
         if is_comp:
@@ -192,9 +200,7 @@ class MemgraphHarnessSizer:
         raw_k = base_k + chain_delta + density_delta + comparative_delta
         final_k = max(min_k, min(max_k, raw_k))
 
-        reason = (
-            f"graph_signals(chains={chain_count},concepts={concept_count},gurus={guru_count})"
-        )
+        reason = f"graph_signals(chains={chain_count},concepts={concept_count},gurus={guru_count})"
         logger.debug(
             "[MemgraphHarnessSizer] Calculated k=%d (%s) in %.2fms",
             final_k,
@@ -222,7 +228,9 @@ class MemgraphHarnessSizer:
         Asynchronous wrapper executing sizing query off-loop in a worker thread.
         Guaranteed to timeout strictly within timeout_ms.
         """
-        timeout_ms = float(getattr(settings, "first_person_memgraph_sizing_timeout_ms", 25.0) or 25.0)
+        timeout_ms = float(
+            getattr(settings, "first_person_memgraph_sizing_timeout_ms", 25.0) or 25.0
+        )
         timeout_s = timeout_ms / 1000.0
         loop = asyncio.get_running_loop()
 

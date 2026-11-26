@@ -44,18 +44,35 @@ from services.youtube_transcript.preflight import (
 def main() -> int:
     parser = argparse.ArgumentParser(description="Standalone YouTube Transcript Downloader")
     parser.add_argument("--url", required=True, help="YouTube video URL or ID")
-    parser.add_argument("--list-subs", action="store_true", help="List available subtitles and exit")
+    parser.add_argument(
+        "--list-subs", action="store_true", help="List available subtitles and exit"
+    )
     parser.add_argument("--lang", default="en", help="Target subtitle language (default: en)")
     parser.add_argument("--out", default="outputs/transcripts", help="Output directory")
-    parser.add_argument("--no-txt", dest="generate_txt", action="store_false", default=True, help="Disable plain text output")
-    parser.add_argument("--allow-whisper", action="store_true", help="Allow Whisper fallback if subtitles missing")
-    parser.add_argument("--confirm-whisper", action="store_true", help="Confirm audio download and Whisper processing")
+    parser.add_argument(
+        "--no-txt",
+        dest="generate_txt",
+        action="store_false",
+        default=True,
+        help="Disable plain text output",
+    )
+    parser.add_argument(
+        "--allow-whisper", action="store_true", help="Allow Whisper fallback if subtitles missing"
+    )
+    parser.add_argument(
+        "--confirm-whisper",
+        action="store_true",
+        help="Confirm audio download and Whisper processing",
+    )
     args = parser.parse_args()
 
     if not check_ytdlp_installed():
         print("ERROR: yt-dlp is not installed or not found on PATH.", file=sys.stderr)
         inst = get_ytdlp_install_instructions()
-        print(f"Install guidance:\n  Primary: {inst['primary']}\n  Details: {inst['official_repo']}", file=sys.stderr)
+        print(
+            f"Install guidance:\n  Primary: {inst['primary']}\n  Details: {inst['official_repo']}",
+            file=sys.stderr,
+        )
         return 1
 
     ver = get_ytdlp_version()
@@ -103,7 +120,10 @@ def main() -> int:
         return 0
     except WhisperConsentRequiredError as e:
         print(f"\n[CONSENT REQUIRED] {e.message}", file=sys.stderr)
-        print("To proceed with Whisper transcription, pass: --allow-whisper --confirm-whisper", file=sys.stderr)
+        print(
+            "To proceed with Whisper transcription, pass: --allow-whisper --confirm-whisper",
+            file=sys.stderr,
+        )
         return 3
     except TranscriptError as e:
         print(f"ERROR [{e.code.value}]: {e.message}", file=sys.stderr)

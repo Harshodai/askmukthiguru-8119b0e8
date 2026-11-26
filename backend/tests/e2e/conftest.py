@@ -2,6 +2,7 @@
 
 Requires a live backend.  Auto-skips when BACKEND_URL is not set.
 """
+
 from __future__ import annotations
 
 import json
@@ -65,7 +66,13 @@ def _validate_backend_url(url: str) -> None:
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme not in ("http", "https"):
         raise LiveStackError(f"BACKEND_URL must use http or https; got {url!r}")
-    if parsed.scheme == "http" and parsed.hostname not in ("localhost", "127.0.0.1", "0.0.0.0", "::1", "testserver"):
+    if parsed.scheme == "http" and parsed.hostname not in (
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "::1",
+        "testserver",
+    ):
         raise LiveStackError(f"BACKEND_URL non-loopback endpoints must use https; got {url!r}")
 
 
@@ -109,7 +116,9 @@ def _poll(job_id: str, started: float) -> dict:
             raise LiveStackError(f"GET /api/jobs/{job_id} not found: {polled}")
         if status < 200 or status >= 300:
             raise LiveStackError(f"GET /api/jobs/{job_id} HTTP {status}: {polled}")
-        state = _job_status(polled) or ("completed" if status == 200 and not polled.get("status") else "")
+        state = _job_status(polled) or (
+            "completed" if status == 200 and not polled.get("status") else ""
+        )
         if state in {"failed", "error", "cancelled", "canceled"}:
             raise LiveStackError(f"job {job_id} ended {state}: {polled}")
         if state in _JOB_TERMINAL:

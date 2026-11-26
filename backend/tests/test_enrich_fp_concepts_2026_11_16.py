@@ -97,8 +97,15 @@ def test_apply_is_additive_only_and_writes_listed_keys():
     c = _Client()
     with pytest.raises(ValueError):
         mod.apply_patches(
-            c, "c", {"p1": {"topic_ids": ["x"]}}, {"p1": {"topic_ids": ["old"]}},
-            keys=("topic_ids",), snapshot_confirmed=True, approved_by="owner",
+            c,
+            "c",
+            {"p1": {"topic_ids": ["x"]}},
+            {"p1": {"topic_ids": ["old"]}},
+            keys=("topic_ids",),
+            snapshot_confirmed=True,
+            approved_by="owner",
         )
     assert _apply(c, keys=("topic_ids",)) == 1
-    assert c.calls == [{"collection_name": "c", "payload": {"topic_ids": ["x"]}, "points": ["p1"], "wait": True}]
+    assert c.calls == [
+        {"collection_name": "c", "payload": {"topic_ids": ["x"]}, "points": ["p1"], "wait": True}
+    ]

@@ -339,8 +339,7 @@ def main() -> None:
             if not records:
                 break
             batch_points = [
-                PointStruct(id=rec.id, vector=rec.vector, payload=rec.payload)
-                for rec in records
+                PointStruct(id=rec.id, vector=rec.vector, payload=rec.payload) for rec in records
             ]
             client.upsert(collection_name=TARGET_COLLECTION, points=batch_points, wait=True)
             replicated += len(batch_points)
@@ -393,7 +392,9 @@ def main() -> None:
         if hasattr(sv, "indices") and hasattr(sv, "values"):
             idx_list = sv.indices.tolist() if hasattr(sv.indices, "tolist") else list(sv.indices)
             val_list = sv.values.tolist() if hasattr(sv.values, "tolist") else list(sv.values)
-            sp_vector = SparseVector(indices=[int(x) for x in idx_list], values=[float(x) for x in val_list])
+            sp_vector = SparseVector(
+                indices=[int(x) for x in idx_list], values=[float(x) for x in val_list]
+            )
         elif isinstance(sv, dict):
             idx_list = [int(k) for k in sv.keys()]
             val_list = [float(v) for v in sv.values()]
@@ -419,9 +420,13 @@ def main() -> None:
     final_v12 = client.count(SOURCE_COLLECTION).count
     final_v13 = client.count(TARGET_COLLECTION).count
 
-    assert final_v12 == v12_count, f"Invariant X6 violation: source count changed {v12_count} -> {final_v12}"
+    assert final_v12 == v12_count, (
+        f"Invariant X6 violation: source count changed {v12_count} -> {final_v12}"
+    )
     logger.info(f"SUCCESS: Source {SOURCE_COLLECTION} unchanged ({final_v12} points).")
-    logger.info(f"SUCCESS: Target {TARGET_COLLECTION} now has {final_v13} points (+{len(new_points)} added).")
+    logger.info(
+        f"SUCCESS: Target {TARGET_COLLECTION} now has {final_v13} points (+{len(new_points)} added)."
+    )
 
     # 5. Verification search probe
     logger.info("Executing retrieval verification probes on first_person_v13_shadow...")
@@ -441,7 +446,9 @@ def main() -> None:
         ).points
         logger.info(f"--- Probe: {probe!r} ---")
         for res in results:
-            logger.info(f"  Score: {res.score:.4f} | Video: {res.payload.get('video_id')} | Title: {res.payload.get('title')}")
+            logger.info(
+                f"  Score: {res.score:.4f} | Video: {res.payload.get('video_id')} | Title: {res.payload.get('title')}"
+            )
             snippet = (res.payload.get("text") or res.payload.get("content") or "")[:120]
             logger.info(f"  Text snippet: {snippet}...")
 

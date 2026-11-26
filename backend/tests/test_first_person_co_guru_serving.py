@@ -35,7 +35,9 @@ def _dummy_span(
     **overrides,
 ) -> SourceSpan:
     text = "The four sacred secrets lead to a life of inner freedom."
-    span_index = overrides.pop("source_span_index", 0 if span_id == "s1" else abs(hash(span_id)) % 1000 + 1)
+    span_index = overrides.pop(
+        "source_span_index", 0 if span_id == "s1" else abs(hash(span_id)) % 1000 + 1
+    )
     word_start = overrides.pop("word_start", span_index * 10)
     word_end = overrides.pop("word_end", word_start + 10)
     corpus_version = overrides.get("corpus_version", "fp-context-v1")
@@ -91,7 +93,9 @@ def _dummy_span(
     return SourceSpan(**data)
 
 
-def _dummy_parent(spans: tuple[SourceSpan, ...], guru_id: str = "krishnaji", **overrides) -> ParentUnit:
+def _dummy_parent(
+    spans: tuple[SourceSpan, ...], guru_id: str = "krishnaji", **overrides
+) -> ParentUnit:
     data = {
         "corpus_version": "fp-context-v1",
         "guru_id": guru_id,

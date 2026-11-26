@@ -29,9 +29,7 @@ def purge_launch_subscribers(
 
 
 @celery_app.task(name="tasks.retention_tasks.cleanup_retention_data")
-def cleanup_retention_data(
-    days_retention: int = 90, days_inactivity: int = 365
-) -> dict[str, int]:
+def cleanup_retention_data(days_retention: int = 90, days_inactivity: int = 365) -> dict[str, int]:
     """Run every scheduled retention surface documented in ``RETENTION.md``.
 
     Each surface is isolated so one unavailable dependency does not prevent the

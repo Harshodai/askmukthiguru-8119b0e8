@@ -278,6 +278,7 @@ def expand_teaching_units(
 
         # Standard synchronous neo4j.GraphDatabase.driver (container.neo4j_driver)
         if hasattr(sess_cm, "__enter__") and not hasattr(sess_cm, "__aenter__"):
+
             def _run_sync() -> list[str]:
                 with sess_cm as session:
                     if len(unique_seeds) > 1 and max_hops <= 1:

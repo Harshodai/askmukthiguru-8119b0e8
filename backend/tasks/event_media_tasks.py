@@ -117,8 +117,18 @@ if __name__ == "__main__":
 
     fake = _Fake(
         [
-            {"id": "a", "media_path": "old.mp4", "starts_at": "2026-01-01T10:00:00Z", "ends_at": None},
-            {"id": "b", "media_path": "live.mp3", "starts_at": "2026-01-01T10:00:00Z", "ends_at": "2026-12-31T10:00:00Z"},
+            {
+                "id": "a",
+                "media_path": "old.mp4",
+                "starts_at": "2026-01-01T10:00:00Z",
+                "ends_at": None,
+            },
+            {
+                "id": "b",
+                "media_path": "live.mp3",
+                "starts_at": "2026-01-01T10:00:00Z",
+                "ends_at": "2026-12-31T10:00:00Z",
+            },
         ]
     )
     assert purge_ended_event_media(fake, datetime(2026, 6, 1, tzinfo=UTC)) == 1

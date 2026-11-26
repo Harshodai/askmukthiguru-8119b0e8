@@ -165,7 +165,11 @@ async def speech_to_text_endpoint(
                     logger.info(
                         f"Sarvam STT returned transcript: {sanitize_log_input(transcript)} (lang: {sanitize_log_input(str(detected_lang))})"
                     )
-                    return {"transcript": transcript, "text": transcript, "language_code": detected_lang}
+                    return {
+                        "transcript": transcript,
+                        "text": transcript,
+                        "language_code": detected_lang,
+                    }
                 else:
                     logger.error(
                         f"Sarvam STT failed with status {resp.status_code}: {sanitize_log_input(resp.text)}"
@@ -197,7 +201,11 @@ async def speech_to_text_endpoint(
                     # detect_message_lang uses ISO 639-1 "or" for Oriya script.
                     detected_lang = "od-IN" if msg_lang == "or" else f"{msg_lang}-IN"
 
-                return {"transcript": transcript, "text": transcript, "language_code": detected_lang}
+                return {
+                    "transcript": transcript,
+                    "text": transcript,
+                    "language_code": detected_lang,
+                }
             else:
                 raise Exception("Whisper returned empty transcript")
         finally:

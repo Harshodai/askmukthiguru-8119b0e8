@@ -234,9 +234,7 @@ async def test_incognito_stream_never_schedules_content_telemetry():
     with patch.object(ChatEngine, "_log_telemetry", telemetry_mock):
         chunks = [
             chunk
-            async for chunk in engine.chat_advanced_stream(
-                request, user={"id": "u-private-stream"}
-            )
+            async for chunk in engine.chat_advanced_stream(request, user={"id": "u-private-stream"})
         ]
         for _ in range(3):
             await asyncio.sleep(0)
@@ -263,8 +261,7 @@ async def test_incognito_stream_failure_never_schedules_content_telemetry():
     request.incognito = True
     with patch.object(ChatEngine, "_log_telemetry", telemetry_mock):
         chunks = [
-            chunk
-            async for chunk in engine.chat_advanced_stream(request, user={"id": "u-fail"})
+            chunk async for chunk in engine.chat_advanced_stream(request, user={"id": "u-fail"})
         ]
         for _ in range(3):
             await asyncio.sleep(0)

@@ -53,7 +53,9 @@ def check_git_diff(repo_root: Path) -> dict[str, Any]:
         return {
             "passed": proc.returncode == 0,
             "exit_code": proc.returncode,
-            "output": proc.stdout.strip() if proc.stdout else (proc.stderr.strip() if proc.stderr else "CLEAN"),
+            "output": proc.stdout.strip()
+            if proc.stdout
+            else (proc.stderr.strip() if proc.stderr else "CLEAN"),
         }
     except Exception as e:
         return {"passed": False, "exit_code": -1, "output": str(e)}
@@ -185,12 +187,16 @@ def run_focused_backend_suite(
     for py_bin in python_candidates:
         if py_bin.is_file() and shutil.which(str(py_bin)):
             try:
-                check_pt = subprocess.run([str(py_bin), "-m", "pytest", "--version"], capture_output=True, text=True)
+                check_pt = subprocess.run(
+                    [str(py_bin), "-m", "pytest", "--version"], capture_output=True, text=True
+                )
                 if check_pt.returncode == 0:
                     backend_dir = repo_root / "backend"
                     cmd = [str(py_bin), "-m", "pytest", "-v"] + test_files
                     t0 = datetime.datetime.now()
-                    proc = subprocess.run(cmd, cwd=backend_dir, capture_output=True, text=True, timeout=120)
+                    proc = subprocess.run(
+                        cmd, cwd=backend_dir, capture_output=True, text=True, timeout=120
+                    )
                     duration_s = (datetime.datetime.now() - t0).total_seconds()
                     return {
                         "environment": f"host:{py_bin.name}",
@@ -213,9 +219,13 @@ def run_focused_backend_suite(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Authoritative Production Certification Verification Runner")
+    parser = argparse.ArgumentParser(
+        description="Authoritative Production Certification Verification Runner"
+    )
     parser.add_argument("--out", default=None, help="Output JSON path for evidence record")
-    parser.add_argument("--container", default="mukthiguru-backend", help="Container name to target")
+    parser.add_argument(
+        "--container", default="mukthiguru-backend", help="Container name to target"
+    )
     args = parser.parse_args()
 
     # Determine repo root
@@ -243,16 +253,22 @@ def main() -> int:
 
     print("[2/4] Checking Python AST syntax and compilation...")
     ast_res = check_ast_compilation(repo_root)
-    print(f"      Result: {'PASS' if ast_res['passed'] else 'FAIL'} ({ast_res['compiled_count']}/{ast_res['scanned_count']} files)")
+    print(
+        f"      Result: {'PASS' if ast_res['passed'] else 'FAIL'} ({ast_res['compiled_count']}/{ast_res['scanned_count']} files)"
+    )
 
     print("[3/4] Checking scripts/ops duplicate-tree parity (Rule X1)...")
     parity_res = check_duplicate_tree_parity(repo_root)
-    print(f"      Result: {'PASS' if parity_res['passed'] else 'FAIL'} ({parity_res['shared_files_count']} shared files)")
+    print(
+        f"      Result: {'PASS' if parity_res['passed'] else 'FAIL'} ({parity_res['shared_files_count']} shared files)"
+    )
 
     print("[4/4] Executing focused backend test suite...")
     backend_res = run_focused_backend_suite(repo_root, container_name=args.container)
     print(f"      Environment: {backend_res.get('environment')}")
-    print(f"      Result: {'PASS' if backend_res.get('passed') else 'FAIL'} (exit {backend_res.get('exit_code')})")
+    print(
+        f"      Result: {'PASS' if backend_res.get('passed') else 'FAIL'} (exit {backend_res.get('exit_code')})"
+    )
 
     overall_pass = (
         git_diff_res["passed"]
@@ -264,7 +280,9 @@ def main() -> int:
     evidence_record = {
         "timestamp": timestamp,
         "git_revision": git_rev,
-        "overall_status": "PASS" if overall_pass else ("BLOCKED" if backend_res.get("exit_code") == 2 else "FAIL"),
+        "overall_status": "PASS"
+        if overall_pass
+        else ("BLOCKED" if backend_res.get("exit_code") == 2 else "FAIL"),
         "git_diff_check": git_diff_res,
         "ast_compilation": ast_res,
         "duplicate_tree_parity": parity_res,

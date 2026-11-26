@@ -75,7 +75,10 @@ _FAILURES = [
 @pytest.mark.relevance_real
 @pytest.mark.parametrize("failure", _FAILURES)
 def test_pipeline_provider_failure_is_system_unavailable(
-    mock_store, mock_redis, monkeypatch, failure  # noqa: F811
+    mock_store,  # noqa: F811
+    mock_redis,  # noqa: F811
+    monkeypatch,
+    failure,
 ):
     from app.answer_contract import abstain_cause
 
@@ -92,7 +95,10 @@ def test_pipeline_provider_failure_is_system_unavailable(
 @pytest.mark.parametrize("failure", [_http_error(403), _http_error(402), None])
 @pytest.mark.asyncio
 async def test_bridge_reply_is_honest_outage_message(
-    mock_store, mock_redis, monkeypatch, failure  # noqa: F811
+    mock_store,  # noqa: F811
+    mock_redis,  # noqa: F811
+    monkeypatch,
+    failure,
 ):
     import app.pipeline.stages.first_person_bridge as bridge_module
 
@@ -130,7 +136,9 @@ def test_healthy_provider_no_answer_abstain_is_unchanged(mock_store, mock_redis,
 
 @pytest.mark.asyncio
 async def test_crisis_turn_still_gets_helpline_when_provider_is_down(
-    mock_store, mock_redis, monkeypatch  # noqa: F811
+    mock_store,  # noqa: F811
+    mock_redis,  # noqa: F811
+    monkeypatch,
 ):
     from services.crisis_helplines import format_helplines_block
 
@@ -185,7 +193,9 @@ def test_failed_sufficiency_judge_is_an_outage_not_an_absence_of_teaching():
     from app.answer_contract import abstain_cause
 
     assert (
-        abstain_cause("abstained", "joint_sufficiency_indeterminate", "joint_sufficiency_indeterminate")
+        abstain_cause(
+            "abstained", "joint_sufficiency_indeterminate", "joint_sufficiency_indeterminate"
+        )
         == "system_unavailable"
     )
     assert abstain_cause("abstained", "joint_insufficient", "joint_insufficient") == "no_evidence"

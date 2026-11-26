@@ -58,7 +58,8 @@ def test_retrieval_query_script_detection(text: str, is_latin: bool):
 
 @pytest.mark.asyncio
 async def test_indic_turn_with_translated_english_retrieval_query_runs_hyde(
-    monkeypatch, fp_pipeline  # noqa: F811
+    monkeypatch,
+    fp_pipeline,  # noqa: F811
 ):
     """An Indic query translated into English user_msg_en MUST trigger HyDE."""
     monkeypatch.setattr(settings, "first_person_hyde_enabled", True)
@@ -66,7 +67,9 @@ async def test_indic_turn_with_translated_english_retrieval_query_runs_hyde(
 
     container = _container()
     container.llm = AsyncMock()
-    container.llm.generate_hyde = AsyncMock(return_value="A teaching about overcoming anger and inner reaction.")
+    container.llm.generate_hyde = AsyncMock(
+        return_value="A teaching about overcoming anger and inner reaction."
+    )
 
     ctx = _ctx(container, msg="కోపాన్ని ఎలా నియంత్రించాలి?", lang="te", is_indic=True)
     ctx.state["user_msg_en"] = "How do I control anger?"

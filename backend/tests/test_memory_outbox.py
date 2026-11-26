@@ -190,7 +190,9 @@ async def test_latest_revocation_does_not_resurrect_older_grant():
     )
     outbox = MemoryOutbox(supabase_client=client, worker_id="worker-1")
 
-    receipt = await outbox.active_consent(user_id="00000000-0000-4000-8000-000000000001", tenant_id="tenant-1")
+    receipt = await outbox.active_consent(
+        user_id="00000000-0000-4000-8000-000000000001", tenant_id="tenant-1"
+    )
 
     assert receipt is None
     assert ("order", "event_sequence", True) in client.queries[0].calls

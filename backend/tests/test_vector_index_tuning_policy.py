@@ -18,7 +18,9 @@ from services.vector_optimizer import VectorIndexOptimizer
 def test_vector_optimizer_defaults_reconciled():
     """Verify that run_optimization() in vector_optimizer calls aligned defaults (32, 200)."""
     source = inspect.getsource(VectorIndexOptimizer.run_optimization)
-    assert "32, 200, 10_000" in source, "Optimizer defaults should align with fresh collection schema (m=32, ef_construct=200)"
+    assert "32, 200, 10_000" in source, (
+        "Optimizer defaults should align with fresh collection schema (m=32, ef_construct=200)"
+    )
 
 
 def test_scale_aware_recommendations():
@@ -46,22 +48,28 @@ def test_scale_aware_recommendations():
 
 
 def test_calculate_recall():
-    ground_truth = np.array([
-        [10, 11, 12, 13, 14],
-        [20, 21, 22, 23, 24],
-    ])
+    ground_truth = np.array(
+        [
+            [10, 11, 12, 13, 14],
+            [20, 21, 22, 23, 24],
+        ]
+    )
     # Exact match -> 1.0
-    preds_exact = np.array([
-        [10, 11, 12, 13, 14],
-        [20, 21, 22, 23, 24],
-    ])
+    preds_exact = np.array(
+        [
+            [10, 11, 12, 13, 14],
+            [20, 21, 22, 23, 24],
+        ]
+    )
     assert calculate_recall(preds_exact, ground_truth, k=5) == 1.0
 
     # 3 of 5 match on row 0, 4 of 5 on row 1 -> (3 + 4) / 10 = 0.7
-    preds_partial = np.array([
-        [10, 11, 12, 99, 98],
-        [20, 21, 22, 23, 97],
-    ])
+    preds_partial = np.array(
+        [
+            [10, 11, 12, 99, 98],
+            [20, 21, 22, 23, 97],
+        ]
+    )
     assert calculate_recall(preds_partial, ground_truth, k=5) == 0.7
 
 
@@ -101,6 +109,7 @@ def test_hnsw_sweep_require_native_fails_when_missing():
 
     try:
         import hnswlib  # noqa: F401  (availability probe)
+
         has_hnswlib = True
     except ImportError:
         has_hnswlib = False
@@ -109,4 +118,3 @@ def test_hnsw_sweep_require_native_fails_when_missing():
         with pytest.raises(RuntimeError) as exc_info:
             run_hnsw_sweep(vectors, queries, require_native=True)
         assert "Native C++ index library 'hnswlib' is required" in str(exc_info.value)
-

@@ -900,7 +900,9 @@ async def lifespan(app: FastAPI):
             else:
                 logger.info("Second Brain: BRAIN_KEK unwraps all %d stored vault keys", _checked)
     except Exception as _kek_check_err:
-        logger.warning("STARTUP: could not verify BRAIN_KEK against stored vault keys: %s", _kek_check_err)
+        logger.warning(
+            "STARTUP: could not verify BRAIN_KEK against stored vault keys: %s", _kek_check_err
+        )
 
     # First-person is a rights-sensitive, calibrated route. In production,
     # refuse to accept traffic unless its release contract is complete.
@@ -1758,8 +1760,6 @@ async def get_jwks():
     from services.auth_service import get_jwks_dict
 
     return get_jwks_dict()
-
-
 
 
 # === Mount Gradio UI (gated; disabled by default in production) ===

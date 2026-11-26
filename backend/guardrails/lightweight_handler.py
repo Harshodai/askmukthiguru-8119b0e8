@@ -618,7 +618,9 @@ def _resolve_block_response(category: str, default_message: str, text: str = "")
     if "__ADDICTION_BOUNDARY__" in template:
         try:
             boundary = addiction_support_boundary()
-            template = template.replace("__ADDICTION_BOUNDARY__", f" {boundary}" if boundary else "")
+            template = template.replace(
+                "__ADDICTION_BOUNDARY__", f" {boundary}" if boundary else ""
+            )
         except Exception:  # noqa: BLE001
             template = template.replace("__ADDICTION_BOUNDARY__", "")
 
@@ -731,7 +733,9 @@ _POLITICS_AS_EXAMPLE_RE = re.compile(
 
 def _is_philosophical_politics_framing(text: str) -> bool:
     """True when 'politics' is used as an example within a consciousness/inner-state question."""
-    return bool(_PHILOSOPHICAL_POLITICS_RE.search(text)) or bool(_POLITICS_AS_EXAMPLE_RE.search(text))
+    return bool(_PHILOSOPHICAL_POLITICS_RE.search(text)) or bool(
+        _POLITICS_AS_EXAMPLE_RE.search(text)
+    )
 
 
 # q083-class: "what kinds of things CAN BECOME an addiction / what can be addictive"

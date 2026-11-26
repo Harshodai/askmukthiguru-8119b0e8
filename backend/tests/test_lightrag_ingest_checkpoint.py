@@ -41,9 +41,7 @@ def test_legacy_cursor_only_checkpoint_is_not_trusted(tmp_path):
     checkpoint = tmp_path / "checkpoint.json"
     checkpoint.write_text(json.dumps({"next_offset": "point-12", "processed_count": 12}))
     with pytest.raises(RuntimeError, match="Legacy/incompatible"):
-        INGEST.load_checkpoint(
-            "spiritual_wisdom", 100, str(tmp_path / "lightrag"), checkpoint
-        )
+        INGEST.load_checkpoint("spiritual_wisdom", 100, str(tmp_path / "lightrag"), checkpoint)
 
 
 def test_checkpoint_is_bound_to_source_collection(tmp_path):
@@ -93,9 +91,7 @@ def test_checkpoint_is_bound_to_source_point_count_and_working_directory(tmp_pat
     with pytest.raises(RuntimeError, match="source_point_count"):
         INGEST.load_checkpoint("spiritual_wisdom", 101, working_dir, checkpoint)
     with pytest.raises(RuntimeError, match="working_dir"):
-        INGEST.load_checkpoint(
-            "spiritual_wisdom", 100, str(tmp_path / "other"), checkpoint
-        )
+        INGEST.load_checkpoint("spiritual_wisdom", 100, str(tmp_path / "other"), checkpoint)
 
 
 def test_checkpoint_round_trips_completed_state_without_restarting(tmp_path):
@@ -141,9 +137,7 @@ def test_checkpoint_counter_drift_is_rejected(tmp_path):
     }
     checkpoint.write_text(json.dumps(data))
     with pytest.raises(RuntimeError, match="do not reconcile"):
-        INGEST.load_checkpoint(
-            "spiritual_wisdom", 100, str(tmp_path / "lightrag"), checkpoint
-        )
+        INGEST.load_checkpoint("spiritual_wisdom", 100, str(tmp_path / "lightrag"), checkpoint)
 
 
 def test_process_lock_rejects_a_second_concurrent_run(tmp_path):
@@ -297,10 +291,7 @@ def test_completed_checkpoint_requires_all_source_points_accounted_for(tmp_path)
     }
     checkpoint.write_text(json.dumps(data))
     with pytest.raises(RuntimeError, match="marked complete"):
-        INGEST.load_checkpoint(
-            "spiritual_wisdom", 10, str(tmp_path / "lightrag"), checkpoint
-        )
-
+        INGEST.load_checkpoint("spiritual_wisdom", 10, str(tmp_path / "lightrag"), checkpoint)
 
 
 def test_qdrant_write_key_is_mapped_only_inside_ingestion_process(monkeypatch):

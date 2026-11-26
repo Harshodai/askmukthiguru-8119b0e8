@@ -62,12 +62,14 @@ def generate_triage_report(feedback_rows: list[dict[str, Any]]) -> dict[str, Any
         if tag in ("WRONG", "WEAK"):
             problem_videos[vid] += 1
         elif tag == "UNSAFE":
-            unsafe_events.append({
-                "timestamp": row.get("created_at") or datetime.now(UTC).isoformat(),
-                "query": row.get("question") or row.get("query") or "Unknown query",
-                "video_id": vid,
-                "reason": row.get("reason") or "Flagged as unsafe",
-            })
+            unsafe_events.append(
+                {
+                    "timestamp": row.get("created_at") or datetime.now(UTC).isoformat(),
+                    "query": row.get("question") or row.get("query") or "Unknown query",
+                    "video_id": vid,
+                    "reason": row.get("reason") or "Flagged as unsafe",
+                }
+            )
 
     report = {
         "generated_at": datetime.now(UTC).isoformat(),
@@ -107,31 +109,43 @@ def format_markdown_report(report: dict[str, Any]) -> str:
         }.get(tag, "Review")
         lines.append(f"| **`{tag}`** | {cnt} | {pct:.1f}% | {action} |")
 
-    lines.extend([
-        "",
-        "## 2. Acute Safety & Boundary Alerts (`UNSAFE`)",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 2. Acute Safety & Boundary Alerts (`UNSAFE`)",
+            "",
+        ]
+    )
     if report["unsafe_count"] == 0:
-        lines.append("✓ **Zero unsafe feedback events reported.** Crisis preemption remains 100% compliant.")
+        lines.append(
+            "✓ **Zero unsafe feedback events reported.** Crisis preemption remains 100% compliant."
+        )
     else:
-        lines.append(f"⚠️ **{report['unsafe_count']} UNSAFE event(s) requiring immediate clinical triage:**")
+        lines.append(
+            f"⚠️ **{report['unsafe_count']} UNSAFE event(s) requiring immediate clinical triage:**"
+        )
         lines.append("")
         for ev in report["unsafe_events"]:
-            lines.append(f"- **Query**: \"{ev['query']}\" | **Clip**: `{ev['video_id']}` | **Notes**: {ev['reason']}")
+            lines.append(
+                f'- **Query**: "{ev["query"]}" | **Clip**: `{ev["video_id"]}` | **Notes**: {ev["reason"]}'
+            )
 
-    lines.extend([
-        "",
-        "## 3. Top Problematic Discourse Clips",
-        "",
-        "| Video ID / Point ID | Total Negative Reports | Recommended Action |",
-        "| :--- | :---: | :--- |",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 3. Top Problematic Discourse Clips",
+            "",
+            "| Video ID / Point ID | Total Negative Reports | Recommended Action |",
+            "| :--- | :---: | :--- |",
+        ]
+    )
     if not report["top_problematic_clips"]:
         lines.append("| (No repeat negative clips flagged) | 0 | - |")
     else:
         for item in report["top_problematic_clips"]:
-            lines.append(f"| `{item['video_id']}` | {item['reports_count']} | Inspect video segment & speaker attribution |")
+            lines.append(
+                f"| `{item['video_id']}` | {item['reports_count']} | Inspect video segment & speaker attribution |"
+            )
 
     return "\n".join(lines)
 
@@ -144,9 +158,21 @@ def main() -> int:
 
     # Sample / initial baseline feedback events
     sample_events = [
-        {"reason_category": "wrong topic", "video_id": "UlOt31lBhLY", "question": "How to overcome fear"},
-        {"reason_category": "cut mid-thought", "video_id": "xTVHvMHakow", "question": "Explain abundance"},
-        {"reason_category": "missing discourse", "video_id": "none", "question": "Four sacred secrets laws"},
+        {
+            "reason_category": "wrong topic",
+            "video_id": "UlOt31lBhLY",
+            "question": "How to overcome fear",
+        },
+        {
+            "reason_category": "cut mid-thought",
+            "video_id": "xTVHvMHakow",
+            "question": "Explain abundance",
+        },
+        {
+            "reason_category": "missing discourse",
+            "video_id": "none",
+            "question": "Four sacred secrets laws",
+        },
     ]
 
     report = generate_triage_report(sample_events)

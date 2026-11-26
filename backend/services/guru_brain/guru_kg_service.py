@@ -118,7 +118,9 @@ class GuruKGService:
                     video_id=str(video_id or "").strip(),
                     domain_rights_status=str(domain_rights_status or "").strip(),
                     speaker_verified=speaker_verified is True,
-                    speaker_verification_reference=str(speaker_verification_reference or "").strip(),
+                    speaker_verification_reference=str(
+                        speaker_verification_reference or ""
+                    ).strip(),
                     guru_speaker=guru_speaker,
                 )
             )
@@ -207,7 +209,9 @@ class GuruKGService:
                     video_id=str(video_id or "").strip(),
                     rights_status=str(domain_rights_status or "").strip(),
                     speaker_verified=speaker_verified is True,
-                    speaker_verification_reference=str(speaker_verification_reference or "").strip(),
+                    speaker_verification_reference=str(
+                        speaker_verification_reference or ""
+                    ).strip(),
                     guru=guru_speaker,
                     dilemma=seeker_dilemma,
                     belief=limiting_belief,
@@ -294,7 +298,9 @@ class GuruKGService:
             logger.info("GuruKGService: consented user-state transition recorded.")
             return True
         except Exception as exc:
-            logger.warning("GuruKGService: Failed to record consented user-state transition: %s", exc)
+            logger.warning(
+                "GuruKGService: Failed to record consented user-state transition: %s", exc
+            )
             return False
 
     def traverse_guru_ontology(
@@ -433,9 +439,7 @@ class GuruKGService:
         if not arcs:
             return ""
 
-        blocks = [
-            "=== STRUCTURED ONTOLOGY RELATIONSHIPS (not verbatim teacher quotations) ==="
-        ]
+        blocks = ["=== STRUCTURED ONTOLOGY RELATIONSHIPS (not verbatim teacher quotations) ==="]
         for i, a in enumerate(arcs, 1):
             blocks.append(
                 f"Arc {i}: [Dilemma: {a.seeker_dilemma}] -> [Limiting Belief: {a.limiting_belief}]\n"

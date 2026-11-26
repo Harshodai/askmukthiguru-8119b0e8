@@ -47,7 +47,9 @@ def _run(monkeypatch, joint: Any, *, flag: bool = True, texts=None, parallel: bo
     monkeypatch.setattr(settings, "first_person_harness_parallel_enabled", parallel)
     llm = JointLLM(joint)
     pipeline = _harness_pipeline(llm, texts or [SPAN_TEXT_ONE])
-    result = asyncio.run(pipeline.aexecute(query_dense_vector=[1.0, 0.0], cache_bypass=True, **HARNESS_QUERY))
+    result = asyncio.run(
+        pipeline.aexecute(query_dense_vector=[1.0, 0.0], cache_bypass=True, **HARNESS_QUERY)
+    )
     return llm, result
 
 
@@ -75,7 +77,9 @@ def test_insufficient_abstains(monkeypatch, parallel):
     assert res.abstain_reason == "joint_insufficient"
 
 
-@pytest.mark.parametrize("reply", ["INSUFFICIENT.", "NOT SUFFICIENT", "garbage", "", "SUFFICIENT because", "yes"])
+@pytest.mark.parametrize(
+    "reply", ["INSUFFICIENT.", "NOT SUFFICIENT", "garbage", "", "SUFFICIENT because", "yes"]
+)
 @pytest.mark.parametrize("parallel", [True, False])
 def test_off_contract_reply_is_indeterminate_abstain(monkeypatch, reply, parallel):
     _, res = _run(monkeypatch, reply, parallel=parallel)
@@ -94,8 +98,12 @@ def test_provider_error_and_timeout_abstain(monkeypatch):
 @pytest.mark.asyncio
 async def test_insufficient_never_parses_as_sufficient(monkeypatch):
     monkeypatch.setattr(settings, "first_person_relevance_model", "")
-    for reply, want in [("INSUFFICIENT", "INSUFFICIENT"), ("SUFFICIENT", "SUFFICIENT"),
-                        ("INSUFFICIENT.", "INDETERMINATE"), ("NOT SUFFICIENT", "INDETERMINATE")]:
+    for reply, want in [
+        ("INSUFFICIENT", "INSUFFICIENT"),
+        ("SUFFICIENT", "SUFFICIENT"),
+        ("INSUFFICIENT.", "INDETERMINATE"),
+        ("NOT SUFFICIENT", "INDETERMINATE"),
+    ]:
         got = await fpp._joint_sufficiency_verdict("q", "q", "clip", JointLLM(reply), [])
         assert got == want
 
@@ -112,18 +120,23 @@ def test_second_context_served_when_first_insufficient(monkeypatch):
             if system_prompt == fpp._JOINT_SUFFICIENCY_SYSTEM_PROMPT:
                 self.calls.append("joint")
                 return "SUFFICIENT" if "Every relationship" in user_prompt else "INSUFFICIENT"
-            return await FakeLLM.generate(self, system_prompt=system_prompt, user_prompt=user_prompt, **kw)
+            return await FakeLLM.generate(
+                self, system_prompt=system_prompt, user_prompt=user_prompt, **kw
+            )
 
     _harness_on(monkeypatch, answerability=False)
     monkeypatch.setattr(settings, "first_person_joint_sufficiency_enabled", True)
     res = asyncio.run(
-        _harness_pipeline(Alternating("x"), [SPAN_TEXT_ONE, SPAN_TEXT_TWO]).aexecute(query_dense_vector=[1.0, 0.0], cache_bypass=True, **HARNESS_QUERY)
+        _harness_pipeline(Alternating("x"), [SPAN_TEXT_ONE, SPAN_TEXT_TWO]).aexecute(
+            query_dense_vector=[1.0, 0.0], cache_bypass=True, **HARNESS_QUERY
+        )
     )
     assert res.citations and "Every relationship" in res.answer_text
 
 
 def test_fingerprint_only_changes_when_flag_on(monkeypatch):
     import inspect
+
     src = inspect.getsource(fpp)
     assert '"joint_sufficiency": _JOINT_SUFFICIENCY_PROMPT_VERSION' in src
-    assert "if getattr(settings, \"first_person_joint_sufficiency_enabled\", False)" in src
+    assert 'if getattr(settings, "first_person_joint_sufficiency_enabled", False)' in src

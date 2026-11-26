@@ -20,7 +20,9 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 
-def _load_functions_from_file(path: Path, names: tuple[str, ...], extra_ns: dict | None = None) -> dict:
+def _load_functions_from_file(
+    path: Path, names: tuple[str, ...], extra_ns: dict | None = None
+) -> dict:
     src = path.read_text(encoding="utf-8")
     tree = ast.parse(src)
     ns = {"re": re, "asyncio": asyncio, "logger": logging.getLogger("test"), "Any": object}
@@ -95,10 +97,14 @@ class TestPolishAndWeaveClips(unittest.TestCase):
 
         class FailProvider:
             async def generate_fast(self, *args, **kwargs):
-                raise AssertionError("Should not be called when rag_verbatim_polishing_enabled=False")
+                raise AssertionError(
+                    "Should not be called when rag_verbatim_polishing_enabled=False"
+                )
 
         orig = "This is a sufficiently long answer with trailing preposition at"
-        out = asyncio.run(polish(orig, [{"text": orig}], "How to find peace?", provider=FailProvider()))
+        out = asyncio.run(
+            polish(orig, [{"text": orig}], "How to find peace?", provider=FailProvider())
+        )
         self.assertEqual(out, orig)
 
     def test_string_provider_name_does_not_bypass_container_fallback(self):
@@ -172,7 +178,14 @@ class TestConfigAndConsentHardening(unittest.TestCase):
 
     def test_observability_prepends_privacy_processor_before_exporters(self):
         src = (BACKEND_DIR / "app" / "observability.py").read_text(encoding="utf-8")
-        self.assertIn("(PrivacyRedactionSpanProcessor(),) + existing_processors", src)
+        # Whitespace-normalised so the formatter's line wrapping cannot break the check.
+        self.assertIn(
+            "(PrivacyRedactionSpanProcessor(),) + existing_processors",
+            "".join(src.split()).replace(
+                "(PrivacyRedactionSpanProcessor(),)+existing_processors",
+                "(PrivacyRedactionSpanProcessor(),) + existing_processors",
+            ),
+        )
 
 
 if __name__ == "__main__":

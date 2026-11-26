@@ -249,14 +249,23 @@ def extract_citations(state: GraphState) -> dict:
 
             ts_seconds = _resolve_timestamp(best_doc)
             clean_url = url
-            if clean_url and ts_seconds is not None and ts_seconds > 0 and _is_youtube_url(clean_url):
+            if (
+                clean_url
+                and ts_seconds is not None
+                and ts_seconds > 0
+                and _is_youtube_url(clean_url)
+            ):
                 sec = int(ts_seconds)
                 if "t=" not in clean_url:
-                    clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
+                    clean_url = (
+                        f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
+                    )
             elif is_book_source(clean_url):
                 clean_url = BOOK_FOUR_SACRED_SECRETS_URL
 
-            c_type = str(best_doc.get("content_type") or meta.get("content_type") or "").strip().lower()
+            c_type = (
+                str(best_doc.get("content_type") or meta.get("content_type") or "").strip().lower()
+            )
             if not clean_url and is_book_source(c_type):
                 clean_url = BOOK_FOUR_SACRED_SECRETS_URL
             is_verified = bool(
@@ -325,10 +334,19 @@ def extract_citations(state: GraphState) -> dict:
                 if matched_doc:
                     ts_seconds = _resolve_timestamp(matched_doc)
                     clean_url = url
-                    if clean_url and ts_seconds is not None and ts_seconds > 0 and _is_youtube_url(clean_url):
+                    if (
+                        clean_url
+                        and ts_seconds is not None
+                        and ts_seconds > 0
+                        and _is_youtube_url(clean_url)
+                    ):
                         sec = int(ts_seconds)
                         if "t=" not in clean_url:
-                            clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
+                            clean_url = (
+                                f"{clean_url}&t={sec}"
+                                if "?" in clean_url
+                                else f"{clean_url}?t={sec}"
+                            )
                     elif is_book_source(clean_url):
                         clean_url = BOOK_FOUR_SACRED_SECRETS_URL
                     d_meta = (
@@ -336,22 +354,28 @@ def extract_citations(state: GraphState) -> dict:
                         if isinstance(matched_doc.get("metadata"), dict)
                         else {}
                     )
-                    c_type = str(
-                        matched_doc.get("content_type") or d_meta.get("content_type") or ""
-                    ).strip().lower()
-                    enriched_established.append({
-                        "url": clean_url,
-                        "source_url": clean_url,
-                        "title": matched_doc.get("title") or d_meta.get("title") or "Spiritual Discourse",
-                        "timestamp_seconds": ts_seconds,
-                        "speaker": _resolve_speaker(matched_doc),
-                        "speaker_verified": bool(
-                            matched_doc.get("speaker_verified") is True
-                            or d_meta.get("speaker_verified") is True
-                            or c_type in ("book", "concept_summary", "summary")
-                        ),
-                        "chunk_provenance": matched_doc.get("chunk_provenance", ""),
-                    })
+                    c_type = (
+                        str(matched_doc.get("content_type") or d_meta.get("content_type") or "")
+                        .strip()
+                        .lower()
+                    )
+                    enriched_established.append(
+                        {
+                            "url": clean_url,
+                            "source_url": clean_url,
+                            "title": matched_doc.get("title")
+                            or d_meta.get("title")
+                            or "Spiritual Discourse",
+                            "timestamp_seconds": ts_seconds,
+                            "speaker": _resolve_speaker(matched_doc),
+                            "speaker_verified": bool(
+                                matched_doc.get("speaker_verified") is True
+                                or d_meta.get("speaker_verified") is True
+                                or c_type in ("book", "concept_summary", "summary")
+                            ),
+                            "chunk_provenance": matched_doc.get("chunk_provenance", ""),
+                        }
+                    )
                 else:
                     enriched_established.append({"url": url})
             elif isinstance(item, dict):
@@ -363,10 +387,19 @@ def extract_citations(state: GraphState) -> dict:
                 if matched_doc:
                     ts_seconds = item.get("timestamp_seconds") or _resolve_timestamp(matched_doc)
                     clean_url = url
-                    if clean_url and ts_seconds is not None and ts_seconds > 0 and _is_youtube_url(clean_url):
+                    if (
+                        clean_url
+                        and ts_seconds is not None
+                        and ts_seconds > 0
+                        and _is_youtube_url(clean_url)
+                    ):
                         sec = int(ts_seconds)
                         if "t=" not in clean_url:
-                            clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
+                            clean_url = (
+                                f"{clean_url}&t={sec}"
+                                if "?" in clean_url
+                                else f"{clean_url}?t={sec}"
+                            )
                     elif is_book_source(clean_url):
                         clean_url = BOOK_FOUR_SACRED_SECRETS_URL
                     d_meta = (
@@ -374,9 +407,11 @@ def extract_citations(state: GraphState) -> dict:
                         if isinstance(matched_doc.get("metadata"), dict)
                         else {}
                     )
-                    c_type = str(
-                        matched_doc.get("content_type") or d_meta.get("content_type") or ""
-                    ).strip().lower()
+                    c_type = (
+                        str(matched_doc.get("content_type") or d_meta.get("content_type") or "")
+                        .strip()
+                        .lower()
+                    )
                     item["url"] = clean_url
                     item["source_url"] = clean_url
                     if not item.get("timestamp_seconds"):
@@ -390,7 +425,9 @@ def extract_citations(state: GraphState) -> dict:
                             or c_type in ("book", "concept_summary", "summary")
                         )
                     if not item.get("title"):
-                        item["title"] = matched_doc.get("title") or d_meta.get("title") or "Spiritual Discourse"
+                        item["title"] = (
+                            matched_doc.get("title") or d_meta.get("title") or "Spiritual Discourse"
+                        )
                 enriched_established.append(item)
             else:
                 enriched_established.append(item)
@@ -415,15 +452,24 @@ def extract_citations(state: GraphState) -> dict:
                 title = str(d.get("title") or "Spiritual Discourse").strip()
                 ts_seconds = _resolve_timestamp(d)
                 clean_url = raw_url
-                if clean_url and ts_seconds is not None and ts_seconds > 0 and _is_youtube_url(clean_url):
+                if (
+                    clean_url
+                    and ts_seconds is not None
+                    and ts_seconds > 0
+                    and _is_youtube_url(clean_url)
+                ):
                     sec = int(ts_seconds)
                     if "t=" not in clean_url:
-                        clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
+                        clean_url = (
+                            f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
+                        )
                 elif is_book_source(clean_url):
                     clean_url = BOOK_FOUR_SACRED_SECRETS_URL
 
                 d_meta = d.get("metadata", {}) if isinstance(d.get("metadata"), dict) else {}
-                c_type = str(d.get("content_type") or d_meta.get("content_type") or "").strip().lower()
+                c_type = (
+                    str(d.get("content_type") or d_meta.get("content_type") or "").strip().lower()
+                )
                 if not clean_url and is_book_source(c_type):
                     clean_url = BOOK_FOUR_SACRED_SECRETS_URL
 
@@ -441,22 +487,24 @@ def extract_citations(state: GraphState) -> dict:
                     cleaned_snip = re.sub(r"^\[Source:[^\]]+\]\s*", "", raw_snip)[:350]
                     text_snippet = cleaned_snip or None
 
-                fallback_citations.append({
-                    "doc_id": clean_url or title,
-                    "source_url": clean_url,
-                    "url": clean_url,
-                    "title": title,
-                    "quote": answer[:150],
-                    "span_in_answer": answer[:150],
-                    "confidence": 0.5,
-                    "source": d_meta.get("source", "Retrieved document"),
-                    "knowledge_source": d.get("knowledge_source", "qdrant"),
-                    "chunk_provenance": d.get("chunk_provenance", ""),
-                    "speaker": _resolve_speaker(d),
-                    "speaker_verified": is_verified,
-                    "timestamp_seconds": ts_seconds,
-                    "text_snippet": text_snippet,
-                })
+                fallback_citations.append(
+                    {
+                        "doc_id": clean_url or title,
+                        "source_url": clean_url,
+                        "url": clean_url,
+                        "title": title,
+                        "quote": answer[:150],
+                        "span_in_answer": answer[:150],
+                        "confidence": 0.5,
+                        "source": d_meta.get("source", "Retrieved document"),
+                        "knowledge_source": d.get("knowledge_source", "qdrant"),
+                        "chunk_provenance": d.get("chunk_provenance", ""),
+                        "speaker": _resolve_speaker(d),
+                        "speaker_verified": is_verified,
+                        "timestamp_seconds": ts_seconds,
+                        "text_snippet": text_snippet,
+                    }
+                )
             if fallback_citations:
                 logger.info(
                     "Citation floor: fell back to top %d surviving doc(s) as citations",

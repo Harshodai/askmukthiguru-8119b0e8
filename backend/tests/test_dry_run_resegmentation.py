@@ -57,14 +57,19 @@ def test_regex_patterns_detect_target_structures():
 
     # Promissory causal resolution detection
     assert (
-        PROMISSORY_CAUSAL_RESOLUTION_RE.search("the entire parasympathetic nervous system is being shut off")
+        PROMISSORY_CAUSAL_RESOLUTION_RE.search(
+            "the entire parasympathetic nervous system is being shut off"
+        )
         is not None
     )
     assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("hurting your physical body") is not None
     assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("destroying our health") is not None
     assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("you're a person who's deceased") is not None
     assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("you're a person who is diseased") is not None
-    assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("move into states of calm, free yourself") is not None
+    assert (
+        PROMISSORY_CAUSAL_RESOLUTION_RE.search("move into states of calm, free yourself")
+        is not None
+    )
 
     # Dangling opener detection (supports optional leading whitespace)
     match = DANGLING_OPENER_RE.search(

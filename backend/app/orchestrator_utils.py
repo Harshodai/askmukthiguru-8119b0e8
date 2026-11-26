@@ -1057,7 +1057,9 @@ async def prepare_user_memory(
                         # get_distress_history() call raised AttributeError on
                         # every signed-in canonical-memory turn.
                     except Exception as exc:
-                        logger.warning("Failed to fetch user profile alongside canonical memory: %s", exc)
+                        logger.warning(
+                            "Failed to fetch user profile alongside canonical memory: %s", exc
+                        )
                 return _scrub_memory_context(merged), distress_history, profile, canonical_block
         except TimeoutError:
             logger.warning("Canonical memory context timed out; using legacy memory")

@@ -92,7 +92,9 @@ class VideoPipeline:
             # 2. Transcribe with Whisper (text + real segment timings when available)
             transcript, segments = await self._transcribe_with_segments(resolved_audio, video_id)
             if not transcript or len(transcript.strip()) < 50:
-                return VideoIngestResult(0, duration, (transcript or "")[:200], "transcript_too_short")
+                return VideoIngestResult(
+                    0, duration, (transcript or "")[:200], "transcript_too_short"
+                )
 
             # 3. Clean transcript
             cleaned = clean_transcript(transcript)
@@ -481,9 +483,7 @@ class VideoPipeline:
 
             chunk_voice = speaker_gate.annotate_chunks(
                 chunks=chunks,
-                starts=[
-                    None if s is None else float(s) * 1000.0 for s in chunk_starts
-                ]
+                starts=[None if s is None else float(s) * 1000.0 for s in chunk_starts]
                 if chunk_starts is not None
                 else None,
                 ends=[None if e is None else float(e) * 1000.0 for e in chunk_ends]
@@ -564,8 +564,12 @@ class VideoPipeline:
                 # interpolated — the speaker gate reads these same bounds.
                 "chunk_start": chunk_starts[i] if chunk_starts and i < len(chunk_starts) else None,
                 "chunk_end": chunk_ends[i] if chunk_ends and i < len(chunk_ends) else None,
-                "start_ms": int(chunk_starts[i] * 1000) if (chunk_starts and i < len(chunk_starts) and chunk_starts[i] is not None) else None,
-                "end_ms": int(chunk_ends[i] * 1000) if (chunk_ends and i < len(chunk_ends) and chunk_ends[i] is not None) else None,
+                "start_ms": int(chunk_starts[i] * 1000)
+                if (chunk_starts and i < len(chunk_starts) and chunk_starts[i] is not None)
+                else None,
+                "end_ms": int(chunk_ends[i] * 1000)
+                if (chunk_ends and i < len(chunk_ends) and chunk_ends[i] is not None)
+                else None,
                 "verbatim_text": chunk,
                 "is_verbatim": True,
                 "provenance_kind": "speech_turn_clip",
@@ -611,7 +615,8 @@ class VideoPipeline:
                 with memgraph_driver.session() as session:
                     graph_video_id = (
                         f"{graph_namespace}:{video_id or source}"
-                        if graph_namespace else str(video_id or source)
+                        if graph_namespace
+                        else str(video_id or source)
                     )
                     session.run(
                         "MERGE (v:Video {video_id: $video_id}) "
@@ -635,7 +640,9 @@ class VideoPipeline:
                             video_id=graph_video_id,
                             ingest_namespace=graph_namespace or "default",
                         )
-                logger.info("Indexed %d TeachingUnits in Memgraph for video %s", len(metadatas), video_id)
+                logger.info(
+                    "Indexed %d TeachingUnits in Memgraph for video %s", len(metadatas), video_id
+                )
         except Exception as mg_exc:
             logger.debug("Memgraph video indexing non-fatal exception: %s", mg_exc)
 

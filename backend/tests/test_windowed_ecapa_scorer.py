@@ -37,6 +37,7 @@ from scripts.ops.windowed_ecapa_v1_scorer import (  # noqa: E402
 # is_silent
 # ---------------------------------------------------------------------------
 
+
 def test_silence_skip_all_silent():
     """All-zeros audio is silent."""
     audio = np.zeros(16000 * 3, dtype=np.float32)
@@ -69,6 +70,7 @@ def test_silence_just_above_floor():
 # ---------------------------------------------------------------------------
 # windowed_verdict — core cases
 # ---------------------------------------------------------------------------
+
 
 def _make_window_score(cosine: float, margin: float, predicted: str) -> dict:
     return {"cosine": cosine, "margin": margin, "predicted": predicted, "scores": {}}
@@ -162,6 +164,7 @@ def test_below_margin_threshold_window_refuses():
 # calibrate_windowed_floor
 # ---------------------------------------------------------------------------
 
+
 def test_calibration_threshold_selection():
     """Calibration from known distributions → FAR ≤ 1% and positive_pass_rate > 0.9."""
     rng = np.random.default_rng(7)
@@ -210,6 +213,7 @@ def test_calibration_no_positives_fails_closed():
 # _slide_windows
 # ---------------------------------------------------------------------------
 
+
 def test_slide_windows_short_audio_padded():
     """Audio shorter than window_frames gets padded to one full window."""
     sr = 16000
@@ -236,6 +240,7 @@ def test_slide_windows_empty_audio():
 # ---------------------------------------------------------------------------
 # _roc_auc
 # ---------------------------------------------------------------------------
+
 
 def test_roc_auc_perfect_separation():
     pos = [0.9, 0.85, 0.80]

@@ -116,12 +116,18 @@ def _send_meta_outbound(phone_number_id: str, to_number: str, message_text: str)
         if resp.status_code in (200, 201):
             data = resp.json() if resp.content else {}
             msg_id = (data.get("messages") or [{}])[0].get("id", "unknown")
-            logger.info("Outbound WhatsApp accepted by Meta API (id=%s) for %s", msg_id, mask_phone(target_phone))
+            logger.info(
+                "Outbound WhatsApp accepted by Meta API (id=%s) for %s",
+                msg_id,
+                mask_phone(target_phone),
+            )
             return True
         logger.error("Meta API error %d: %s", resp.status_code, resp.text)
         return False
     except Exception as exc:
-        logger.exception("Failed sending outbound WhatsApp to %s: %s", mask_phone(target_phone), exc)
+        logger.exception(
+            "Failed sending outbound WhatsApp to %s: %s", mask_phone(target_phone), exc
+        )
         return False
 
 
@@ -209,7 +215,9 @@ def process_whatsapp_turn_task(
 
     # 1. Crisis Preemption
     if likely_crisis(user_message):
-        logger.warning("Acute crisis detected for %s; preempting with helplines", mask_phone(clean_p))
+        logger.warning(
+            "Acute crisis detected for %s; preempting with helplines", mask_phone(clean_p)
+        )
         if channel == "meta":
             _send_meta_outbound(phone_id, clean_p, CRISIS_HELPLINE_COPY)
         else:
@@ -221,7 +229,10 @@ def process_whatsapp_turn_task(
 
     # Preempt if automated AI is temporarily paused for human handoff
     if is_whatsapp_ai_paused(p_hash):
-        logger.info("WhatsApp AI is paused for human interaction on %s; skipping automated turn", mask_phone(clean_p))
+        logger.info(
+            "WhatsApp AI is paused for human interaction on %s; skipping automated turn",
+            mask_phone(clean_p),
+        )
         return {"status": "ai_paused_for_human", "phone": mask_phone(clean_p)}
 
     user_id: str | None = None
@@ -230,6 +241,7 @@ def process_whatsapp_turn_task(
 
     try:
         from app.dependencies import get_container
+
         container = get_container()
         db = getattr(container, "supabase_client", None)
         if db:
@@ -294,6 +306,7 @@ def process_whatsapp_turn_task(
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 import nest_asyncio
+
                 nest_asyncio.apply()
                 pipeline_res = loop.run_until_complete(_run_pipeline())
             else:
@@ -362,29 +375,35 @@ def process_whatsapp_turn_task(
             else:
                 new_conv = (
                     db.table("conversations")
-                    .insert({
-                        "user_id": user_id,
-                        "title": "WhatsApp Companion",
-                        "preview": user_message[:120],
-                    })
+                    .insert(
+                        {
+                            "user_id": user_id,
+                            "title": "WhatsApp Companion",
+                            "preview": user_message[:120],
+                        }
+                    )
                     .execute()
                 )
                 conv_id = (getattr(new_conv, "data", []) or [{}])[0].get("id")
 
             if conv_id:
-                db.table("chat_messages").insert([
-                    {
-                        "conversation_id": conv_id,
-                        "role": "user",
-                        "content": user_message,
-                    },
-                    {
-                        "conversation_id": conv_id,
-                        "role": "guru",
-                        "content": answer_text,
-                    },
-                ]).execute()
-                logger.info("Synced WhatsApp conversation turn into chat_messages for user %s", user_id)
+                db.table("chat_messages").insert(
+                    [
+                        {
+                            "conversation_id": conv_id,
+                            "role": "user",
+                            "content": user_message,
+                        },
+                        {
+                            "conversation_id": conv_id,
+                            "role": "guru",
+                            "content": answer_text,
+                        },
+                    ]
+                ).execute()
+                logger.info(
+                    "Synced WhatsApp conversation turn into chat_messages for user %s", user_id
+                )
         except Exception as e:
             logger.warning("History sync note: %s", e)
 
@@ -392,8 +411,17 @@ def process_whatsapp_turn_task(
     if memory_write and user_id and db:
         try:
             from services.memory.canonical_memory_service import CanonicalMemoryStore
+
             # Check for personal spiritual practice / reflection keywords
-            mem_triggers = ("remember", "my practice", "daily practice", "i feel", "struggling with", "my intent", "soul sync")
+            mem_triggers = (
+                "remember",
+                "my practice",
+                "daily practice",
+                "i feel",
+                "struggling with",
+                "my intent",
+                "soul sync",
+            )
             if any(t in user_message.lower() for t in mem_triggers):
                 store = CanonicalMemoryStore(db)
                 store.add_memory(
@@ -402,7 +430,9 @@ def process_whatsapp_turn_task(
                     category="reflection",
                     source_turn=f"wa_turn_{session_id}",
                 )
-                logger.info("Saved consented second-brain memory for user %s from WhatsApp", user_id)
+                logger.info(
+                    "Saved consented second-brain memory for user %s from WhatsApp", user_id
+                )
         except Exception as e:
             logger.debug("Memory write note: %s", e)
 

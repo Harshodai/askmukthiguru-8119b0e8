@@ -1029,6 +1029,7 @@ async def test_coordinator_confirms_context_only_when_a_probe_returns_data():
 # Milestone M2 Regression & Verification Tests (DEF-R2-01 through DEF-R2-05)
 # =========================================================================
 
+
 @pytest.mark.asyncio
 async def test_def_r2_01_graph_stage_injects_synthetic_personalize_doc(monkeypatch):
     """DEF-R2-01: GraphStage constructs synthetic personalize_doc in initial_state['documents']."""
@@ -1151,7 +1152,9 @@ async def test_def_r2_03_prepare_user_memory_preserves_user_profile_with_canonic
 
 
 @pytest.mark.asyncio
-async def test_def_r2_04_unified_engine_genuine_facet_queries_and_graph_stage_forwarding(monkeypatch):
+async def test_def_r2_04_unified_engine_genuine_facet_queries_and_graph_stage_forwarding(
+    monkeypatch,
+):
     """DEF-R2-04: Unified engine executes facet queries and GraphStage forwards seeker_guidance."""
     from app.pipeline.stages.graph_stage import GraphStage
     from services.personalization import UnifiedPersonalizationEngine

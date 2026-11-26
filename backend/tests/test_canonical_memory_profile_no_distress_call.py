@@ -21,7 +21,9 @@ class _Profiles:
     """Only the methods the real UserProfileService has."""
 
     def __init__(self) -> None:
-        self.profile = UserProfile(user_id="11111111-1111-1111-1111-111111111111", created_at=0.0, updated_at=0.0)
+        self.profile = UserProfile(
+            user_id="11111111-1111-1111-1111-111111111111", created_at=0.0, updated_at=0.0
+        )
 
     async def get_or_create_profile(self, user_id: str) -> UserProfile:
         return self.profile

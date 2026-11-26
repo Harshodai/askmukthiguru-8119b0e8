@@ -452,7 +452,8 @@ class CacheCheckStage(Stage):
                 is_abstained_cache = (
                     cached.get("grounding_state") == "abstained"
                     or cached.get("route_decision") == "first_person_abstain"
-                    or (cached.get("route_metadata") or {}).get("decision") == "first_person_abstain"
+                    or (cached.get("route_metadata") or {}).get("decision")
+                    == "first_person_abstain"
                 )
                 is_cached_teaching = bool(
                     (cached.get("route_metadata") or {}).get("fp_served")
@@ -770,7 +771,9 @@ class CacheUpdateStage(Stage):
                 # response has no grounded teaching and must not be cached as a
                 # semantic hit — a later identical query must go through the full
                 # pipeline so it can retrieve a clip if one becomes available.
-                is_fp_abstain = str(getattr(ctx, "route_decision", "") or "") == "first_person_abstain"
+                is_fp_abstain = (
+                    str(getattr(ctx, "route_decision", "") or "") == "first_person_abstain"
+                )
                 if (
                     not is_teaching
                     and not partial_evidence

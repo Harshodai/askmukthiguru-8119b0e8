@@ -91,7 +91,9 @@ def test_book_citation_canonicalized_to_amzn() -> None:
                 "url": "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
                 "content_type": "book",
                 "title": "The Four Sacred Secrets",
-                "metadata": {"source_url": "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"},
+                "metadata": {
+                    "source_url": "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
+                },
             }
         ],
     }
@@ -101,4 +103,3 @@ def test_book_citation_canonicalized_to_amzn() -> None:
     assert citations[0]["url"] == BOOK_FOUR_SACRED_SECRETS_URL
     assert citations[0]["source_url"] == BOOK_FOUR_SACRED_SECRETS_URL
     assert citations[0]["speaker_verified"] is True
-

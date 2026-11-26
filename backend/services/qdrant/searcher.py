@@ -522,10 +522,13 @@ class QdrantSearcher:
                 "score": getattr(hit, "score", 0.0),
                 "fused_score": getattr(hit, "score", 0.0),
                 "dense_score": hit.payload.get("dense_score") or getattr(hit, "dense_score", None),
-                "sparse_score": hit.payload.get("sparse_score") or getattr(hit, "sparse_score", None),
+                "sparse_score": hit.payload.get("sparse_score")
+                or getattr(hit, "sparse_score", None),
                 "dense_rank": hit.payload.get("dense_rank") or getattr(hit, "dense_rank", None),
                 "sparse_rank": hit.payload.get("sparse_rank") or getattr(hit, "sparse_rank", None),
-                "hybrid_channel": hit.payload.get("hybrid_channel", "hybrid_fused" if sparse_vector else "dense_only"),
+                "hybrid_channel": hit.payload.get(
+                    "hybrid_channel", "hybrid_fused" if sparse_vector else "dense_only"
+                ),
                 "parent_id": hit.payload.get("parent_id"),
                 "parent_text": hit.payload.get("parent_text"),
                 "group_id": hit.payload.get("group_id"),
@@ -628,7 +631,9 @@ class QdrantSearcher:
             should=should if should else None,
         )
 
-    def _dense_quantization_search_params(self, hnsw_ef: Optional[int] = None) -> Optional[SearchParams]:
+    def _dense_quantization_search_params(
+        self, hnsw_ef: Optional[int] = None
+    ) -> Optional[SearchParams]:
         """Return search params with hnsw_ef and rescore + oversampling for non-scalar quantizers."""
         ef_val: Optional[int] = None
         if isinstance(hnsw_ef, int) and hnsw_ef > 0:

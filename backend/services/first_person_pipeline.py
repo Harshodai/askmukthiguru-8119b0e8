@@ -371,12 +371,37 @@ _SEVERED_PREPOSITION_OPENER_RE = re.compile(
     re.IGNORECASE,
 )
 
-_TRY2_STOP_WORDS: frozenset[str] = frozenset({
-    "with", "without", "from", "that", "this", "what", "when",
-    "your", "have", "about", "into", "their", "there", "then",
-    "them", "these", "those", "over", "under", "after", "before",
-    "here", "some", "such", "only", "also", "most",
-})
+_TRY2_STOP_WORDS: frozenset[str] = frozenset(
+    {
+        "with",
+        "without",
+        "from",
+        "that",
+        "this",
+        "what",
+        "when",
+        "your",
+        "have",
+        "about",
+        "into",
+        "their",
+        "there",
+        "then",
+        "them",
+        "these",
+        "those",
+        "over",
+        "under",
+        "after",
+        "before",
+        "here",
+        "some",
+        "such",
+        "only",
+        "also",
+        "most",
+    }
+)
 
 
 def _passes_integrity_gate(
@@ -1460,7 +1485,12 @@ def _relevance_select_scored(
     try:
         return run_llm_coroutine(
             lambda: _relevance_select_scored_async(
-                query, clips, llm_service, None, token_sink=token_sink, scores_out=scores_out,
+                query,
+                clips,
+                llm_service,
+                None,
+                token_sink=token_sink,
+                scores_out=scores_out,
                 is_distress=is_distress,
             ),
             _FACADE_TIMEOUT_S,
@@ -3137,7 +3167,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     max_neighbors=int(
                         getattr(settings, "first_person_graph_expansion_max_neighbors", 8)
                     ),
-                    timeout_s=float(getattr(settings, "first_person_graph_expansion_timeout_s", 1.5)),
+                    timeout_s=float(
+                        getattr(settings, "first_person_graph_expansion_timeout_s", 1.5)
+                    ),
                 )
             except Exception as exc:
                 logger.debug(
@@ -3252,9 +3284,13 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
 
         # SLA Latency Protection: Bound merged candidate pool so downstream judge does not fan out.
         if getattr(settings, "first_person_memgraph_sizing_enabled", True):
-            max_total_contexts = int(getattr(settings, "first_person_memgraph_sizing_max_k", 12)) * 2
+            max_total_contexts = (
+                int(getattr(settings, "first_person_memgraph_sizing_max_k", 12)) * 2
+            )
         else:
-            max_total_contexts = int(getattr(settings, "first_person_max_evaluated_contexts", 4) or 4)
+            max_total_contexts = int(
+                getattr(settings, "first_person_max_evaluated_contexts", 4) or 4
+            )
         return merged[:max_total_contexts]
 
     @staticmethod
@@ -3411,7 +3447,10 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     or str(citation.get("video_id") or "") != video_id
                     or not _is_same_or_shared_guru(citation.get("guru_id") or "", guru_id)
                     or not _is_same_or_shared_guru(citation.get("teacher_id") or "", guru_id)
-                    or (str(citation.get("parent_unit_id") or "") != parent_id and not is_predecessor)
+                    or (
+                        str(citation.get("parent_unit_id") or "") != parent_id
+                        and not is_predecessor
+                    )
                     or str(citation.get("speaker_id") or "") != speaker_id
                     or citation.get("speaker_verified") is not True
                     or citation.get("speaker_role") not in ("guru", "teacher")
@@ -3437,7 +3476,13 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 or len(set(span_ids)) != len(span_ids)
                 or (
                     same_parent_indices
-                    and same_parent_indices != list(range(same_parent_indices[0], same_parent_indices[0] + len(same_parent_indices)))
+                    and same_parent_indices
+                    != list(
+                        range(
+                            same_parent_indices[0],
+                            same_parent_indices[0] + len(same_parent_indices),
+                        )
+                    )
                 )
             ):
                 continue
@@ -4081,7 +4126,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 # Serving posture & additive retrieval/ranking flags that alter
                 # the candidate pool or served answer must re-key the exact cache.
                 "serving_posture": str(getattr(settings, "first_person_serving_posture", "") or ""),
-                "active_collection": str(getattr(settings, "first_person_active_collection", "") or ""),
+                "active_collection": str(
+                    getattr(settings, "first_person_active_collection", "") or ""
+                ),
                 "context_use_sparse": str(
                     bool(getattr(settings, "first_person_context_use_sparse", True))
                 ),
@@ -4704,20 +4751,15 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         distress_assessment = max(
             (a for a in assessments if a), key=lambda a: a.level.value, default=None
         )
-        if (
-            distress_assessment
-            and distress_assessment.level is DistressLevel.SEVERE
-        ):
+        if distress_assessment and distress_assessment.level is DistressLevel.SEVERE:
             from app.pipeline.stages.distress_stage import (
                 _only_existential_signal,
                 classify_existential_vs_severe_distress,
             )
-            if (
-                _only_existential_signal(distress_assessment)
-                and any(
-                    classify_existential_vs_severe_distress(t) == "MILD_EXISTENTIAL"
-                    for t in safety_texts
-                )
+
+            if _only_existential_signal(distress_assessment) and any(
+                classify_existential_vs_severe_distress(t) == "MILD_EXISTENTIAL"
+                for t in safety_texts
             ):
                 logger.info("[FirstPersonPipeline] De-escalating existential query to MILD")
                 distress_assessment.level = DistressLevel.MILD
@@ -5101,13 +5143,16 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             else:
                 editorial_teacher_id = editorial_facets.teacher_scope
         elif editorial_teacher_id is None:
-            editorial_teacher_id = get_default_planner().plan(
-                retrieval_query or query
-            ).teacher_scope
+            editorial_teacher_id = (
+                get_default_planner().plan(retrieval_query or query).teacher_scope
+            )
         candidate_pool = int(getattr(settings, "first_person_context_candidate_limit", 0) or 0)
         if candidate_pool > 0 and not editorial_set_enabled:
             harness_candidate_limit = candidate_pool
-        elif getattr(settings, "first_person_memgraph_sizing_enabled", True) and not editorial_set_enabled:
+        elif (
+            getattr(settings, "first_person_memgraph_sizing_enabled", True)
+            and not editorial_set_enabled
+        ):
             # Dynamic candidate pool sizing: fetch enough parent candidates (up to max_k * 2)
             # so Memgraph-selected k contexts can be evaluated from a diverse candidate pool.
             harness_candidate_limit = max(
@@ -5186,7 +5231,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 contexts = []
             t_ctx_ret_ms = (time.monotonic() - t_ctx_start) * 1000.0
 
-            _try2_budget_s = float(getattr(settings, "first_person_try2_budget_ceiling_s", 2.5) or 2.5)
+            _try2_budget_s = float(
+                getattr(settings, "first_person_try2_budget_ceiling_s", 2.5) or 2.5
+            )
             _elapsed = (time.monotonic() - start_time) if start_time > 0 else 0.0
             if not contexts and _elapsed > _try2_budget_s:
                 logger.info(
@@ -5285,7 +5332,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     _max_eval = _decision.k
                     _sizing_ms = _decision.duration_ms
                 else:
-                    _max_eval = int(getattr(settings, "first_person_max_evaluated_contexts", 4) or 4)
+                    _max_eval = int(
+                        getattr(settings, "first_person_max_evaluated_contexts", 4) or 4
+                    )
                 all_try1_contexts = list(contexts)
                 _top_context_score = float(getattr(all_try1_contexts[0], "score", 1.0) or 1.0)
                 t_ans_start = time.monotonic()
@@ -5530,7 +5579,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         cit_dict = self._build_context_citation(span, c_span, confidence=confidence)
                         if (
                             validated_predecessor is not None
-                            and span.source_span_id == validated_predecessor.predecessor.source_span_id
+                            and span.source_span_id
+                            == validated_predecessor.predecessor.source_span_id
                         ):
                             cit_dict["is_predecessor"] = True
                             # A5 Surface adjacency as metadata, never prose in answer_text
@@ -6144,7 +6194,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 # Retrieve secondary candidate contexts from FirstPersonContextStore.
                 # Adjudicate candidates with Judge Claude Haiku.
                 # Ensure 100% verbatim authenticity of any served clip.
-                _try2_budget_s = float(getattr(settings, "first_person_try2_budget_ceiling_s", 2.5) or 2.5)
+                _try2_budget_s = float(
+                    getattr(settings, "first_person_try2_budget_ceiling_s", 2.5) or 2.5
+                )
                 _elapsed = (time.monotonic() - start_time) if start_time > 0 else 0.0
                 if _try2_enabled and _elapsed > _try2_budget_s:
                     logger.info(
@@ -6195,9 +6247,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                         if isinstance(exp_enc, dict)
                                         else exp_enc
                                     )
-                                    if isinstance(exp_dense, (list, tuple)) and len(exp_dense) == len(
-                                        query_dense_vector
-                                    ):
+                                    if isinstance(exp_dense, (list, tuple)) and len(
+                                        exp_dense
+                                    ) == len(query_dense_vector):
                                         base_vec = confidence_query_dense or query_dense_vector
                                         blended_t2 = [
                                             0.5 * float(a) + 0.5 * float(b)
@@ -6260,13 +6312,13 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             try2_contexts = [
                                 c
                                 for c in try2_contexts_raw
-                                if str(getattr(getattr(c, "parent", None), "parent_unit_id", "") or "")
+                                if str(
+                                    getattr(getattr(c, "parent", None), "parent_unit_id", "") or ""
+                                )
                                 not in seen_parent_ids
                             ]
                             try2_prepared = (
-                                await _screen_candidates(try2_contexts, 2)
-                                if try2_contexts
-                                else []
+                                await _screen_candidates(try2_contexts, 2) if try2_contexts else []
                             )
 
                             if try2_prepared:
@@ -6275,7 +6327,11 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                     len(try2_prepared),
                                 )
                                 _try2_parallel = (
-                                    bool(getattr(settings, "first_person_harness_parallel_enabled", True))
+                                    bool(
+                                        getattr(
+                                            settings, "first_person_harness_parallel_enabled", True
+                                        )
+                                    )
                                     and len(try2_prepared) > 1
                                 )
                                 if _try2_parallel:
@@ -6308,7 +6364,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                             fp_llm_tokens.extend(_t2_toks)
                                             _try2_results[idx] = _t2_res
 
-                                    _try2_winner = next((r for r in _try2_results if r is not None), None)
+                                    _try2_winner = next(
+                                        (r for r in _try2_results if r is not None), None
+                                    )
                                     if _try2_winner is not None:
                                         logger.info(
                                             "[FirstPersonPipeline] Try 2 SUCCESS: served verified verbatim clip with %d citation(s)",
@@ -6327,7 +6385,10 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                         self._log_and_count(
                                             _try2_winner.status,
                                             _try2_winner.latency_ms,
-                                            float(getattr(try2_prepared[0]["ctx"], "score", 1.0) or 1.0),
+                                            float(
+                                                getattr(try2_prepared[0]["ctx"], "score", 1.0)
+                                                or 1.0
+                                            ),
                                             0,
                                             len(_try2_winner.citations),
                                             "none",

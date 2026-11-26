@@ -38,7 +38,9 @@ async def _run(container, *, msg, lang, msg_en):
 
 @pytest.mark.asyncio
 async def test_english_turn_still_runs_hyde(hyde, fp_pipeline):  # noqa: F811
-    gen = await _run(hyde, msg="How do I control anger?", lang="en", msg_en="How do I control anger?")
+    gen = await _run(
+        hyde, msg="How do I control anger?", lang="en", msg_en="How do I control anger?"
+    )
     gen.assert_awaited_once()
 
 

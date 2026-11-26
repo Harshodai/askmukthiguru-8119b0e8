@@ -1783,25 +1783,19 @@ def test_original_query_confidence_uses_the_original_question_not_the_retrieval_
 def test_original_query_confidence_keeps_the_retrieval_score_when_no_vector_is_readable():
     from services.first_person_pipeline import _original_query_confidence
 
-    assert (
-        _original_query_confidence(
-            original_query_dense=[1.0, 0.0],
-            span_ids=["span-a"],
-            dense_by_span={},
-            fallback=0.83,
-        )
-        == pytest.approx(0.83)
-    )
+    assert _original_query_confidence(
+        original_query_dense=[1.0, 0.0],
+        span_ids=["span-a"],
+        dense_by_span={},
+        fallback=0.83,
+    ) == pytest.approx(0.83)
     # A dimension mismatch is not a zero-confidence claim either.
-    assert (
-        _original_query_confidence(
-            original_query_dense=[1.0, 0.0],
-            span_ids=["span-a"],
-            dense_by_span={"span-a": [1.0, 0.0, 0.0]},
-            fallback=0.42,
-        )
-        == pytest.approx(0.42)
-    )
+    assert _original_query_confidence(
+        original_query_dense=[1.0, 0.0],
+        span_ids=["span-a"],
+        dense_by_span={"span-a": [1.0, 0.0, 0.0]},
+        fallback=0.42,
+    ) == pytest.approx(0.42)
 
 
 def test_context_harness_recomputes_confidence_only_when_retrieval_vector_differs():
@@ -1809,12 +1803,8 @@ def test_context_harness_recomputes_confidence_only_when_retrieval_vector_differ
 
     source = inspect.getsource(FirstPersonPipeline._serve_from_context_harness)
     assert "_original_query_confidence(" in source
-    assert "confidence_query_dense" in inspect.signature(
-        FirstPersonPipeline.execute
-    ).parameters
-    assert "confidence_query_dense" in inspect.signature(
-        FirstPersonPipeline.aexecute
-    ).parameters
+    assert "confidence_query_dense" in inspect.signature(FirstPersonPipeline.execute).parameters
+    assert "confidence_query_dense" in inspect.signature(FirstPersonPipeline.aexecute).parameters
 
 
 def test_original_query_confidence_distress_honors_hyde_expansion():

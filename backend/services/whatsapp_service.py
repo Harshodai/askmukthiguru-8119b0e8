@@ -35,8 +35,14 @@ _MASK_PHONE_RE = re.compile(r"^(\+?\d{1,3})(\d{2})\d+(\d{3})$")
 
 # Crisis regex matching acute self-harm / suicide
 _CRISIS_PATTERNS = [
-    re.compile(r"\b(suicid\w*|kill\s+myself|end(?:ing)?\s+my\s+life|want\s+to\s+die|harm\s+myself)\b", re.IGNORECASE),
-    re.compile(r"\b(no\s+reason\s+to\s+live|don'?t\s+want\s+to\s+live|better\s+off\s+dead)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(suicid\w*|kill\s+myself|end(?:ing)?\s+my\s+life|want\s+to\s+die|harm\s+myself)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(no\s+reason\s+to\s+live|don'?t\s+want\s+to\s+live|better\s+off\s+dead)\b",
+        re.IGNORECASE,
+    ),
     re.compile(r"\b(can'?t\s+go\s+on\s+living|ending\s+it\s+all)\b", re.IGNORECASE),
     re.compile(r"(आत्महत्या|मरना\s*चाहता|जीने\s*की\s*इच्छा\s*नहीं)", re.IGNORECASE),
 ]
@@ -95,7 +101,9 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.strip().encode("utf-8")).hexdigest()
 
 
-def validate_meta_signature(raw_body: bytes, header_signature: str | None, app_secret: str | None) -> bool:
+def validate_meta_signature(
+    raw_body: bytes, header_signature: str | None, app_secret: str | None
+) -> bool:
     """
     Validate X-Hub-Signature-256 against Meta App Secret using constant-time comparison.
     Fails closed if signature is missing, malformed, or secret is empty.
@@ -146,7 +154,9 @@ def format_whatsapp_message(text: str, citations: list[str] | None = None) -> st
                     valid_cites.append(str(title))
             elif hasattr(c, "url"):
                 url = getattr(c, "url", "")
-                title = getattr(c, "title", None) or getattr(c, "video_id", None) or "Discourse Clip"
+                title = (
+                    getattr(c, "title", None) or getattr(c, "video_id", None) or "Discourse Clip"
+                )
                 if url:
                     valid_cites.append(f"{title}: {url}")
                 elif title:
@@ -161,6 +171,7 @@ def format_whatsapp_message(text: str, citations: list[str] | None = None) -> st
 # ---------------------------------------------------------------------------
 # Database Operations (Async via Supabase Client)
 # ---------------------------------------------------------------------------
+
 
 async def create_link_challenge(
     supabase: Any,
@@ -198,7 +209,9 @@ async def create_link_challenge(
         return supabase.table("whatsapp_link_challenges").insert(challenge_row).execute()
 
     await asyncio.to_thread(_insert)
-    logger.info("Created WhatsApp link challenge for %s (expires: %s)", p_masked, expires_at.isoformat())
+    logger.info(
+        "Created WhatsApp link challenge for %s (expires: %s)", p_masked, expires_at.isoformat()
+    )
     return raw_token, challenge_row
 
 
@@ -251,10 +264,12 @@ async def verify_link_challenge(
     def _consume_challenge():
         return (
             supabase.table("whatsapp_link_challenges")
-            .update({
-                "consumed_at": now.isoformat(),
-                "confirmed_web_user_id": user_id,
-            })
+            .update(
+                {
+                    "consumed_at": now.isoformat(),
+                    "confirmed_web_user_id": user_id,
+                }
+            )
             .eq("id", challenge["id"])
             .execute()
         )
@@ -269,7 +284,7 @@ async def verify_link_challenge(
         "phone_number_masked": p_masked,
         "phone_number_encrypted": p_raw,
         "status": "active",
-        "sync_history_consent": False,   # DPDP: channel history sync defaults to False
+        "sync_history_consent": False,  # DPDP: channel history sync defaults to False
         "memory_write_consent": False,  # DPDP: long-term memory consent defaults to False
         "linked_at": now.isoformat(),
         "revoked_at": None,
@@ -293,6 +308,7 @@ async def verify_link_challenge(
 
 async def get_link_status(supabase: Any, user_id: str) -> dict[str, Any]:
     """Retrieve WhatsApp link status and DPDP consent settings for a user."""
+
     def _query():
         return (
             supabase.table("whatsapp_account_links")
@@ -369,13 +385,15 @@ async def unlink_account(supabase: Any, user_id: str) -> bool:
     def _revoke():
         return (
             supabase.table("whatsapp_account_links")
-            .update({
-                "status": "unlinked",
-                "revoked_at": now,
-                "sync_history_consent": False,
-                "memory_write_consent": False,
-                "updated_at": now,
-            })
+            .update(
+                {
+                    "status": "unlinked",
+                    "revoked_at": now,
+                    "sync_history_consent": False,
+                    "memory_write_consent": False,
+                    "updated_at": now,
+                }
+            )
             .eq("user_id", user_id)
             .eq("status", "active")
             .execute()
@@ -425,7 +443,9 @@ async def optout_account_by_phone(supabase: Any, phone: str) -> bool:
 
     res = await asyncio.to_thread(_optout)
     rows = getattr(res, "data", []) or []
-    logger.info("Opted out WhatsApp account for phone hash %s (rows affected: %d)", p_hash[:8], len(rows))
+    logger.info(
+        "Opted out WhatsApp account for phone hash %s (rows affected: %d)", p_hash[:8], len(rows)
+    )
     return len(rows) > 0
 
 
@@ -447,7 +467,9 @@ async def resume_account_by_phone(supabase: Any, phone: str) -> bool:
 
     res = await asyncio.to_thread(_resume)
     rows = getattr(res, "data", []) or []
-    logger.info("Resumed WhatsApp account for phone hash %s (rows affected: %d)", p_hash[:8], len(rows))
+    logger.info(
+        "Resumed WhatsApp account for phone hash %s (rows affected: %d)", p_hash[:8], len(rows)
+    )
     return len(rows) > 0
 
 
@@ -458,6 +480,7 @@ def get_whatsapp_redis():
         return None
     try:
         import redis
+
         return redis.Redis.from_url(redis_url, decode_responses=True)
     except Exception as exc:
         logger.warning("Failed to initialize Redis for WhatsApp: %s", exc)
@@ -557,4 +580,3 @@ def build_meta_interactive_buttons(
     if footer_text:
         payload["interactive"]["footer"] = {"text": footer_text[:60]}
     return payload
-

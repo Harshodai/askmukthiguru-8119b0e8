@@ -247,4 +247,3 @@ def test_require_external_provenance_raises_when_unconfigured():
             require_external_provenance=True,
         )
     assert "External keyword research provider is not configured" in str(exc.value)
-

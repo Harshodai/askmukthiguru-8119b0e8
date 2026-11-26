@@ -19,7 +19,11 @@ def test_first_person_hyde_timeout_bounded():
 def test_openrouter_generation_model_defaults_to_fast_70b():
     """Verify default generation model is high-throughput llama-3.3-70b-instruct."""
     from app.config import Settings
-    assert Settings.model_fields["openrouter_generation_model"].default == "meta-llama/llama-3.3-70b-instruct"
+
+    assert (
+        Settings.model_fields["openrouter_generation_model"].default
+        == "meta-llama/llama-3.3-70b-instruct"
+    )
 
 
 @pytest.mark.asyncio

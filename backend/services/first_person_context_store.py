@@ -176,7 +176,7 @@ def _dense_cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
         nb += fy * fy
     if na <= 0.0 or nb <= 0.0:
         return 0.0
-    return dot / ((na ** 0.5) * (nb ** 0.5))
+    return dot / ((na**0.5) * (nb**0.5))
 
 
 def _hit_dense_vector(hit: Any) -> Optional[list[float]]:
@@ -1317,9 +1317,7 @@ class FirstPersonContextStore:
         """Apply the narrow fail-closed gates required for sibling stitching."""
         from app.config import settings
 
-        require_speaker_verified = getattr(
-            settings, "first_person_require_speaker_verified", False
-        )
+        require_speaker_verified = getattr(settings, "first_person_require_speaker_verified", False)
         if (
             span.speaker_role not in (SpeakerRole.GURU, SpeakerRole.TEACHER)
             or (require_speaker_verified and span.speaker_verified is not True)
@@ -1476,9 +1474,7 @@ class FirstPersonContextStore:
         fresh_spans: list[SourceSpan] = []
         from app.config import settings
 
-        require_speaker_verified = getattr(
-            settings, "first_person_require_speaker_verified", False
-        )
+        require_speaker_verified = getattr(settings, "first_person_require_speaker_verified", False)
         for span_id in authoritative_ids:
             span = spans_by_id.get(span_id)
             if span is None:
@@ -1546,9 +1542,7 @@ class FirstPersonContextStore:
             return False
         from app.config import settings
 
-        require_speaker_verified = getattr(
-            settings, "first_person_require_speaker_verified", False
-        )
+        require_speaker_verified = getattr(settings, "first_person_require_speaker_verified", False)
         for record in records:
             payload = record.payload or {}
             point_id = str(record.id)
@@ -1556,7 +1550,10 @@ class FirstPersonContextStore:
                 return False
             if point_id not in unique:
                 return False
-            if payload.get("speaker_role") not in (SpeakerRole.GURU.value, SpeakerRole.TEACHER.value):
+            if payload.get("speaker_role") not in (
+                SpeakerRole.GURU.value,
+                SpeakerRole.TEACHER.value,
+            ):
                 return False
             if require_speaker_verified and payload.get("speaker_verified") is not True:
                 return False
@@ -1645,9 +1642,7 @@ class FirstPersonContextStore:
                 return False
         return True
 
-    def dense_vectors_for_spans(
-        self, span_ids: Sequence[str]
-    ) -> dict[str, list[float]]:
+    def dense_vectors_for_spans(self, span_ids: Sequence[str]) -> dict[str, list[float]]:
         """Read-only ``passage_dense`` lookup for a set of child span IDs.
 
         The harness scores a served parent with the retrieval score that produced
@@ -1676,9 +1671,7 @@ class FirstPersonContextStore:
                 with_vectors=["passage_dense"],
             )
         except Exception as exc:  # pragma: no cover - transport dependent
-            logger.debug(
-                "[FirstPersonContextStore] passage_dense read unavailable: %s", exc
-            )
+            logger.debug("[FirstPersonContextStore] passage_dense read unavailable: %s", exc)
             return {}
         out: dict[str, list[float]] = {}
         for record in records or ():

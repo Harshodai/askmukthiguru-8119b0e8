@@ -48,7 +48,10 @@ def scope_problems(
     env: Mapping[str, str], required: list[str] | None = None, now: float | None = None
 ) -> list[str]:
     token = str(env.get("QDRANT_API_KEY", "") or "")
-    wanted = sorted({str(env[v]).strip() for v in COLLECTION_VARS if str(env.get(v, "")).strip()} | set(required or []))
+    wanted = sorted(
+        {str(env[v]).strip() for v in COLLECTION_VARS if str(env.get(v, "")).strip()}
+        | set(required or [])
+    )
     claims = _claims(token) if token else None
     if claims is None:
         return []  # no key or a static key: not a scoped token
@@ -66,13 +69,19 @@ def scope_problems(
         for e in access
         if isinstance(e, dict) and str(e.get("access")) in _READ_MODES
     }
-    problems += [f"collection {c!r} is configured but not readable by the token" for c in wanted if c not in readable]
+    problems += [
+        f"collection {c!r} is configured but not readable by the token"
+        for c in wanted
+        if c not in readable
+    ]
     return problems
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--require", action="append", default=[], help="extra collection to require")
+    parser.add_argument(
+        "--require", action="append", default=[], help="extra collection to require"
+    )
     args = parser.parse_args(argv)
     problems = scope_problems(os.environ, args.require)
     for p in problems:

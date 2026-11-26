@@ -23,7 +23,6 @@ def test_production_scope_passes_only_when_both_gates_pass() -> None:
     assert readiness_exit_code("production", True, True) == 0
 
 
-
 def test_data_quality_gate_checks_the_v13_collection(monkeypatch) -> None:
     import httpx
 

@@ -139,6 +139,7 @@ GROUP_NOT_RUN = "not_run"
 # Pure helpers (testable without torch / audio)
 # ---------------------------------------------------------------------------
 
+
 def is_silent(window_audio: np.ndarray, rms_floor: float = SILENCE_RMS_FLOOR) -> bool:
     """Return True when the window's RMS amplitude is below the floor.
 
@@ -426,6 +427,7 @@ def _roc_auc(pos_scores: list[float], neg_scores: list[float]) -> float:
 # Audio + embedding helpers
 # ---------------------------------------------------------------------------
 
+
 def _slide_windows(
     audio: np.ndarray,
     window_s: float = DEFAULT_WINDOW_S,
@@ -497,6 +499,7 @@ def score_span_windows(
 # Served window (mirrors existing convention)
 # ---------------------------------------------------------------------------
 
+
 def served_window(start_ms: int, end_ms: int, pad_ms: int = SERVED_PAD_MS) -> tuple[int, int]:
     """The window a seeker actually hears (same convention as regenerate script)."""
     return max(0, start_ms - pad_ms), end_ms + pad_ms
@@ -505,6 +508,7 @@ def served_window(start_ms: int, end_ms: int, pad_ms: int = SERVED_PAD_MS) -> tu
 # ---------------------------------------------------------------------------
 # Canonical JSON + revision helpers
 # ---------------------------------------------------------------------------
+
 
 def _canonical_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
@@ -519,6 +523,7 @@ def _calibration_revision(data: dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 # Calibrate mode helpers
 # ---------------------------------------------------------------------------
+
 
 def _load_positive_spans(path: Path) -> list[dict[str, Any]]:
     rows = []
@@ -559,6 +564,7 @@ def _load_negative_diar_windows(
         t_centres: list[float] = d.get("t_centres") or []
         if len(win_lab) != len(t_centres):
             continue
+
         # Map cluster int→label string; win_lab may already be label strings.
         def _resolve(lab: str, cluster_names: dict[str, str] = cluster_names) -> str:
             return cluster_names.get(str(lab), str(lab))
@@ -603,14 +609,16 @@ def _load_negative_diar_windows(
             # the calibration floor into teacher-speech territory.
             if best_cosine >= NEGATIVE_COSINE_CONTAMINATION_THRESHOLD:
                 continue
-            neg_windows.append({
-                "video_id": video_id,
-                "t_s": t_s,
-                "diar_label": lbl,
-                "cosine": float(scored["cosine"]),
-                "margin": float(scored["margin"]),
-                "predicted": scored["predicted"],
-            })
+            neg_windows.append(
+                {
+                    "video_id": video_id,
+                    "t_s": t_s,
+                    "diar_label": lbl,
+                    "cosine": float(scored["cosine"]),
+                    "margin": float(scored["margin"]),
+                    "predicted": scored["predicted"],
+                }
+            )
     print(f"  collected {len(neg_windows)} negative windows", flush=True)
     return neg_windows
 
@@ -623,10 +631,15 @@ def _run_calibrate(args: argparse.Namespace) -> int:
     out_path = Path(args.out_calibration)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    model_cache = Path(args.model_cache).expanduser() if args.model_cache else Path.home() / ".cache" / "huggingface"
+    model_cache = (
+        Path(args.model_cache).expanduser()
+        if args.model_cache
+        else Path.home() / ".cache" / "huggingface"
+    )
     print("Loading ECAPA embedder …", flush=True)
     embedder = load_embedder(model_cache, device="auto")
     from scripts.ops.regenerate_v10_span_ecapa_verdicts import _ecapa_revision, resolve_device
+
     model_revision = _ecapa_revision()
     device = resolve_device("auto")
     print(f"  model revision: {model_revision}, device: {device}", flush=True)
@@ -653,7 +666,10 @@ def _run_calibrate(args: argparse.Namespace) -> int:
         print(f"Loading cached positive/negative windows from {cache_dir} …", flush=True)
         pos_windows = json.loads(pos_cache.read_text())
         neg_windows = json.loads(neg_cache.read_text())
-        print(f"  loaded {len(pos_windows)} pos, {len(neg_windows)} neg windows from cache", flush=True)
+        print(
+            f"  loaded {len(pos_windows)} pos, {len(neg_windows)} neg windows from cache",
+            flush=True,
+        )
     else:
         print("Extracting positive windows …", flush=True)
         pos_windows = []
@@ -670,18 +686,28 @@ def _run_calibrate(args: argparse.Namespace) -> int:
             if audio is None:
                 continue
             wscores, _silent = score_span_windows(
-                audio, guru_id, references, embedder,
-                window_s=args.window_s, hop_s=args.hop_s,
+                audio,
+                guru_id,
+                references,
+                embedder,
+                window_s=args.window_s,
+                hop_s=args.hop_s,
             )
             for ws in wscores:
-                pos_windows.append({"cosine": ws["cosine"], "margin": ws["margin"], "guru_id": guru_id})
+                pos_windows.append(
+                    {"cosine": ws["cosine"], "margin": ws["margin"], "guru_id": guru_id}
+                )
         print(f"  {len(pos_windows)} positive windows collected", flush=True)
         pos_cache.write_text(json.dumps(pos_windows))
 
         print("Extracting negative windows …", flush=True)
         neg_windows = _load_negative_diar_windows(
-            diar_dir, audio_dir, references, embedder,
-            window_s=args.window_s, hop_s=args.hop_s,
+            diar_dir,
+            audio_dir,
+            references,
+            embedder,
+            window_s=args.window_s,
+            hop_s=args.hop_s,
         )
         neg_cache.write_text(json.dumps(neg_windows))
 
@@ -719,17 +745,22 @@ def _run_calibrate(args: argparse.Namespace) -> int:
     artifact["windowed_calibration_revision"] = rev
     out_path.write_text(json.dumps(artifact, indent=2))
     print(f"Calibration written → {out_path}")
-    print(f"  cosine_floor={result['cosine_floor']:.6f}  "
-          f"margin_threshold={result['margin_threshold']:.6f}")
-    print(f"  FAR={result['far_on_negatives']['rate']:.4f}  "
-          f"positive_pass_rate={result['positive_window_pass_rate']:.4f}  "
-          f"ROC-AUC={result['roc_auc']:.4f}")
+    print(
+        f"  cosine_floor={result['cosine_floor']:.6f}  "
+        f"margin_threshold={result['margin_threshold']:.6f}"
+    )
+    print(
+        f"  FAR={result['far_on_negatives']['rate']:.4f}  "
+        f"positive_pass_rate={result['positive_window_pass_rate']:.4f}  "
+        f"ROC-AUC={result['roc_auc']:.4f}"
+    )
     return 0
 
 
 # ---------------------------------------------------------------------------
 # Score mode
 # ---------------------------------------------------------------------------
+
 
 def _load_windowed_calibration(path: Path) -> dict[str, Any]:
     data = json.loads(path.read_text())
@@ -762,7 +793,11 @@ def _run_score(args: argparse.Namespace) -> int:
     out_verdicts.parent.mkdir(parents=True, exist_ok=True)
     out_summary_path.parent.mkdir(parents=True, exist_ok=True)
 
-    model_cache = Path(args.model_cache).expanduser() if args.model_cache else Path.home() / ".cache" / "huggingface"
+    model_cache = (
+        Path(args.model_cache).expanduser()
+        if args.model_cache
+        else Path.home() / ".cache" / "huggingface"
+    )
 
     print("Loading windowed calibration …", flush=True)
     cal = _load_windowed_calibration(cal_path)
@@ -778,6 +813,7 @@ def _run_score(args: argparse.Namespace) -> int:
     print("Loading ECAPA embedder …", flush=True)
     embedder = load_embedder(model_cache, device="auto")
     from scripts.ops.regenerate_v10_span_ecapa_verdicts import _ecapa_revision, resolve_device
+
     model_revision = _ecapa_revision()
     device = resolve_device("auto")
 
@@ -791,12 +827,13 @@ def _run_score(args: argparse.Namespace) -> int:
     with out_verdicts.open("w") as vfh:
         for i, span in enumerate(spans):
             if (i + 1) % 100 == 0:
-                print(f"  scored {i+1}/{len(spans)} …", flush=True)
+                print(f"  scored {i + 1}/{len(spans)} …", flush=True)
 
             span_id = str(span.get("source_span_id") or "")
             video_id = str(span.get("video_id") or "")
             speaker_id = str(span.get("speaker_id") or "").strip().casefold()
             from scripts.ops.regenerate_v10_span_ecapa_verdicts import GURU_BY_SPEAKER
+
             expected_guru = GURU_BY_SPEAKER.get(speaker_id, "")
             start_ms = int(span.get("start_ms") or span.get("audio_start_ms") or 0)
             end_ms = int(span.get("end_ms") or span.get("audio_end_ms") or 0)
@@ -822,40 +859,54 @@ def _run_score(args: argparse.Namespace) -> int:
 
             if audio is None:
                 audio_failures[err or "unknown"] += 1
-                row.update({
-                    "windows_total": 0, "windows_silent_skipped": 0,
-                    "windows_scored": 0, "windows_failing": 0,
-                    "max_failing_allowed": max_failing,
-                    "span_verdict": VERDICT_INDETERMINATE,
-                    "span_reason": err or "audio_failure",
-                    "span_cosine_mean": None, "span_cosine_min": None,
-                    "span_margin_min": None,
-                    "verdict_group": GROUP_NOT_RUN,
-                    "window_check": "indeterminate",
-                })
+                row.update(
+                    {
+                        "windows_total": 0,
+                        "windows_silent_skipped": 0,
+                        "windows_scored": 0,
+                        "windows_failing": 0,
+                        "max_failing_allowed": max_failing,
+                        "span_verdict": VERDICT_INDETERMINATE,
+                        "span_reason": err or "audio_failure",
+                        "span_cosine_mean": None,
+                        "span_cosine_min": None,
+                        "span_margin_min": None,
+                        "verdict_group": GROUP_NOT_RUN,
+                        "window_check": "indeterminate",
+                    }
+                )
                 counts[GROUP_NOT_RUN] += 1
                 vfh.write(json.dumps(row) + "\n")
                 continue
 
             if not expected_guru:
-                row.update({
-                    "windows_total": 0, "windows_silent_skipped": 0,
-                    "windows_scored": 0, "windows_failing": 0,
-                    "max_failing_allowed": max_failing,
-                    "span_verdict": VERDICT_INDETERMINATE,
-                    "span_reason": "unknown_guru",
-                    "span_cosine_mean": None, "span_cosine_min": None,
-                    "span_margin_min": None,
-                    "verdict_group": GROUP_NOT_RUN,
-                    "window_check": "indeterminate",
-                })
+                row.update(
+                    {
+                        "windows_total": 0,
+                        "windows_silent_skipped": 0,
+                        "windows_scored": 0,
+                        "windows_failing": 0,
+                        "max_failing_allowed": max_failing,
+                        "span_verdict": VERDICT_INDETERMINATE,
+                        "span_reason": "unknown_guru",
+                        "span_cosine_mean": None,
+                        "span_cosine_min": None,
+                        "span_margin_min": None,
+                        "verdict_group": GROUP_NOT_RUN,
+                        "window_check": "indeterminate",
+                    }
+                )
                 counts[GROUP_NOT_RUN] += 1
                 vfh.write(json.dumps(row) + "\n")
                 continue
 
             wscores, silent_count = score_span_windows(
-                audio, expected_guru, references, embedder,
-                window_s=args.window_s, hop_s=args.hop_s,
+                audio,
+                expected_guru,
+                references,
+                embedder,
+                window_s=args.window_s,
+                hop_s=args.hop_s,
             )
             all_windows = _slide_windows(audio, window_s=args.window_s, hop_s=args.hop_s)
             verdict, reason, stats = windowed_verdict(
@@ -865,22 +916,24 @@ def _run_score(args: argparse.Namespace) -> int:
             group = stats["group"]
             counts[group] += 1
 
-            row.update({
-                "windows_total": len(all_windows),
-                "windows_silent_skipped": silent_count,
-                "windows_scored": stats["windows_scored"],
-                "windows_failing": stats["windows_failing"],
-                "max_failing_allowed": max_failing,
-                "span_verdict": verdict,
-                "span_reason": reason,
-                "span_cosine_mean": stats.get("span_cosine_mean"),
-                "span_cosine_min": stats.get("span_cosine_min"),
-                "span_margin_min": stats.get("span_margin_min"),
-                "verdict_group": group,
-                "window_check": "pass" if group == GROUP_VERIFIED else (
-                    "fail" if group == GROUP_REFUSED else "indeterminate"
-                ),
-            })
+            row.update(
+                {
+                    "windows_total": len(all_windows),
+                    "windows_silent_skipped": silent_count,
+                    "windows_scored": stats["windows_scored"],
+                    "windows_failing": stats["windows_failing"],
+                    "max_failing_allowed": max_failing,
+                    "span_verdict": verdict,
+                    "span_reason": reason,
+                    "span_cosine_mean": stats.get("span_cosine_mean"),
+                    "span_cosine_min": stats.get("span_cosine_min"),
+                    "span_margin_min": stats.get("span_margin_min"),
+                    "verdict_group": group,
+                    "window_check": "pass"
+                    if group == GROUP_VERIFIED
+                    else ("fail" if group == GROUP_REFUSED else "indeterminate"),
+                }
+            )
             vfh.write(json.dumps(row) + "\n")
 
     summary: dict[str, Any] = {
@@ -906,10 +959,9 @@ def _run_score(args: argparse.Namespace) -> int:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def _build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawTextHelpFormatter
-    )
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--mode", choices=["calibrate", "score"], required=True)
     ap.add_argument("--window-s", type=float, default=DEFAULT_WINDOW_S, dest="window_s")
     ap.add_argument("--hop-s", type=float, default=DEFAULT_HOP_S, dest="hop_s")
@@ -936,14 +988,25 @@ def main(argv: list[str] | None = None) -> int:
     ap = _build_parser()
     args = ap.parse_args(argv)
     if args.mode == "calibrate":
-        for required in ("positive_spans_jsonl", "negative_diar_dir", "audio_dir",
-                         "references", "out_calibration"):
+        for required in (
+            "positive_spans_jsonl",
+            "negative_diar_dir",
+            "audio_dir",
+            "references",
+            "out_calibration",
+        ):
             if not getattr(args, required):
                 ap.error(f"--mode calibrate requires --{required.replace('_', '-')}")
         return _run_calibrate(args)
     else:
-        for required in ("spans_jsonl", "audio_dir", "references",
-                         "windowed_calibration", "out_verdicts_jsonl", "out_summary"):
+        for required in (
+            "spans_jsonl",
+            "audio_dir",
+            "references",
+            "windowed_calibration",
+            "out_verdicts_jsonl",
+            "out_summary",
+        ):
             if not getattr(args, required):
                 ap.error(f"--mode score requires --{required.replace('_', '-')}")
         return _run_score(args)

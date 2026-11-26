@@ -28,7 +28,14 @@ def compute_sha256(path: Path) -> str:
 
 
 def run_whisper_evidence(repo_root: Path, out_dir: Path) -> dict:
-    audio_path = repo_root / "video-composition" / "assets" / "audio" / "voice_samples" / "neerja_indian_female.mp3"
+    audio_path = (
+        repo_root
+        / "video-composition"
+        / "assets"
+        / "audio"
+        / "voice_samples"
+        / "neerja_indian_female.mp3"
+    )
     if not audio_path.exists():
         raise FileNotFoundError(f"Audio fixture missing: {audio_path}")
 
@@ -81,12 +88,14 @@ print('__RESULT__' + json.dumps(output))
     for idx, s in enumerate(segments, 1):
         s_start = f"{int(s['start'] // 60):02d}:{s['start'] % 60:06.3f}".replace(".", ",")
         s_end = f"{int(s['end'] // 60):02d}:{s['end'] % 60:06.3f}".replace(".", ",")
-        vtt_lines.extend([
-            f"{idx}",
-            f"{s_start} --> {s_end}",
-            s["text"],
-            "",
-        ])
+        vtt_lines.extend(
+            [
+                f"{idx}",
+                f"{s_start} --> {s_end}",
+                s["text"],
+                "",
+            ]
+        )
     vtt_content = "\n".join(vtt_lines)
     vtt_path.write_text(vtt_content, encoding="utf-8")
     txt_path.write_text(text, encoding="utf-8")
@@ -147,9 +156,16 @@ def run_clipper_evidence(repo_root: Path, out_dir: Path) -> dict:
 
     # 1. Cut MP4 (0.0s to 4.0s)
     cut_cmd = [
-        ffmpeg_bin, "-y", "-ss", "0.0", "-to", "4.0",
-        "-i", str(video_path),
-        "-c", "copy",
+        ffmpeg_bin,
+        "-y",
+        "-ss",
+        "0.0",
+        "-to",
+        "4.0",
+        "-i",
+        str(video_path),
+        "-c",
+        "copy",
         str(clip_mp4),
     ]
     subprocess.run(cut_cmd, capture_output=True, check=True)
@@ -174,10 +190,14 @@ Ask Mukthi Guru: प्रामाणिक आध्यात्मिक ज�
     burn_succeeded = False
     escaped_sub = str(bilingual_srt_path).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
     burn_cmd = [
-        ffmpeg_bin, "-y",
-        "-i", str(clip_mp4),
-        "-vf", f"subtitles='{escaped_sub}'",
-        "-c:a", "copy",
+        ffmpeg_bin,
+        "-y",
+        "-i",
+        str(clip_mp4),
+        "-vf",
+        f"subtitles='{escaped_sub}'",
+        "-c:a",
+        "copy",
         str(subtitled_mp4),
     ]
     burn_proc = subprocess.run(burn_cmd, capture_output=True, text=True)
@@ -188,17 +208,43 @@ Ask Mukthi Guru: प्रामाणिक आध्यात्मिक ज�
         docker_bin = shutil.which("docker")
         if docker_bin:
             try:
-                subprocess.run([docker_bin, "cp", str(clip_mp4), "mukthiguru-backend:/tmp/clip_in.mp4"], check=True)
-                subprocess.run([docker_bin, "cp", str(bilingual_srt_path), "mukthiguru-backend:/tmp/sub_in.srt"], check=True)
+                subprocess.run(
+                    [docker_bin, "cp", str(clip_mp4), "mukthiguru-backend:/tmp/clip_in.mp4"],
+                    check=True,
+                )
+                subprocess.run(
+                    [
+                        docker_bin,
+                        "cp",
+                        str(bilingual_srt_path),
+                        "mukthiguru-backend:/tmp/sub_in.srt",
+                    ],
+                    check=True,
+                )
                 container_cmd = [
-                    docker_bin, "exec", "mukthiguru-backend",
-                    "ffmpeg", "-y", "-i", "/tmp/clip_in.mp4",
-                    "-vf", "subtitles=/tmp/sub_in.srt",
-                    "-c:a", "copy",
+                    docker_bin,
+                    "exec",
+                    "mukthiguru-backend",
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    "/tmp/clip_in.mp4",
+                    "-vf",
+                    "subtitles=/tmp/sub_in.srt",
+                    "-c:a",
+                    "copy",
                     "/tmp/clip_subtitled.mp4",
                 ]
                 subprocess.run(container_cmd, capture_output=True, check=True)
-                subprocess.run([docker_bin, "cp", "mukthiguru-backend:/tmp/clip_subtitled.mp4", str(subtitled_mp4)], check=True)
+                subprocess.run(
+                    [
+                        docker_bin,
+                        "cp",
+                        "mukthiguru-backend:/tmp/clip_subtitled.mp4",
+                        str(subtitled_mp4),
+                    ],
+                    check=True,
+                )
                 if subtitled_mp4.exists() and subtitled_mp4.stat().st_size > 0:
                     burn_succeeded = True
             except Exception:
@@ -213,7 +259,9 @@ Ask Mukthi Guru: प्रामाणिक आध्यात्मिक ज�
     sub_mp4_sha = compute_sha256(subtitled_mp4)
 
     # Get FFmpeg version
-    ff_ver = subprocess.run([ffmpeg_bin, "-version"], capture_output=True, text=True).stdout.splitlines()[0]
+    ff_ver = subprocess.run(
+        [ffmpeg_bin, "-version"], capture_output=True, text=True
+    ).stdout.splitlines()[0]
 
     manifest = {
         "clip_name": "askmukthiguru_logo_clip",

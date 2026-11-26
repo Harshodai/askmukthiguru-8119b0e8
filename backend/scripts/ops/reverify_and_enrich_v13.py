@@ -99,13 +99,13 @@ def extract_entities(text: str) -> list[str]:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="Write changes to Qdrant")
-    parser.add_argument("--video-id", type=str, default="", help="Optional single video ID to process")
+    parser.add_argument(
+        "--video-id", type=str, default="", help="Optional single video ID to process"
+    )
     args = parser.parse_args()
 
     qdrant_api_key = (
-        os.environ.get("QDRANT_WRITE_API_KEY")
-        or os.environ.get("QDRANT_API_KEY")
-        or ""
+        os.environ.get("QDRANT_WRITE_API_KEY") or os.environ.get("QDRANT_API_KEY") or ""
     )
     client = QdrantClient(url=QDRANT_URL, api_key=qdrant_api_key or None)
     cal = load_calibration()
@@ -185,7 +185,11 @@ def main():
         if vid == "f-IpkGOOzYU" and start_ms == 0 and "letting go of your hurt" in text:
             audio_start_ms = 15340
             audio_end_ms = 27480
-            logger.info("Used corrected audio window for f-IpkGOOzYU ECAPA: %d - %d ms", audio_start_ms, audio_end_ms)
+            logger.info(
+                "Used corrected audio window for f-IpkGOOzYU ECAPA: %d - %d ms",
+                audio_start_ms,
+                audio_end_ms,
+            )
 
         wav_path = AUDIO_DIR / f"{vid}.wav"
         if not wav_path.is_file():
@@ -212,10 +216,14 @@ def main():
 
         # Score against both gurus
         scores_k, sil_k = score_span_windows(slice_audio, "krishnaji", references, embedder)
-        v_k, _, stats_k = windowed_verdict(scores_k, "krishnaji", cosine_floor, margin_threshold, max_failing_windows=0)
+        v_k, _, stats_k = windowed_verdict(
+            scores_k, "krishnaji", cosine_floor, margin_threshold, max_failing_windows=0
+        )
 
         scores_p, sil_p = score_span_windows(slice_audio, "preethaji", references, embedder)
-        v_p, _, stats_p = windowed_verdict(scores_p, "preethaji", cosine_floor, margin_threshold, max_failing_windows=0)
+        v_p, _, stats_p = windowed_verdict(
+            scores_p, "preethaji", cosine_floor, margin_threshold, max_failing_windows=0
+        )
 
         # Check who won
         mean_k = stats_k.get("span_cosine_mean")
@@ -252,8 +260,13 @@ def main():
             patch["speaker_id"] = best_guru
             patch["voice_verification_method"] = "ecapa_voxceleb_windowed_v1"
             patch["voice_model_revision"] = "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286"
-            patch["voice_calibration_id"] = "a40b315babe98a75ee9328b4789b8df1895d124de60a5c7ef6c961224679ed2e"
-            patch["voice_threshold_applied"] = {"cosine_floor": cosine_floor, "margin_threshold": margin_threshold}
+            patch["voice_calibration_id"] = (
+                "a40b315babe98a75ee9328b4789b8df1895d124de60a5c7ef6c961224679ed2e"
+            )
+            patch["voice_threshold_applied"] = {
+                "cosine_floor": cosine_floor,
+                "margin_threshold": margin_threshold,
+            }
             patch["voice_score"] = float(best_score)
             patch["voice_margin"] = best_margin
             patch["voice_window_check"] = "pass"
@@ -264,14 +277,21 @@ def main():
             # preserve an old speaker_verified=True after the calibrated gate fails.
             patch["speaker_verified"] = False
             patch["speaker_verification_status"] = (
-                "pending_voice_check" if best_verdict == "indeterminate_no_windows" else "ecapa_failed"
+                "pending_voice_check"
+                if best_verdict == "indeterminate_no_windows"
+                else "ecapa_failed"
             )
             if best_verdict == "indeterminate_no_windows":
                 pending_count += 1
             patch["voice_verification_method"] = "ecapa_voxceleb_windowed_v1"
             patch["voice_model_revision"] = "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286"
-            patch["voice_calibration_id"] = "a40b315babe98a75ee9328b4789b8df1895d124de60a5c7ef6c961224679ed2e"
-            patch["voice_threshold_applied"] = {"cosine_floor": cosine_floor, "margin_threshold": margin_threshold}
+            patch["voice_calibration_id"] = (
+                "a40b315babe98a75ee9328b4789b8df1895d124de60a5c7ef6c961224679ed2e"
+            )
+            patch["voice_threshold_applied"] = {
+                "cosine_floor": cosine_floor,
+                "margin_threshold": margin_threshold,
+            }
             patch["voice_score"] = float(best_score)
             patch["voice_margin"] = best_margin
             patch["voice_window_check"] = (

@@ -30,17 +30,36 @@ from services.keyword_research.workbook import create_keyword_research_workbook
 def main() -> int:
     parser = argparse.ArgumentParser(description="Standalone Keyword Research Workbook Generator")
     parser.add_argument("--seed", required=True, help="Seed keyword or topic")
-    parser.add_argument("--country", default="United States", help="Target country or 'worldwide' (default: United States)")
-    parser.add_argument("--source", default="public_data", help="Data source: public_data, ahrefs, semrush, dataforseo (default: public_data)")
-    parser.add_argument("--out", default="outputs/keyword_research.xlsx", help="Output path for .xlsx workbook")
-    parser.add_argument("--require-external", action="store_true", default=False, help="Require real external provider data; fail closed if unavailable")
+    parser.add_argument(
+        "--country",
+        default="United States",
+        help="Target country or 'worldwide' (default: United States)",
+    )
+    parser.add_argument(
+        "--source",
+        default="public_data",
+        help="Data source: public_data, ahrefs, semrush, dataforseo (default: public_data)",
+    )
+    parser.add_argument(
+        "--out", default="outputs/keyword_research.xlsx", help="Output path for .xlsx workbook"
+    )
+    parser.add_argument(
+        "--require-external",
+        action="store_true",
+        default=False,
+        help="Require real external provider data; fail closed if unavailable",
+    )
     args = parser.parse_args()
 
     provider = None
 
-    print(f"\n[Step 0 Intake] Seed: '{args.seed}' | Target Country: '{args.country}' | Data Source: '{args.source}'")
+    print(
+        f"\n[Step 0 Intake] Seed: '{args.seed}' | Target Country: '{args.country}' | Data Source: '{args.source}'"
+    )
     if args.source == "public_data" and not args.require_external and not provider:
-        print("  Notice: Using public search baseline with explicit uncertified provenance disclosure.")
+        print(
+            "  Notice: Using public search baseline with explicit uncertified provenance disclosure."
+        )
 
     print("\n[Step 1 Data Gathering & Analysis] Generating 300 keywords across 5 clusters...")
     try:
@@ -57,8 +76,12 @@ def main() -> int:
 
     print("  Validating contract constraints...")
     try:
-        validate_keyword_research_payload(payload, require_external_certification=args.require_external)
-        print("  All schema invariants passed (300 keywords, 5 clusters, 20 competitors, 20 gaps, 5 findings, 5 recommendations).")
+        validate_keyword_research_payload(
+            payload, require_external_certification=args.require_external
+        )
+        print(
+            "  All schema invariants passed (300 keywords, 5 clusters, 20 competitors, 20 gaps, 5 findings, 5 recommendations)."
+        )
     except Exception as e:
         print(f"ERROR: Validation failed: {e}", file=sys.stderr)
         return 1

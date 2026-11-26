@@ -41,7 +41,11 @@ def _shared_guru_scope() -> frozenset[str]:
 
         if _GURUS_CONFIG.is_file():
             data = yaml.safe_load(_GURUS_CONFIG.read_text(encoding="utf-8")) or {}
-            ids = {str(x).strip().lower() for x in (data.get("shared_attribution_ids") or []) if str(x).strip()}
+            ids = {
+                str(x).strip().lower()
+                for x in (data.get("shared_attribution_ids") or [])
+                if str(x).strip()
+            }
             primary = str(data.get("shared_primary_teacher_id") or "").strip().lower()
             if primary:
                 ids.add(primary)

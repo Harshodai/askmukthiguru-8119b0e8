@@ -759,9 +759,8 @@ async def ingest_upload_video_endpoint(
             qdrant_service=container.qdrant,
             embedding_service=container.embedding,
         )
-        target_collection = (
-            getattr(settings, "first_person_collection", None)
-            or getattr(settings, "qdrant_collection", "mukthi_guru")
+        target_collection = getattr(settings, "first_person_collection", None) or getattr(
+            settings, "qdrant_collection", "mukthi_guru"
         )
         res = await pipeline.ingest_video(
             video_save_path,

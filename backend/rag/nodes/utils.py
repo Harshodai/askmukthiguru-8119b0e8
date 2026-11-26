@@ -949,10 +949,7 @@ async def _llm_retrieval_expansions(state: GraphState) -> list[str]:
 
     try:
         expansions = await expansion_svc.expand_query(question)
-        queries = [
-            q for q in expansions
-            if q and q.lower() != question.lower() and len(q) <= 240
-        ]
+        queries = [q for q in expansions if q and q.lower() != question.lower() and len(q) <= 240]
         return list(dict.fromkeys(queries))[:2]
     except Exception as e:
         logger.warning(f"LLM retrieval expansion failed; continuing without expansion: {e}")

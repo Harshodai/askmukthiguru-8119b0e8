@@ -17,7 +17,9 @@ from scripts.ops import resegment_v10 as rs  # noqa: E402
 
 HEAD = "Anger is a signal that your inner state is asking for attention and care right now, and"
 TAIL = "when you pause and breathe you can see what the anger is protecting within you today."
-CLEAN_A = "Awareness of the breath settles the mind and shows you the stillness that was always here."
+CLEAN_A = (
+    "Awareness of the breath settles the mind and shows you the stillness that was always here."
+)
 CLEAN_B = "Compassion begins when you stop fighting your own feelings and simply let them be seen."
 
 
@@ -71,13 +73,20 @@ def test_containment_drop_only_with_clean_container_under_cap() -> None:
 def test_exact_duplicate_collapsed_but_attribution_conflict_kept() -> None:
     dup = [rs._fake(1, CLEAN_A, 0, 9000), rs._fake(2, CLEAN_A, 50000, 59000, video_id="other")]
     assert len(rs.resegment(dup)["after"]) == 1
-    conflict = [rs._fake(1, CLEAN_A, 0, 9000), rs._fake(2, CLEAN_A, 50000, 59000, video_id="o", guru_id="preethaji")]
+    conflict = [
+        rs._fake(1, CLEAN_A, 0, 9000),
+        rs._fake(2, CLEAN_A, 50000, 59000, video_id="o", guru_id="preethaji"),
+    ]
     r = rs.resegment(conflict)
-    assert len(r["after"]) == 2 and all("duplicate_text_attribution_conflict" in o["flags"] for o in r["after"])
+    assert len(r["after"]) == 2 and all(
+        "duplicate_text_attribution_conflict" in o["flags"] for o in r["after"]
+    )
 
 
-@pytest.mark.parametrize("kw", [{"guru_id": "preethaji"}, {"speaker_verified": False},
-                                {"voice_verification_method": "other"}])
+@pytest.mark.parametrize(
+    "kw",
+    [{"guru_id": "preethaji"}, {"speaker_verified": False}, {"voice_verification_method": "other"}],
+)
 def test_mixed_speaker_spans_not_merged(kw: dict) -> None:
     r = rs.resegment([rs._fake(1, HEAD, 0, 10000), rs._fake(2, TAIL, 10200, 20000, **kw)], cap_s=90)
     assert len(r["after"]) == 2 and all(o["change"] == "unchanged" for o in r["after"])
@@ -88,7 +97,9 @@ def test_large_gap_not_merged() -> None:
     assert len(r["after"]) == 2 and r["blocked_reasons"].get("gap_too_large")
 
 
-def test_apply_refuses_without_confirmations_and_for_protected_targets(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_apply_refuses_without_confirmations_and_for_protected_targets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def boom(*a, **k):
         raise AssertionError("Qdrant client must not be constructed")
 
@@ -104,7 +115,13 @@ def test_apply_refuses_without_confirmations_and_for_protected_targets(monkeypat
         rs.main(base + ["--approved-by", "x"])
     for target in ("first_person_v10", "first_person_v8", "first_person_v11", "other_collection"):
         with pytest.raises(SystemExit):
-            rs.main(base + ["--snapshot-confirmed", "--approved-by", "x", "--target-collection", target])
-    ns = argparse.Namespace(snapshot_confirmed=True, approved_by="x", target_collection="first_person_v12_shadow",
-                            source_collection="first_person_v10")
+            rs.main(
+                base + ["--snapshot-confirmed", "--approved-by", "x", "--target-collection", target]
+            )
+    ns = argparse.Namespace(
+        snapshot_confirmed=True,
+        approved_by="x",
+        target_collection="first_person_v12_shadow",
+        source_collection="first_person_v10",
+    )
     rs.check_apply_guards(ns)  # a valid new shadow name passes the guard without any network

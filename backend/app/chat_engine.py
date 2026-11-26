@@ -345,9 +345,7 @@ class ChatEngine:
         result.answer_evidence = getattr(pipeline_result, "answer_evidence", None)
         result.guidance_plan = getattr(pipeline_result, "guidance_plan", None)
         result.route_metadata = (
-            getattr(pipeline_result, "route_metadata", None)
-            if not settings.is_production
-            else None
+            getattr(pipeline_result, "route_metadata", None) if not settings.is_production else None
         )
 
         if not chat_request.incognito:

@@ -41,9 +41,7 @@ class TestOrdinaryDistressPassesToDistressStage:
         self, guardrails, message
     ):
         """Live-audit personas need assessment/grounding, not a forced CTA."""
-        result = run(
-            guardrails.check_input(message)
-        )
+        result = run(guardrails.check_input(message))
 
         assert result["blocked"] is False
         assert result["reason"] is None

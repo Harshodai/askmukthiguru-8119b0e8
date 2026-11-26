@@ -190,7 +190,7 @@ _META_FOLLOWUP_MAX_WORDS = 14
 
 
 def meta_followup_kind(question: str) -> Optional[str]:
-    """"shorter" | "example" | "ordinal" | "elaborate" for a meta follow-up, else None.
+    """ "shorter" | "example" | "ordinal" | "elaborate" for a meta follow-up, else None.
 
     Deterministic (no LLM). A turn with an explicit topic-shift marker is never meta.
     """
@@ -325,7 +325,9 @@ async def resolve_followup(state: GraphState, config: Optional[RunnableConfig] =
     # DEF-R2-02: Bypass follow-up resolution on personalize turns to preserve
     # the grounded question and verbatim quote intact.
     if state.get("personalize_clip"):
-        logger.info("Resolve Follow-up: personalize teaching turn active; preserving grounded question.")
+        logger.info(
+            "Resolve Follow-up: personalize teaching turn active; preserving grounded question."
+        )
         return {}
 
     chat_history = state.get("chat_history", [])

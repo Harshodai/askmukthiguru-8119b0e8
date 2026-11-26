@@ -428,7 +428,9 @@ class QdrantIndexer:
                 if sparse_vectors and i < len(sparse_vectors) and sparse_name:
                     sparse_vec = sparse_vectors[i]
                     # Only include sparse if it has meaningful data to avoid 400 Bad Request
-                    if sparse_vec and (len(sparse_vec.get("indices", [])) > 0 or len(sparse_vec) > 0):
+                    if sparse_vec and (
+                        len(sparse_vec.get("indices", [])) > 0 or len(sparse_vec) > 0
+                    ):
                         vector_dict[sparse_name] = self._utils.sparse_dict_to_vector(sparse_vec)
 
             # `phonetic_tokens` is no longer written. It existed to feed a

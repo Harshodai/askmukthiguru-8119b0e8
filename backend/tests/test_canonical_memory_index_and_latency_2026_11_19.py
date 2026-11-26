@@ -60,7 +60,9 @@ async def test_index_failure_does_not_undo_saved_memory() -> None:
 async def test_superseded_memory_found_by_vector_is_not_retrieved() -> None:
     """Indexing every insert means a superseded row's vector still matches;
     its true status comes from hydration and must exclude it."""
-    retriever = CanonicalMemoryRetriever(supabase_client=None, vector_index=None, embedding_service=None)
+    retriever = CanonicalMemoryRetriever(
+        supabase_client=None, vector_index=None, embedding_service=None
+    )
 
     async def semantic(*_a):
         return [{"id": "old", "score": 0.9}, {"id": "new", "score": 0.8}]

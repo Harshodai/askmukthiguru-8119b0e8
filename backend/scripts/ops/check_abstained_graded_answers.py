@@ -20,6 +20,7 @@ DEFAULT_ROWS = os.path.expanduser(
     "~/mukthiguru_attribution_data/graded_runs/20261115-graded-9-live/rows.jsonl"
 )
 
+
 def acquire_session(session: requests.Session):
     """Acquire a persistent anonymous session token, or None.
 
@@ -93,6 +94,7 @@ def resolve_identity(session: requests.Session):
             return anon_headers, token
     return None, None
 
+
 def load_abstained_questions(rows_path: str):
     items = []
     with open(rows_path) as f:
@@ -101,14 +103,17 @@ def load_abstained_questions(rows_path: str):
                 continue
             r = json.loads(line)
             if r.get("answerable") and r.get("route") in ("first_person_abstain", "blocked"):
-                items.append({
-                    "id": r.get("id"),
-                    "question": r.get("question"),
-                    "prev_route": r.get("route"),
-                    "prev_grounding": r.get("grounding"),
-                    "set": r.get("set", "unknown"),
-                })
+                items.append(
+                    {
+                        "id": r.get("id"),
+                        "question": r.get("question"),
+                        "prev_route": r.get("route"),
+                        "prev_grounding": r.get("grounding"),
+                        "set": r.get("set", "unknown"),
+                    }
+                )
     return items
+
 
 def main():
     rows_path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_ROWS
@@ -158,10 +163,12 @@ def main():
         for attempt in range(5):
             t0 = time.time()
             try:
-                c_resp = session.post(f"{BASE_URL}/api/chat", headers=headers, json=payload, timeout=45)
+                c_resp = session.post(
+                    f"{BASE_URL}/api/chat", headers=headers, json=payload, timeout=45
+                )
                 elapsed = round(time.time() - t0, 2)
                 if c_resp.status_code == 429:
-                    print(f"Rate limited on /api/chat, sleeping 4s (attempt {attempt+1})...")
+                    print(f"Rate limited on /api/chat, sleeping 4s (attempt {attempt + 1})...")
                     time.sleep(4)
                     continue
                 elif c_resp.status_code in (400, 401, 403):
@@ -239,16 +246,28 @@ def main():
             still_abstained += 1
             status_str = f"❌ ABSTAIN ({route}, reason={abstain_reason})"
 
-        print(f"[{idx:02d}/{len(questions):02d}] {q['id']} ({elapsed:4.1f}s): {status_str} | Q: {q['question'][:55]}")
+        print(
+            f"[{idx:02d}/{len(questions):02d}] {q['id']} ({elapsed:4.1f}s): {status_str} | Q: {q['question'][:55]}"
+        )
 
         # Save progress incrementally to checkpoint
         chk_file = f"{out_file}.checkpoint"
         with open(chk_file, "w") as f:
-            json.dump({"total": len(questions), "now_served": now_served, "still_abstained": still_abstained, "results": results}, f, indent=2)
+            json.dump(
+                {
+                    "total": len(questions),
+                    "now_served": now_served,
+                    "still_abstained": still_abstained,
+                    "results": results,
+                },
+                f,
+                indent=2,
+            )
 
         time.sleep(1.0)
 
     import shutil
+
     chk_file = f"{out_file}.checkpoint"
     if os.path.exists(chk_file):
         shutil.move(chk_file, out_file)
@@ -256,10 +275,13 @@ def main():
     print("\n" + "=" * 90)
     print("RE-EVALUATION SUMMARY:")
     print(f"Total Previously Abstained: {len(questions)}")
-    print(f"Now Served (Grounded):      {now_served} ({now_served/len(questions)*100:.1f}%)")
-    print(f"Still Abstained:            {still_abstained} ({still_abstained/len(questions)*100:.1f}%)")
+    print(f"Now Served (Grounded):      {now_served} ({now_served / len(questions) * 100:.1f}%)")
+    print(
+        f"Still Abstained:            {still_abstained} ({still_abstained / len(questions) * 100:.1f}%)"
+    )
     print(f"Detailed results saved to:  {out_file}")
     print("=" * 90)
+
 
 if __name__ == "__main__":
     main()

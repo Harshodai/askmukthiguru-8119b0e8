@@ -259,7 +259,7 @@ def main() -> None:
                 f"- **Clinical Safeguard Assessment:** {c['clinical_safeguard_notes']}",
                 "",
                 "> **Verbatim Clip Text:**  ",
-                f"> \"{c['verbatim_quote']}\"",
+                f'> "{c["verbatim_quote"]}"',
                 "",
                 "**Reviewer Action:** [ ] APPROVE for v13 shadow index  |  [ ] REJECT  |  [ ] ADJUST WINDOW",
                 "",

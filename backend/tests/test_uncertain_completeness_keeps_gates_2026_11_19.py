@@ -27,8 +27,14 @@ _POLICY = HarnessPolicy(allow_fragment_with_antecedent=True, allow_uncertain_com
 
 def _uncertain_cases():
     return [
-        ("span", lambda **kw: context([span(completeness_status=CompletenessStatus.UNCERTAIN, **kw)])),
-        ("parent", lambda **kw: context([span(**kw)], completeness_status=CompletenessStatus.UNCERTAIN)),
+        (
+            "span",
+            lambda **kw: context([span(completeness_status=CompletenessStatus.UNCERTAIN, **kw)]),
+        ),
+        (
+            "parent",
+            lambda **kw: context([span(**kw)], completeness_status=CompletenessStatus.UNCERTAIN),
+        ),
     ]
 
 

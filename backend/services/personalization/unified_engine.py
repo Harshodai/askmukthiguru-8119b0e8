@@ -111,20 +111,28 @@ class UnifiedPersonalizationEngine:
         async def _fetch_profile() -> None:
             if supabase_client is not None:
                 try:
+
                     def _q_prof():
                         return (
                             supabase_client.table("user_profiles")
-                            .select("spiritual_level, preferred_language, last_distress_assessment, topics_of_interest")
+                            .select(
+                                "spiritual_level, preferred_language, last_distress_assessment, topics_of_interest"
+                            )
                             .eq("user_id", user_id)
                             .limit(1)
                             .execute()
                         )
+
                     res = await asyncio.to_thread(_q_prof)
                     rows = getattr(res, "data", []) or []
                     if rows:
                         row = rows[0]
-                        profile_ctx.spiritual_readiness = str(row.get("spiritual_level") or profile_ctx.spiritual_readiness)
-                        profile_ctx.language = str(row.get("preferred_language") or profile_ctx.language)
+                        profile_ctx.spiritual_readiness = str(
+                            row.get("spiritual_level") or profile_ctx.spiritual_readiness
+                        )
+                        profile_ctx.language = str(
+                            row.get("preferred_language") or profile_ctx.language
+                        )
                         distress_val = row.get("last_distress_assessment")
                         if isinstance(distress_val, dict):
                             profile_ctx.distress_level = int(distress_val.get("level", 0) or 0)
@@ -161,9 +169,19 @@ class UnifiedPersonalizationEngine:
                 row = await _safe_first(res)
                 if row:
                     m = getattr(row, "_mapping", row)
-                    profile_ctx.spiritual_readiness = str(getattr(m, "spiritual_level", None) or getattr(m, "spiritual_readiness", profile_ctx.spiritual_readiness) or profile_ctx.spiritual_readiness)
-                    profile_ctx.language = str(getattr(m, "preferred_language", None) or getattr(m, "language", profile_ctx.language) or profile_ctx.language)
-                    distress_val = getattr(m, "last_distress_assessment", None) or getattr(m, "distress_level", 0)
+                    profile_ctx.spiritual_readiness = str(
+                        getattr(m, "spiritual_level", None)
+                        or getattr(m, "spiritual_readiness", profile_ctx.spiritual_readiness)
+                        or profile_ctx.spiritual_readiness
+                    )
+                    profile_ctx.language = str(
+                        getattr(m, "preferred_language", None)
+                        or getattr(m, "language", profile_ctx.language)
+                        or profile_ctx.language
+                    )
+                    distress_val = getattr(m, "last_distress_assessment", None) or getattr(
+                        m, "distress_level", 0
+                    )
                     if isinstance(distress_val, dict):
                         profile_ctx.distress_level = int(distress_val.get("level", 0) or 0)
                     elif distress_val is not None:
@@ -177,6 +195,7 @@ class UnifiedPersonalizationEngine:
         async def _fetch_brain() -> None:
             if supabase_client is not None:
                 try:
+
                     def _q_brain():
                         return (
                             supabase_client.table("canonical_memories")
@@ -187,17 +206,20 @@ class UnifiedPersonalizationEngine:
                             .limit(10)
                             .execute()
                         )
+
                     res = await asyncio.to_thread(_q_brain)
                     rows = getattr(res, "data", []) or []
                     mems = []
                     for r in rows:
                         st = r.get("statement")
                         if st:
-                            mems.append({
-                                "id": str(r.get("id", "")),
-                                "statement": str(st),
-                                "category": str(r.get("memory_type", "")),
-                            })
+                            mems.append(
+                                {
+                                    "id": str(r.get("id", "")),
+                                    "statement": str(st),
+                                    "category": str(r.get("memory_type", "")),
+                                }
+                            )
                     if mems:
                         brain_ctx.canonical_memories = mems
                     else:
@@ -211,16 +233,19 @@ class UnifiedPersonalizationEngine:
                                 .limit(10)
                                 .execute()
                             )
+
                         gres = await asyncio.to_thread(_q_guru_mem)
                         grows = getattr(gres, "data", []) or []
                         for gr in grows:
                             mt = gr.get("memory_text")
                             if mt:
-                                mems.append({
-                                    "id": str(gr.get("id", "")),
-                                    "statement": str(mt),
-                                    "category": str(gr.get("state_category", "reflection")),
-                                })
+                                mems.append(
+                                    {
+                                        "id": str(gr.get("id", "")),
+                                        "statement": str(mt),
+                                        "category": str(gr.get("state_category", "reflection")),
+                                    }
+                                )
                         if mems:
                             brain_ctx.canonical_memories = mems
                     return
@@ -243,11 +268,15 @@ class UnifiedPersonalizationEngine:
                     m = getattr(r, "_mapping", r)
                     st = getattr(m, "statement", None)
                     if st:
-                        mems.append({
-                            "id": str(getattr(m, "id", "")),
-                            "statement": str(st),
-                            "category": str(getattr(m, "memory_type", "") or getattr(m, "category", "")),
-                        })
+                        mems.append(
+                            {
+                                "id": str(getattr(m, "id", "")),
+                                "statement": str(st),
+                                "category": str(
+                                    getattr(m, "memory_type", "") or getattr(m, "category", "")
+                                ),
+                            }
+                        )
                 if not mems:
                     stmt2 = text(
                         "SELECT id, memory_text, state_category FROM guru_memories "
@@ -259,11 +288,13 @@ class UnifiedPersonalizationEngine:
                         m = getattr(r, "_mapping", r)
                         mt = getattr(m, "memory_text", None)
                         if mt:
-                            mems.append({
-                                "id": str(getattr(m, "id", "")),
-                                "statement": str(mt),
-                                "category": str(getattr(m, "state_category", "reflection")),
-                            })
+                            mems.append(
+                                {
+                                    "id": str(getattr(m, "id", "")),
+                                    "statement": str(mt),
+                                    "category": str(getattr(m, "state_category", "reflection")),
+                                }
+                            )
                 if mems:
                     brain_ctx.canonical_memories = mems
             except Exception as e:
@@ -272,6 +303,7 @@ class UnifiedPersonalizationEngine:
         async def _fetch_sadhana() -> None:
             if supabase_client is not None:
                 try:
+
                     def _q_sadhana():
                         streak_res = (
                             supabase_client.table("user_streaks")
@@ -288,6 +320,7 @@ class UnifiedPersonalizationEngine:
                             .execute()
                         )
                         return streak_res, med_res
+
                     streak_res, med_res = await asyncio.to_thread(_q_sadhana)
                     streak_data = getattr(streak_res, "data", []) or []
                     if streak_data:
@@ -320,7 +353,9 @@ class UnifiedPersonalizationEngine:
                 row = await _safe_first(res)
                 if row:
                     m = getattr(row, "_mapping", row)
-                    sadhana_ctx.streak_count = int(getattr(m, "current_streak", 0) or getattr(m, "streak_count", 0) or 0)
+                    sadhana_ctx.streak_count = int(
+                        getattr(m, "current_streak", 0) or getattr(m, "streak_count", 0) or 0
+                    )
                     sadhana_ctx.longest_streak = int(getattr(m, "longest_streak", 0) or 0)
                     total_days = int(getattr(m, "total_practice_days", 0) or 0)
                     if total_days > 0:
@@ -333,6 +368,7 @@ class UnifiedPersonalizationEngine:
         async def _fetch_pre_practice() -> None:
             if supabase_client is not None:
                 try:
+
                     def _q_pp():
                         return (
                             supabase_client.table("user_pre_practice_logs")
@@ -342,6 +378,7 @@ class UnifiedPersonalizationEngine:
                             .limit(1)
                             .execute()
                         )
+
                     res = await asyncio.to_thread(_q_pp)
                     rows = getattr(res, "data", []) or []
                     if rows:
@@ -375,15 +412,25 @@ class UnifiedPersonalizationEngine:
                 row = await _safe_first(res)
                 if row:
                     m = getattr(row, "_mapping", row)
-                    pre_practice_ctx.pre_session_state = str(getattr(m, "pre_session_state", pre_practice_ctx.pre_session_state) or pre_practice_ctx.pre_session_state)
-                    pre_practice_ctx.mental_clarity = int(getattr(m, "mental_clarity", pre_practice_ctx.mental_clarity) or pre_practice_ctx.mental_clarity)
-                    pre_practice_ctx.emotional_tone = str(getattr(m, "emotional_tone", pre_practice_ctx.emotional_tone) or pre_practice_ctx.emotional_tone)
+                    pre_practice_ctx.pre_session_state = str(
+                        getattr(m, "pre_session_state", pre_practice_ctx.pre_session_state)
+                        or pre_practice_ctx.pre_session_state
+                    )
+                    pre_practice_ctx.mental_clarity = int(
+                        getattr(m, "mental_clarity", pre_practice_ctx.mental_clarity)
+                        or pre_practice_ctx.mental_clarity
+                    )
+                    pre_practice_ctx.emotional_tone = str(
+                        getattr(m, "emotional_tone", pre_practice_ctx.emotional_tone)
+                        or pre_practice_ctx.emotional_tone
+                    )
             except Exception as e:
                 logger.debug("Unified engine: pre_practice query exception: %s", e)
 
         async def _fetch_notebook() -> None:
             if supabase_client is not None:
                 try:
+
                     def _q_nb():
                         # Canonical schema: study_notebooks has user_id, study_notebook_items has notebook_id
                         try:
@@ -437,11 +484,13 @@ class UnifiedPersonalizationEngine:
                                     ts = float(c0.get("timestamp_seconds") or 0.0)
                                 except (ValueError, TypeError):
                                     ts = 0.0
-                        saved.append({
-                            "title": str(r.get("query") or "Teaching"),
-                            "video_id": vid,
-                            "timestamp_seconds": ts,
-                        })
+                        saved.append(
+                            {
+                                "title": str(r.get("query") or "Teaching"),
+                                "video_id": vid,
+                                "timestamp_seconds": ts,
+                            }
+                        )
                     if saved:
                         notebook_ctx.saved_teachings = saved
                     return
@@ -462,11 +511,13 @@ class UnifiedPersonalizationEngine:
                 saved = []
                 for r in rows:
                     m = getattr(r, "_mapping", r)
-                    saved.append({
-                        "title": str(getattr(m, "title", "Teaching")),
-                        "video_id": str(getattr(m, "video_id", "")),
-                        "timestamp_seconds": float(getattr(m, "timestamp_seconds", 0.0) or 0.0),
-                    })
+                    saved.append(
+                        {
+                            "title": str(getattr(m, "title", "Teaching")),
+                            "video_id": str(getattr(m, "video_id", "")),
+                            "timestamp_seconds": float(getattr(m, "timestamp_seconds", 0.0) or 0.0),
+                        }
+                    )
                 if saved:
                     notebook_ctx.saved_teachings = saved
             except Exception as e:
@@ -475,6 +526,7 @@ class UnifiedPersonalizationEngine:
         async def _fetch_mood() -> None:
             if supabase_client is not None:
                 try:
+
                     def _q_mood():
                         return (
                             supabase_client.table("mood_entries")
@@ -484,14 +536,17 @@ class UnifiedPersonalizationEngine:
                             .limit(3)
                             .execute()
                         )
+
                     res = await asyncio.to_thread(_q_mood)
                     rows = getattr(res, "data", []) or []
                     moods = []
                     for r in rows:
-                        moods.append({
-                            "dominant_emotion": str(r.get("dominant_emotion", "balanced")),
-                            "notes": str(r.get("notes", "")),
-                        })
+                        moods.append(
+                            {
+                                "dominant_emotion": str(r.get("dominant_emotion", "balanced")),
+                                "notes": str(r.get("notes", "")),
+                            }
+                        )
                     if moods:
                         mood_ctx.mood_trajectory = moods
                     return
@@ -512,10 +567,12 @@ class UnifiedPersonalizationEngine:
                 moods = []
                 for r in rows:
                     m = getattr(r, "_mapping", r)
-                    moods.append({
-                        "dominant_emotion": str(getattr(m, "dominant_emotion", "balanced")),
-                        "notes": str(getattr(m, "notes", "")),
-                    })
+                    moods.append(
+                        {
+                            "dominant_emotion": str(getattr(m, "dominant_emotion", "balanced")),
+                            "notes": str(getattr(m, "notes", "")),
+                        }
+                    )
                 if moods:
                     mood_ctx.mood_trajectory = moods
             except Exception as e:
@@ -524,6 +581,7 @@ class UnifiedPersonalizationEngine:
         async def _fetch_whatsapp() -> None:
             if supabase_client is not None:
                 try:
+
                     def _q_wa():
                         return (
                             supabase_client.table("whatsapp_account_links")
@@ -532,6 +590,7 @@ class UnifiedPersonalizationEngine:
                             .limit(1)
                             .execute()
                         )
+
                     res = await asyncio.to_thread(_q_wa)
                     rows = getattr(res, "data", []) or []
                     if rows:
@@ -555,10 +614,12 @@ class UnifiedPersonalizationEngine:
                 refs = []
                 for r in rows:
                     m = getattr(r, "_mapping", r)
-                    refs.append({
-                        "sadhana_reflection": str(getattr(m, "sadhana_reflection", "")),
-                        "insight": str(getattr(m, "insight", "")),
-                    })
+                    refs.append(
+                        {
+                            "sadhana_reflection": str(getattr(m, "sadhana_reflection", "")),
+                            "insight": str(getattr(m, "insight", "")),
+                        }
+                    )
                 if refs:
                     whatsapp_ctx.reflections = refs
             except Exception as e:

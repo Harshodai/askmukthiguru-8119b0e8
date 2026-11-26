@@ -83,6 +83,7 @@ def run_e2e_verification() -> bool:
     os.environ["META_PHONE_NUMBER_ID"] = "109876543210"
 
     from app.main import app
+
     client = TestClient(app)
 
     passed_checks = 0
@@ -93,12 +94,16 @@ def run_e2e_verification() -> bool:
     # -------------------------------------------------------------------------
     print("\n[1/9] Verifying Meta Webhook GET challenge...")
     # Valid challenge
-    res = client.get("/api/whatsapp/webhook?hub.mode=subscribe&hub.challenge=test_challenge_abc&hub.verify_token=test_verify_token_secure")
+    res = client.get(
+        "/api/whatsapp/webhook?hub.mode=subscribe&hub.challenge=test_challenge_abc&hub.verify_token=test_verify_token_secure"
+    )
     assert res.status_code == 200, f"Expected 200, got {res.status_code}"
     assert res.text == "test_challenge_abc"
 
     # Invalid verify token -> 403 Forbidden
-    res_bad = client.get("/api/whatsapp/webhook?hub.mode=subscribe&hub.challenge=test_challenge_abc&hub.verify_token=wrong_token")
+    res_bad = client.get(
+        "/api/whatsapp/webhook?hub.mode=subscribe&hub.challenge=test_challenge_abc&hub.verify_token=wrong_token"
+    )
     assert res_bad.status_code == 403, f"Expected 403 on wrong token, got {res_bad.status_code}"
     print("  ✓ GET challenge verified: 200 on match, 403 on mismatch")
     passed_checks += 1
@@ -116,7 +121,10 @@ def run_e2e_verification() -> bool:
     assert res_sig_ok.status_code == 200
 
     # Bad signature -> 403
-    headers_bad = {"X-Hub-Signature-256": "sha256=bad_sig_value", "Content-Type": "application/json"}
+    headers_bad = {
+        "X-Hub-Signature-256": "sha256=bad_sig_value",
+        "Content-Type": "application/json",
+    }
     res_sig_bad = client.post("/api/whatsapp/webhook", content=body_bytes, headers=headers_bad)
     assert res_sig_bad.status_code == 403
     print("  ✓ HMAC-SHA256 enforced: 200 on valid signature, 403 on forgery")
@@ -128,19 +136,25 @@ def run_e2e_verification() -> bool:
     print("\n[3/9] Verifying message deduplication...")
     wamid = f"wamid.test.{uuid.uuid4().hex}"
     msg_body = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "109876543210"},
-                    "messages": [{
-                        "id": wamid,
-                        "from": "919876543210",
-                        "type": "text",
-                        "text": {"body": "HELP"},
-                    }],
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "109876543210"},
+                            "messages": [
+                                {
+                                    "id": wamid,
+                                    "from": "919876543210",
+                                    "type": "text",
+                                    "text": {"body": "HELP"},
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
     }
     body_bytes = json.dumps(msg_body).encode("utf-8")
     headers = create_signed_headers(body_bytes, test_secret)
@@ -161,23 +175,31 @@ def run_e2e_verification() -> bool:
     # -------------------------------------------------------------------------
     # Check 4: Immediate privacy commands (LINK, STOP, RESET) and unlinked auth gate
     # -------------------------------------------------------------------------
-    print("\n[4/9] Verifying immediate privacy commands (LINK, STOP, RESET) and unlinked auth gate...")
+    print(
+        "\n[4/9] Verifying immediate privacy commands (LINK, STOP, RESET) and unlinked auth gate..."
+    )
     for cmd in ("STOP", "RESET"):
         cmd_wamid = f"wamid.{cmd.lower()}.{uuid.uuid4().hex}"
         cmd_body = {
-            "entry": [{
-                "changes": [{
-                    "value": {
-                        "metadata": {"phone_number_id": "109876543210"},
-                        "messages": [{
-                            "id": cmd_wamid,
-                            "from": "919876543210",
-                            "type": "text",
-                            "text": {"body": cmd},
-                        }],
-                    }
-                }]
-            }]
+            "entry": [
+                {
+                    "changes": [
+                        {
+                            "value": {
+                                "metadata": {"phone_number_id": "109876543210"},
+                                "messages": [
+                                    {
+                                        "id": cmd_wamid,
+                                        "from": "919876543210",
+                                        "type": "text",
+                                        "text": {"body": cmd},
+                                    }
+                                ],
+                            }
+                        }
+                    ]
+                }
+            ]
         }
         b_bytes = json.dumps(cmd_body).encode("utf-8")
         hdrs = create_signed_headers(b_bytes, test_secret)
@@ -189,19 +211,25 @@ def run_e2e_verification() -> bool:
     # Unlinked user query intercepted with authentication challenge URL
     unlinked_wamid = f"wamid.unlinked.{uuid.uuid4().hex}"
     unlinked_body = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "109876543210"},
-                    "messages": [{
-                        "id": unlinked_wamid,
-                        "from": "919876543210",
-                        "type": "text",
-                        "text": {"body": "How can I find peace?"},
-                    }],
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "109876543210"},
+                            "messages": [
+                                {
+                                    "id": unlinked_wamid,
+                                    "from": "919876543210",
+                                    "type": "text",
+                                    "text": {"body": "How can I find peace?"},
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
     }
     b_bytes = json.dumps(unlinked_body).encode("utf-8")
     hdrs = create_signed_headers(b_bytes, test_secret)
@@ -222,19 +250,25 @@ def run_e2e_verification() -> bool:
     print("\n[5/9] Verifying acute crisis preemption...")
     crisis_wamid = f"wamid.crisis.{uuid.uuid4().hex}"
     crisis_body = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "109876543210"},
-                    "messages": [{
-                        "id": crisis_wamid,
-                        "from": "919876543210",
-                        "type": "text",
-                        "text": {"body": "I feel like ending my life, please help"},
-                    }],
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "109876543210"},
+                            "messages": [
+                                {
+                                    "id": crisis_wamid,
+                                    "from": "919876543210",
+                                    "type": "text",
+                                    "text": {"body": "I feel like ending my life, please help"},
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
     }
     b_bytes = json.dumps(crisis_body).encode("utf-8")
     hdrs = create_signed_headers(b_bytes, test_secret)
@@ -257,16 +291,20 @@ def run_e2e_verification() -> bool:
 
     mock_chat_response = {
         "response": "A beautiful state is a state of inner peace and freedom from the chattering self.",
-        "citations": [{
-            "video_id": "UlOt31lBhLY",
-            "title": "Living in a Beautiful State",
-            "playbackStartSeconds": 101.0,
-            "url": "https://www.youtube.com/watch?v=UlOt31lBhLY&t=101s",
-        }],
+        "citations": [
+            {
+                "video_id": "UlOt31lBhLY",
+                "title": "Living in a Beautiful State",
+                "playbackStartSeconds": 101.0,
+                "url": "https://www.youtube.com/watch?v=UlOt31lBhLY&t=101s",
+            }
+        ],
     }
 
-    with patch("requests.post") as mock_post, \
-         patch("tasks.whatsapp_tasks._send_meta_outbound", return_value=True) as mock_outbound:
+    with (
+        patch("requests.post") as mock_post,
+        patch("tasks.whatsapp_tasks._send_meta_outbound", return_value=True) as mock_outbound,
+    ):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_chat_response
@@ -320,24 +358,36 @@ def run_e2e_verification() -> bool:
     def mock_table(table_name):
         if table_name == "whatsapp_link_challenges":
             m = MagicMock()
-            m.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[challenge_row])
-            m.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[challenge_row])
+            m.select.return_value.eq.return_value.execute.return_value = MagicMock(
+                data=[challenge_row]
+            )
+            m.update.return_value.eq.return_value.execute.return_value = MagicMock(
+                data=[challenge_row]
+            )
             return m
         elif table_name == "whatsapp_account_links":
             m = MagicMock()
-            m.upsert.return_value.execute.return_value = MagicMock(data=[{"phone_number_masked": "+91 98*** **210"}])
-            m.insert.return_value.execute.return_value = MagicMock(data=[{"user_id": fake_user_id}])
-            m.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-                data=[{
-                    "user_id": fake_user_id,
-                    "phone_number_masked": "+91 98*** **210",
-                    "status": "active",
-                    "sync_history_consent": True,
-                    "memory_write_consent": False,
-                    "linked_at": "2026-11-21T00:00:00Z",
-                }]
+            m.upsert.return_value.execute.return_value = MagicMock(
+                data=[{"phone_number_masked": "+91 98*** **210"}]
             )
-            m.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"sync_history_consent": True}])
+            m.insert.return_value.execute.return_value = MagicMock(data=[{"user_id": fake_user_id}])
+            m.select.return_value.eq.return_value.limit.return_value.execute.return_value = (
+                MagicMock(
+                    data=[
+                        {
+                            "user_id": fake_user_id,
+                            "phone_number_masked": "+91 98*** **210",
+                            "status": "active",
+                            "sync_history_consent": True,
+                            "memory_write_consent": False,
+                            "linked_at": "2026-11-21T00:00:00Z",
+                        }
+                    ]
+                )
+            )
+            m.update.return_value.eq.return_value.execute.return_value = MagicMock(
+                data=[{"sync_history_consent": True}]
+            )
             m.delete.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
             return m
         return MagicMock()
@@ -350,7 +400,10 @@ def run_e2e_verification() -> bool:
     from app.dependencies import get_container_async
     from services.auth_service import get_current_user_from_supabase
 
-    app.dependency_overrides[get_current_user_from_supabase] = lambda: {"id": fake_user_id, "email": "faculty@oneness.org"}
+    app.dependency_overrides[get_current_user_from_supabase] = lambda: {
+        "id": fake_user_id,
+        "email": "faculty@oneness.org",
+    }
     app.dependency_overrides[get_container_async] = lambda: mock_container
 
     try:
@@ -369,7 +422,10 @@ def run_e2e_verification() -> bool:
         assert status_data["sync_history_consent"] is True
 
         # Consent update
-        res_consent = client.post("/api/whatsapp/link/consent", json={"sync_history_consent": False, "memory_write_consent": True})
+        res_consent = client.post(
+            "/api/whatsapp/link/consent",
+            json={"sync_history_consent": False, "memory_write_consent": True},
+        )
         assert res_consent.status_code == 200
 
         # Unlink
@@ -386,23 +442,31 @@ def run_e2e_verification() -> bool:
     # -------------------------------------------------------------------------
     print("\n[8/9] Verifying delivery callback & 24h window expiration logging...")
     callback_body = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "109876543210"},
-                    "statuses": [{
-                        "id": "wamid.status.123",
-                        "status": "failed",
-                        "recipient_id": "919876543210",
-                        "errors": [{
-                            "code": 131047,
-                            "title": "Re-engagement message",
-                            "message": "Message failed to send because more than 24 hours have passed since the customer last replied.",
-                        }]
-                    }],
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "109876543210"},
+                            "statuses": [
+                                {
+                                    "id": "wamid.status.123",
+                                    "status": "failed",
+                                    "recipient_id": "919876543210",
+                                    "errors": [
+                                        {
+                                            "code": 131047,
+                                            "title": "Re-engagement message",
+                                            "message": "Message failed to send because more than 24 hours have passed since the customer last replied.",
+                                        }
+                                    ],
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
     }
     cb_bytes = json.dumps(callback_body).encode("utf-8")
     cb_headers = create_signed_headers(cb_bytes, test_secret)
@@ -416,6 +480,7 @@ def run_e2e_verification() -> bool:
     # -------------------------------------------------------------------------
     print("\n[9/9] Verifying live Supabase database lifecycle with dummy user...")
     from app.telemetry_db import _get_client
+
     live_db = _get_client()
     if live_db:
         import asyncio
@@ -437,7 +502,9 @@ def run_e2e_verification() -> bool:
             await unlink_account(live_db, dummy_user_id)
 
             # 2. Create link challenge
-            raw_token, ch_row = await create_link_challenge(live_db, live_test_phone, confirmed_whatsapp=True)
+            raw_token, ch_row = await create_link_challenge(
+                live_db, live_test_phone, confirmed_whatsapp=True
+            )
             assert raw_token, "Live token creation failed"
             assert ch_row["phone_number_masked"] == "+9198*** **210"
 
@@ -453,7 +520,9 @@ def run_e2e_verification() -> bool:
             assert status_data["masked_phone"] == "+9198*** **210"
 
             # 5. Update DPDP consent
-            consent_data = await update_link_consent(live_db, dummy_user_id, sync_history_consent=True, memory_write_consent=True)
+            consent_data = await update_link_consent(
+                live_db, dummy_user_id, sync_history_consent=True, memory_write_consent=True
+            )
             assert consent_data["sync_history_consent"] is True
             assert consent_data["memory_write_consent"] is True
 
@@ -469,7 +538,9 @@ def run_e2e_verification() -> bool:
             assert cleared_status["linked"] is False
 
         asyncio.run(_run_live_flow())
-        print("  ✓ Real Supabase lifecycle proven: challenge, binding, DPDP toggles, phone lookup, and unlinking")
+        print(
+            "  ✓ Real Supabase lifecycle proven: challenge, binding, DPDP toggles, phone lookup, and unlinking"
+        )
         passed_checks += 1
     else:
         print("  ⚠ Supabase client unavailable in this environment — skipping live DB probe")

@@ -292,21 +292,45 @@ def _probe_launch_dpdp(
         )
         if not still_there.data:
             failures.append(
-                {"table": "waitlist_entries", "client": "anon", "op": "erase_wrong_token", "expected": 1, "got": 0}
+                {
+                    "table": "waitlist_entries",
+                    "client": "anon",
+                    "op": "erase_wrong_token",
+                    "expected": 1,
+                    "got": 0,
+                }
             )
 
         # Interim erase by email removes the row for anon.
         anon_client.rpc("erase_launch_subscription", {"p_email": erase_row["email"]}).execute()
-        erased = service_client.table("waitlist_entries").select("id").eq("id", erase_row["id"]).execute()
+        erased = (
+            service_client.table("waitlist_entries")
+            .select("id")
+            .eq("id", erase_row["id"])
+            .execute()
+        )
         if erased.data:
             failures.append(
-                {"table": "waitlist_entries", "client": "anon", "op": "erase_by_email", "expected": 0, "got": len(erased.data)}
+                {
+                    "table": "waitlist_entries",
+                    "client": "anon",
+                    "op": "erase_by_email",
+                    "expected": 0,
+                    "got": len(erased.data),
+                }
             )
 
         # Retention purge is service_role only.
         try:
             anon_client.rpc("purge_expired_launch_subscribers", {"p_months": 12}).execute()
-            failures.append({"table": "waitlist_entries", "client": "anon", "op": "purge", "error": "anon could call purge"})
+            failures.append(
+                {
+                    "table": "waitlist_entries",
+                    "client": "anon",
+                    "op": "purge",
+                    "error": "anon could call purge",
+                }
+            )
         except Exception as exc:
             if not _is_permission_or_rls_error(exc):
                 failures.append({"table": "waitlist_entries", "op": "purge", "error": str(exc)})
@@ -317,11 +341,19 @@ def _probe_launch_dpdp(
                 thr = client.table("launch_signup_throttle").select("*").limit(1).execute()
                 if thr.data:
                     failures.append(
-                        {"table": "launch_signup_throttle", "client": label, "op": "select", "expected": [], "got": len(thr.data)}
+                        {
+                            "table": "launch_signup_throttle",
+                            "client": label,
+                            "op": "select",
+                            "expected": [],
+                            "got": len(thr.data),
+                        }
                     )
             except Exception as exc:
                 if not _is_permission_or_rls_error(exc):
-                    failures.append({"table": "launch_signup_throttle", "client": label, "error": str(exc)})
+                    failures.append(
+                        {"table": "launch_signup_throttle", "client": label, "error": str(exc)}
+                    )
     except Exception as exc:
         if not _is_permission_or_rls_error(exc):
             failures.append({"table": "waitlist_entries", "op": "launch_dpdp", "error": str(exc)})
@@ -830,7 +862,9 @@ def run_verification() -> dict[str, Any]:
             bob_delete = bob_client.table("waitlist_entries").delete().eq("id", wl_id).execute()
 
             anon_client = create_client(SUPABASE_URL, ANON_KEY)
-            anon_select = anon_client.table("waitlist_entries").select("*").eq("id", wl_id).execute()
+            anon_select = (
+                anon_client.table("waitlist_entries").select("*").eq("id", wl_id).execute()
+            )
             anon_update = (
                 anon_client.table("waitlist_entries")
                 .update({"name": "Hacked by Anon"})
@@ -1120,14 +1154,18 @@ def run_verification() -> dict[str, Any]:
             link_id = link_resp.data[0]["id"]
             seeded_ids["whatsapp_account_links"].append(link_id)
 
-            bob_select = bob_client.table("whatsapp_account_links").select("*").eq("id", link_id).execute()
+            bob_select = (
+                bob_client.table("whatsapp_account_links").select("*").eq("id", link_id).execute()
+            )
             bob_update = (
                 bob_client.table("whatsapp_account_links")
                 .update({"status": "revoked"})
                 .eq("id", link_id)
                 .execute()
             )
-            bob_delete = bob_client.table("whatsapp_account_links").delete().eq("id", link_id).execute()
+            bob_delete = (
+                bob_client.table("whatsapp_account_links").delete().eq("id", link_id).execute()
+            )
             if bob_select.data:
                 failures.append(
                     {

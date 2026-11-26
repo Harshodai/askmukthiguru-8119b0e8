@@ -5,6 +5,7 @@ retrieval text, and delegates writes to FirstPersonContextStore. Speaker identit
 is never inferred from titles or channel metadata. Rejected windows are recorded
 before any Qdrant write; raw ASR text is preserved verbatim and never rewritten.
 """
+
 from __future__ import annotations
 
 import math
@@ -138,7 +139,9 @@ def _group_windows(windows: list[Window]) -> list[list[Window]]:
     groups: list[list[Window]] = []
     current: list[Window] = []
     for window in windows:
-        exceeds_duration = bool(current) and window.end_ms - current[0].start_ms > MAX_PARENT_DURATION_MS
+        exceeds_duration = (
+            bool(current) and window.end_ms - current[0].start_ms > MAX_PARENT_DURATION_MS
+        )
         exceeds_count = len(current) >= MAX_PARENT_SPANS
         long_gap = bool(current) and window.start_ms - current[-1].end_ms > MAX_PARENT_GAP_MS
         if exceeds_duration or exceeds_count or long_gap:
@@ -354,7 +357,9 @@ def build_context_records(
                 update={
                     "previous_span_id": group_spans[index - 1].source_span_id if index else None,
                     "next_span_id": (
-                        group_spans[index + 1].source_span_id if index + 1 < len(group_spans) else None
+                        group_spans[index + 1].source_span_id
+                        if index + 1 < len(group_spans)
+                        else None
                     ),
                 }
             )
@@ -381,7 +386,9 @@ def build_context_records(
     return parents, spans, rejected_count
 
 
-def encode_vectors(embedding_service: Any, spans: Iterable[SourceSpan]) -> dict[str, dict[str, Any]]:
+def encode_vectors(
+    embedding_service: Any, spans: Iterable[SourceSpan]
+) -> dict[str, dict[str, Any]]:
     span_list = list(spans)
     if not span_list:
         raise ValueError("cannot embed an empty span list")
