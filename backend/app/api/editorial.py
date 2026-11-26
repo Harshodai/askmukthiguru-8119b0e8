@@ -166,7 +166,7 @@ def get_editorial_service(container: ServiceContainer) -> EditorialIntelligenceS
         client = getattr(container, "qdrant_client", None)
         col = settings.first_person_context_collection or settings.first_person_collection
         if client is None:
-            return {}
+            raise HTTPException(status_code=503, detail="Qdrant unavailable")
         return QdrantEvidenceAdapter(client, col).fetch_by_ids(ids)
 
     _EDITORIAL_SINGLETON = EditorialIntelligenceService(
