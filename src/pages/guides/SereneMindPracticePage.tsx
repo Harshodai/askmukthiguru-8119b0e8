@@ -24,7 +24,7 @@ const SereneMindPracticePage = () => {
       description: content.meta.articleDescription,
       language: i18n.language,
       faqs: content.faqs.items,
-      keywords: 'serene mind meditation, 3 minute meditation stress, breath practice, Preethaji Krishnaji',
+      keywords: '3 minute meditation, Serene Mind practice, comfortable breathing, spiritual self-help, daily reflection',
     }),
   });
 

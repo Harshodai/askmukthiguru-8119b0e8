@@ -17,6 +17,7 @@ export const LAUNCH_SIGNUP_SOURCES = [
   'guide_self_centric',
   'guide_anxiety',
   'guide_suffering',
+  'launch_page',
 ] as const;
 
 export type LaunchSignupSource = (typeof LAUNCH_SIGNUP_SOURCES)[number];
@@ -55,14 +56,15 @@ export async function submitLaunchSignup({
     return { status: 'failed', reason: 'invalid_email' };
   }
 
-  const { data, error } = await supabase.rpc('subscribe_launch_updates', {
-    p_email: normalized,
-    p_consent: true,
-    p_source: source,
-  });
-
-  if (error) return { status: 'failed', reason: 'request_failed' };
-  return data === 'accepted' ? { status: 'accepted' } : { status: 'failed', reason: 'request_failed' };
+  try {
+    const { data, error } = await supabase.functions.invoke('launch-signup', {
+      body: { email: normalized, consent: true, source },
+    });
+    if (error) return { status: 'failed', reason: 'request_failed' };
+    return data?.status === 'accepted' ? { status: 'accepted' } : { status: 'failed', reason: 'request_failed' };
+  } catch {
+    return { status: 'failed', reason: 'request_failed' };
+  }
 }
 
 /**

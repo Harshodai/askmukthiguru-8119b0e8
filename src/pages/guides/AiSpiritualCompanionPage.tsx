@@ -24,7 +24,7 @@ const AiSpiritualCompanionPage = () => {
       description: content.meta.articleDescription,
       language: i18n.language,
       faqs: content.faqs.items,
-      keywords: 'AI spiritual guide, AI-guided meditation, Beautiful State, spiritual growth, yogic wisdom',
+      keywords: 'spiritual guidance, spiritual self-help, AI spiritual guide, self-reflection, recorded teachings, daily meditation',
     }),
   });
 

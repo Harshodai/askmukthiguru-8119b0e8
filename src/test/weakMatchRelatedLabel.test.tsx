@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createProvenanceManifestFromMessage } from '@/types/provenance';
-import type { Message } from '@/types/chat';
+import type { Message } from '@/lib/chatStorage';
 
 describe('Provenance disclosure for verbatim first-person teacher clips', () => {
   it('does not mislabel first_person_verbatim_clip_gate clips as AI-synthesized', () => {

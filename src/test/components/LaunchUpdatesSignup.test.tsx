@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-const { rpcMock } = vi.hoisted(() => ({ rpcMock: vi.fn() }));
+const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: { rpc: rpcMock },
+  supabase: { functions: { invoke: invokeMock } },
 }));
 
 import { LaunchUpdatesSignup } from '@/components/guides/LaunchUpdatesSignup';
@@ -19,7 +19,7 @@ const renderForm = () =>
 
 describe('LaunchUpdatesSignup', () => {
   beforeEach(() => {
-    rpcMock.mockReset();
+    invokeMock.mockReset();
   });
 
   it('has a visible email label and an unchecked consent box', () => {
@@ -38,12 +38,12 @@ describe('LaunchUpdatesSignup', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Join launch list' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/confirm/i);
-    expect(rpcMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it('shows a pending state, then success', async () => {
-    let resolveRpc!: (value: { data: string; error: null }) => void;
-    rpcMock.mockReturnValue(
+    let resolveRpc: ((value: { data: { status: string }; error: null }) => void) | undefined;
+    invokeMock.mockReturnValue(
       new Promise((resolve) => {
         resolveRpc = resolve;
       }),
@@ -60,17 +60,17 @@ describe('LaunchUpdatesSignup', () => {
     expect(pending).toBeDisabled();
     expect(pending).toHaveAttribute('aria-busy', 'true');
 
-    resolveRpc({ data: 'accepted', error: null });
+    resolveRpc?.({ data: { status: 'accepted' }, error: null });
     expect(await screen.findByRole('status')).toHaveTextContent(/on the launch list/i);
-    expect(rpcMock).toHaveBeenCalledWith('subscribe_launch_updates', {
-      p_email: 'seeker@example.com',
-      p_consent: true,
-      p_source: 'guide_ai_spiritual_companion',
-    });
+    expect(invokeMock).toHaveBeenCalledWith('launch-signup', { body: {
+      email: 'seeker@example.com',
+      consent: true,
+      source: 'guide_ai_spiritual_companion',
+    } });
   });
 
   it('keeps the typed email after a failure and retries successfully', async () => {
-    rpcMock.mockResolvedValueOnce({ data: null, error: { message: 'Signup temporarily busy' } });
+    invokeMock.mockResolvedValueOnce({ data: null, error: { message: 'Signup temporarily busy' } });
 
     renderForm();
     const email = screen.getByLabelText('Email address');
@@ -83,10 +83,10 @@ describe('LaunchUpdatesSignup', () => {
     expect(alert).not.toHaveTextContent(/seeker@example\.com/i);
     expect(email).toHaveValue('Seeker@Example.com');
 
-    rpcMock.mockResolvedValueOnce({ data: 'accepted', error: null });
+    invokeMock.mockResolvedValueOnce({ data: { status: 'accepted' }, error: null });
     fireEvent.click(screen.getByRole('button', { name: 'Join launch list' }));
     expect(await screen.findByRole('status')).toBeInTheDocument();
-    expect(rpcMock).toHaveBeenCalledTimes(2);
+    expect(invokeMock).toHaveBeenCalledTimes(2);
   });
 
   it('rejects a malformed address before any request', async () => {
@@ -96,6 +96,6 @@ describe('LaunchUpdatesSignup', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Join launch list' }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/valid email/i));
-    expect(rpcMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 });

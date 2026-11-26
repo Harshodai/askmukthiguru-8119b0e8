@@ -39,6 +39,7 @@ const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 const TrustPage = lazyWithRetry(() => import("./pages/TrustPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
 const UnsubscribePage = lazyWithRetry(() => import("./pages/UnsubscribePage"));
+const LaunchPage = lazyWithRetry(() => import("./pages/LaunchPage"));
 const TTSVerificationPage = lazyWithRetry(() => import("./pages/TTSVerificationPage"));
 const AiSpiritualCompanionPage = lazyWithRetry(() => import("./pages/guides/AiSpiritualCompanionPage"));
 const BeautifulStateMeditationPage = lazyWithRetry(() => import("./pages/guides/BeautifulStateMeditationPage"));
@@ -391,6 +392,7 @@ const App = () => {
               <Route path="/trust" element={<Suspense fallback={<BrandedSpinner />}><TrustPage /></Suspense>} />
               <Route path="/terms" element={<Suspense fallback={<BrandedSpinner />}><TermsPage /></Suspense>} />
               <Route path="/unsubscribe" element={<Suspense fallback={<BrandedSpinner />}><UnsubscribePage /></Suspense>} />
+              <Route path="/launch" element={<Suspense fallback={<BrandedSpinner />}><LaunchPage /></Suspense>} />
               <Route path="/chat" element={<Suspense fallback={<BrandedSpinner />}><ChatPage /></Suspense>} />
               <Route path="/profile" element={<Suspense fallback={<BrandedSpinner />}><ProfilePage /></Suspense>} />
               <Route path="/practices" element={<Suspense fallback={<BrandedSpinner />}><PracticesPage /></Suspense>} />

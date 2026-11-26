@@ -398,8 +398,8 @@
   },
   "chat": {
     "quotaLeft": "{{remaining}} of {{limit}} free questions left today",
-    "pageTitle": "Chat — AskMukthiGuru",
-    "pageDescription": "Have a private, AI-guided spiritual conversation rooted in the teachings of Sri Preethaji & Sri Krishnaji.",
+    "pageTitle": "Spiritual Guidance Chat & Sourced Teachings | AskMukthiGuru",
+    "pageDescription": "Ask a spiritual reflection question. Explore source-linked teacher excerpts when available, with honest limits and optional personal practice. Not therapy.",
     "loadingSession": "Loading your session…",
     "srOnlyTitle": "Chat with your AI Spiritual Guide",
     "continueTitle": "Continue from where you left off?",
@@ -2273,8 +2273,8 @@
   "guides": {
     "aiSpiritualCompanion": {
       "meta": {
-        "title": "AI Spiritual Guide: Sourced Teachings & Practice | AskMukthiGuru",
-        "description": "What an AI spiritual guide can and cannot offer: source-linked teachings, honest limits, Serene Mind practice, and daily reflection.",
+        "title": "Spiritual Guidance & AI Self-Reflection | AskMukthiGuru",
+        "description": "A practical guide to spiritual guidance and self-reflection: recorded teaching sources, AI limits, daily meditation and gentle self-help practices.",
         "articleHeadline": "AI Spiritual Guide: Sourced Teachings and Daily Practice",
         "articleDescription": "How to use an AI spiritual guide for daily meditation, breathwork, and reflection grounded in the teachings of Sri Preethaji & Sri Krishnaji.",
         "publicShellTitle": "AI Spiritual Companion"
@@ -2478,8 +2478,8 @@
     },
     "sereneMindPractice": {
       "meta": {
-        "title": "Serene Mind Meditation: A 3-Minute Stress Practice",
-        "description": "A simple Serene Mind meditation for stressful moments. Learn the breath technique and when to use it, step by step.",
+        "title": "3-Minute Meditation: Serene Mind Practice | AskMukthiGuru",
+        "description": "Explore a 3-minute meditation with the Serene Mind guide. Learn comfortable breathing, reflection and when to pause. A spiritual practice, not medical treatment.",
         "articleHeadline": "Serene Mind Meditation: A 3-Minute Practice for Stress",
         "articleDescription": "A step-by-step Serene Mind breathing practice from the teachings of Sri Preethaji & Sri Krishnaji, for stressful moments.",
         "publicShellTitle": "Serene Mind Practice"

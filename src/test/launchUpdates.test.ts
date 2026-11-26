@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { rpcMock } = vi.hoisted(() => ({ rpcMock: vi.fn() }));
+const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: { rpc: rpcMock },
+  supabase: { functions: { invoke: invokeMock } },
 }));
 
 import {
@@ -15,7 +15,7 @@ import {
 
 describe('launch updates intake', () => {
   beforeEach(() => {
-    rpcMock.mockReset();
+    invokeMock.mockReset();
   });
 
   it('normalizes surrounding whitespace and case', () => {
@@ -35,28 +35,28 @@ describe('launch updates intake', () => {
   });
 
   it('sends normalized email, source and explicit consent', async () => {
-    rpcMock.mockResolvedValue({ data: 'accepted', error: null });
+    invokeMock.mockResolvedValue({ data: { status: 'accepted' }, error: null });
 
     await expect(
       submitLaunchSignup({ email: '  Seeker@Example.com ', source: 'guide_serene_mind' }),
     ).resolves.toEqual({ status: 'accepted' });
 
-    expect(rpcMock).toHaveBeenCalledWith('subscribe_launch_updates', {
-      p_email: 'seeker@example.com',
-      p_consent: true,
-      p_source: 'guide_serene_mind',
-    });
+    expect(invokeMock).toHaveBeenCalledWith('launch-signup', { body: {
+      email: 'seeker@example.com',
+      consent: true,
+      source: 'guide_serene_mind',
+    } });
   });
 
   it('never echoes the address in a success or failure result', async () => {
-    rpcMock.mockResolvedValueOnce({ data: 'accepted', error: null });
+    invokeMock.mockResolvedValueOnce({ data: { status: 'accepted' }, error: null });
     const accepted = await submitLaunchSignup({
       email: 'seeker@example.com',
       source: 'guide_ai_spiritual_companion',
     });
     expect(JSON.stringify(accepted)).not.toContain('seeker@example.com');
 
-    rpcMock.mockResolvedValueOnce({ data: null, error: { message: 'Signup temporarily busy' } });
+    invokeMock.mockResolvedValueOnce({ data: null, error: { message: 'Signup temporarily busy' } });
     const failed = await submitLaunchSignup({
       email: 'seeker@example.com',
       source: 'guide_ai_spiritual_companion',
@@ -71,7 +71,7 @@ describe('launch updates intake', () => {
       source: 'guide_ai_spiritual_companion',
     });
     expect(result).toEqual({ status: 'failed', reason: 'invalid_email' });
-    expect(rpcMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it('uses only sources the database accepts', () => {
@@ -83,6 +83,7 @@ describe('launch updates intake', () => {
       'guide_self_centric',
       'guide_anxiety',
       'guide_suffering',
+      'launch_page',
     ]);
   });
 });

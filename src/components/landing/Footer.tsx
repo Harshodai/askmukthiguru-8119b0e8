@@ -37,6 +37,9 @@ export const Footer = forwardRef<HTMLElement>((_, ref) => {
             <Link to="/practices" className="text-caption hover:text-foreground transition-colors">
               {t('nav.practices')}
             </Link>
+            <Link to="/launch" className="text-caption hover:text-foreground transition-colors">
+              {t('launchUpdates.title', 'Launch updates')}
+            </Link>
             <Link to="/guides/ai-spiritual-companion" className="text-caption hover:text-foreground transition-colors">
               {t('nav.aiMeditationGuide')}
             </Link>

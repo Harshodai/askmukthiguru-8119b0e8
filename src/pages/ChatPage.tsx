@@ -115,7 +115,7 @@ const ChatPage = () => {
       url: buildCanonical('/chat'),
       applicationCategory: 'LifestyleApplication',
       operatingSystem: 'Web',
-      description: 'AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji',
+      description: t('chat.pageDescription'),
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     },
   });
