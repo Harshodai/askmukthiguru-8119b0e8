@@ -58,6 +58,7 @@ from services.first_person_public_projection import (
     public_editorial_set_metadata as _public_editorial_set_metadata,
 )
 from services.first_person_rights import source_is_authoritatively_licensed
+from services.seeker.consent import active_consent_receipt_id, record_comprehension_signal
 from services.user_profile_service import _is_persistable_user_id
 
 if TYPE_CHECKING:
@@ -1469,7 +1470,9 @@ class FirstPersonBridgeStage(Stage):
                             vid = cit.get("videoId") or cit.get("video_id")
                             if vid:
                                 seen_videos.add(str(vid))
-            if getattr(settings, "first_person_server_seen_clips_enabled", False):
+            if getattr(
+                settings, "first_person_server_seen_clips_enabled", False
+            ) and await active_consent_receipt_id(ctx, container):
                 try:
                     from services.first_person_seen_store import get_seen_clips
 
@@ -2073,8 +2076,22 @@ class FirstPersonBridgeStage(Stage):
             verification["editorial_set"] = editorial_set
         # Dispatches consented canonical memory and outbox persistence asynchronously
         _dispatch_fp_memory(ctx, answer, citations)
-        if getattr(settings, "first_person_server_seen_clips_enabled", False) and not getattr(
-            ctx, "incognito", False
+        _signals_consented = bool(
+            (
+                getattr(settings, "first_person_server_seen_clips_enabled", False)
+                or getattr(settings, "seeker_comprehension_recovery_enabled", False)
+            )
+            and await active_consent_receipt_id(ctx, container)
+        )
+        if _signals_consented:
+            # Observational only (flag + consent gated inside); the answer is unchanged.
+            try:
+                await record_comprehension_signal(ctx, container, citations)
+            except (RuntimeError, OSError, ConnectionError, TimeoutError, ValueError) as _cs_exc:
+                logger.debug("[FirstPersonBridge] comprehension signal skipped: %s", _cs_exc)
+        if (
+            getattr(settings, "first_person_server_seen_clips_enabled", False)
+            and _signals_consented
         ):
             try:
                 from services.first_person_seen_store import record_seen_clip

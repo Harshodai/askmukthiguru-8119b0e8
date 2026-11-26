@@ -1016,6 +1016,9 @@ async def set_memory_consent_endpoint(
             from services.cache.invalidation import invalidate_user_exact_cache
 
             cache_entries_invalidated = await invalidate_user_exact_cache(container, user["id"])
+            from services.seeker.consent import erase_seeker_signals
+
+            await erase_seeker_signals(container, user["id"], tenant_id)
         except Exception as exc:
             # The exception trace is useful for operations; the user ID is not.
             logger.error(
