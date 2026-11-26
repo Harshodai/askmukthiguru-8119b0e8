@@ -528,6 +528,9 @@ class Settings(BaseSettings):
     # state, preserving byte-for-byte legacy behavior. When True, queries namespaced
     # server-side store to avoid serving recently seen clips to returning seekers.
     first_person_server_seen_clips_enabled: bool = False
+    # 2026-11-26: consent-gated, observational seeker comprehension signal recording
+    # (services/seeker/consent.py). Default off; never alters the served answer.
+    seeker_comprehension_recovery_enabled: bool = False
     # 2026-11-19 serve-rate work (battery: conversation turns 9/32). All default off; each
     # is read at its call site and fingerprinted in the serving policy.
     # Meta follow-ups ("shorter", "an example", "explain more", "the second one") retrieve
