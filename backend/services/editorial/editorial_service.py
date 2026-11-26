@@ -26,6 +26,7 @@ from domain.evidence_contract import (
     EpistemicCategory,
     EvidenceCandidate,
 )
+from services.editorial.editorial_store import EditorialStore, InMemoryEditorialStore
 from services.evidence_adapters.claim_verifier import ClaimVerificationService
 from services.guru_registry import default_founders_label
 
@@ -191,6 +192,7 @@ class EditorialProject(BaseModel):
     brief: EditorialBrief | None = None
     outline: EditorialOutline | None = None
     script: EditorialScript | None = None
+    author_id: str | None = None
     approved_by: str | None = None
     approved_at: datetime | None = None
     approval_notes: str = ""
@@ -198,6 +200,10 @@ class EditorialProject(BaseModel):
     audit_log: list[dict[str, Any]] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+def _norm(user_id: str | None) -> str:
+    return (user_id or "").strip().casefold()
 
 
 class EditorialApprovalError(ValueError):
@@ -215,15 +221,18 @@ class EditorialIntelligenceService:
         seeker_demand_fn: Callable[[], list[dict[str, Any]]] | None = None,
         ingestion_status_fn: Callable[[], dict[str, Any]] | None = None,
         verifier: ClaimVerificationService | None = None,
+        evidence_resolver: Callable[[list[str]], dict[str, EvidenceCandidate]] | None = None,
         provenance_versions: dict[str, str] | None = None,
+        store: EditorialStore | None = None,
     ) -> None:
         self._search_fn = search_fn
         self._concept_graph_fn = concept_graph_fn
         self._seeker_demand_fn = seeker_demand_fn
         self._ingestion_status_fn = ingestion_status_fn
         self._verifier = verifier or ClaimVerificationService()
+        self._evidence_resolver = evidence_resolver
         self._provenance = provenance_versions or {}
-        self._projects: dict[str, EditorialProject] = {}
+        self._store: EditorialStore = store or InMemoryEditorialStore()
 
     def generate_dossier(
         self,
@@ -339,13 +348,46 @@ class EditorialIntelligenceService:
             )
         return opportunities
 
+    def _server_pool(
+        self,
+        blocks: list[ScriptBlock],
+        client_pool: list[EvidenceCandidate],
+        trusted: list[EvidenceCandidate],
+    ) -> tuple[list[EvidenceCandidate], dict[str, str]]:
+        """Build the evidence pool from server records only.
+
+        Client-supplied evidence never contributes text, teacher, source or speaker_verified:
+        a client item is only compared to the server record of the same id and, if it differs
+        (text and content hash), the id is reported as a conflict and left out of the pool.
+        """
+        by_id = {e.evidence_id: e for e in trusted}
+        wanted = {i for b in blocks for i in b.evidence_ids} | {c.evidence_id for c in client_pool}
+        missing = [i for i in wanted if i not in by_id]
+        if missing and self._evidence_resolver is not None:
+            for key, ev in self._evidence_resolver(missing).items():
+                if key in wanted:
+                    by_id[key] = ev.model_copy(update={"evidence_id": key})
+        conflicts: dict[str, str] = {}
+        for c in client_pool:
+            rec = by_id.get(c.evidence_id)
+            if rec is None:
+                conflicts[c.evidence_id] = "client-supplied evidence id not found on the server"
+            elif c.text != rec.text and not (c.content_hash and c.content_hash == rec.content_hash):
+                conflicts[c.evidence_id] = (
+                    "client-supplied evidence does not match the server record"
+                )
+        pool = [e for i, e in by_id.items() if i not in conflicts]
+        return pool, conflicts
+
     def fact_check_blocks(
         self,
         blocks: list[ScriptBlock],
-        evidence_pool: list[EvidenceCandidate],
+        evidence_pool: list[EvidenceCandidate] | None = None,
         *,
         expected_source_versions: dict[str, str] | None = None,
+        trusted_evidence: list[EvidenceCandidate] | None = None,
     ) -> ClaimVerificationReport:
+        pool, conflicts = self._server_pool(blocks, evidence_pool or [], trusted_evidence or [])
         claims = [
             ClaimEvidenceMapping(
                 claim_id=b.block_id,
@@ -356,11 +398,17 @@ class EditorialIntelligenceService:
             )
             for b in blocks
         ]
-        return self._verifier.verify_claims(
+        report = self._verifier.verify_claims(
             claims,
-            evidence_pool,
+            pool,
             expected_source_versions=expected_source_versions,
         )
+        if conflicts:
+            for m in report.mappings:
+                bad = [f"{i}: {conflicts[i]}" for i in m.evidence_ids if i in conflicts]
+                if bad:
+                    m.notes = f"{m.notes} Rejected client evidence: {'; '.join(bad)}".strip()
+        return report
 
     def build_verified_script(
         self,
@@ -368,9 +416,10 @@ class EditorialIntelligenceService:
         title: str,
         topic: str,
         blocks: list[ScriptBlock],
-        evidence_pool: list[EvidenceCandidate],
+        evidence_pool: list[EvidenceCandidate] | None = None,
+        trusted_evidence: list[EvidenceCandidate] | None = None,
     ) -> EditorialScript:
-        report = self.fact_check_blocks(blocks, evidence_pool)
+        report = self.fact_check_blocks(blocks, evidence_pool, trusted_evidence=trusted_evidence)
         return EditorialScript(
             script_id=str(uuid.uuid4()),
             title=title,
@@ -382,25 +431,72 @@ class EditorialIntelligenceService:
     # --- Project Workflow State Machine ---
 
     def create_project(
-        self, *, title: str, topic: str, objective: str = "", target_format: str = "youtube_video"
+        self,
+        *,
+        title: str,
+        topic: str,
+        objective: str = "",
+        target_format: str = "youtube_video",
+        author_id: str | None = None,
     ) -> EditorialProject:
-        pid = str(uuid.uuid4())
+        author = author_id.strip() if author_id and author_id.strip() else None
         proj = EditorialProject(
-            project_id=pid,
+            project_id=str(uuid.uuid4()),
             title=title,
             topic=topic,
             objective=objective,
             target_format=target_format,
             status="idea",
+            author_id=author,
         )
-        self._projects[pid] = proj
+        entry = self._audit_entry("project_created", author, None, "idea", proj.created_at)
+        proj = proj.model_copy(update={"audit_log": [entry]})
+        self._store.save(proj)
+        self._store.append_audit(proj.project_id, entry)
         return proj
 
     def get_project(self, project_id: str) -> EditorialProject | None:
-        return self._projects.get(project_id)
+        return self._store.get(project_id)
 
     def list_projects(self) -> list[EditorialProject]:
-        return list(self._projects.values())
+        return self._store.list()
+
+    @staticmethod
+    def _audit_entry(
+        event: str,
+        actor_id: str | None,
+        from_state: str | None,
+        to_state: str,
+        at: datetime,
+        **detail: Any,
+    ) -> dict[str, Any]:
+        return {
+            "event": event,
+            "at": at.isoformat(),
+            "actor_id": actor_id,
+            "from_state": from_state,
+            "to_state": to_state,
+            **detail,
+        }
+
+    def _commit(
+        self,
+        proj: EditorialProject,
+        event: str,
+        actor_id: str | None,
+        updates: dict[str, Any],
+        **detail: Any,
+    ) -> EditorialProject:
+        """Apply a state transition, append an audit entry, persist. Store errors propagate."""
+        now = datetime.now(UTC)
+        to_state = updates.get("status", proj.status)
+        entry = self._audit_entry(event, actor_id, proj.status, to_state, now, **detail)
+        updated = proj.model_copy(
+            update={**updates, "audit_log": [*proj.audit_log, entry], "updated_at": now}
+        )
+        self._store.save(updated)
+        self._store.append_audit(proj.project_id, entry)
+        return updated
 
     def generate_brief(
         self,
@@ -468,61 +564,49 @@ class EditorialIntelligenceService:
             sections=sections,
         )
 
-    def attach_dossier(self, project_id: str, dossier: EditorialDossier) -> EditorialProject:
-        proj = self._require_project(project_id)
-        now = datetime.now(UTC)
-        log = list(proj.audit_log) + [
-            {
-                "event": "dossier_attached",
-                "at": now.isoformat(),
-                "evidence_count": len(dossier.evidence_items),
-            }
-        ]
-        updated = proj.model_copy(
-            update={"dossier": dossier, "status": "research", "audit_log": log, "updated_at": now}
+    def attach_dossier(
+        self, project_id: str, dossier: EditorialDossier, *, actor_id: str | None = None
+    ) -> EditorialProject:
+        return self._commit(
+            self._require_project(project_id),
+            "dossier_attached",
+            actor_id,
+            {"dossier": dossier, "status": "research"},
+            evidence_count=len(dossier.evidence_items),
         )
-        self._projects[project_id] = updated
-        return updated
 
-    def attach_brief(self, project_id: str, brief: EditorialBrief) -> EditorialProject:
-        proj = self._require_project(project_id)
-        now = datetime.now(UTC)
-        log = list(proj.audit_log) + [
-            {"event": "brief_attached", "at": now.isoformat(), "brief_id": brief.brief_id}
-        ]
-        updated = proj.model_copy(
-            update={"brief": brief, "status": "brief", "audit_log": log, "updated_at": now}
+    def attach_brief(
+        self, project_id: str, brief: EditorialBrief, *, actor_id: str | None = None
+    ) -> EditorialProject:
+        return self._commit(
+            self._require_project(project_id),
+            "brief_attached",
+            actor_id,
+            {"brief": brief, "status": "brief"},
+            brief_id=brief.brief_id,
         )
-        self._projects[project_id] = updated
-        return updated
 
-    def attach_outline(self, project_id: str, outline: EditorialOutline) -> EditorialProject:
-        proj = self._require_project(project_id)
-        now = datetime.now(UTC)
-        log = list(proj.audit_log) + [
-            {"event": "outline_attached", "at": now.isoformat(), "outline_id": outline.outline_id}
-        ]
-        updated = proj.model_copy(
-            update={"outline": outline, "status": "outline", "audit_log": log, "updated_at": now}
+    def attach_outline(
+        self, project_id: str, outline: EditorialOutline, *, actor_id: str | None = None
+    ) -> EditorialProject:
+        return self._commit(
+            self._require_project(project_id),
+            "outline_attached",
+            actor_id,
+            {"outline": outline, "status": "outline"},
+            outline_id=outline.outline_id,
         )
-        self._projects[project_id] = updated
-        return updated
 
-    def attach_script(self, project_id: str, script: EditorialScript) -> EditorialProject:
-        proj = self._require_project(project_id)
-        now = datetime.now(UTC)
-        log = list(proj.audit_log) + [
-            {
-                "event": "script_attached",
-                "at": now.isoformat(),
-                "passed": script.verification.passed,
-            }
-        ]
-        updated = proj.model_copy(
-            update={"script": script, "status": "review", "audit_log": log, "updated_at": now}
+    def attach_script(
+        self, project_id: str, script: EditorialScript, *, actor_id: str | None = None
+    ) -> EditorialProject:
+        return self._commit(
+            self._require_project(project_id),
+            "script_attached",
+            actor_id,
+            {"script": script, "status": "review"},
+            passed=script.verification.passed,
         )
-        self._projects[project_id] = updated
-        return updated
 
     def approve_project(
         self, project_id: str, *, reviewer_id: str, notes: str = ""
@@ -541,22 +625,36 @@ class EditorialIntelligenceService:
             raise EditorialApprovalError(
                 f"Cannot approve project with failing claim verification: {proj.script.verification.summary}"
             )
+        reviewer = reviewer_id.strip()
+        author = _norm(proj.author_id)
+        if not author:
+            raise EditorialApprovalError(
+                "Cannot approve a project with no recorded author; author/approver separation "
+                "cannot be verified."
+            )
+        contributors = {author} | {
+            _norm(e.get("actor_id"))
+            for e in proj.audit_log
+            if str(e.get("event", "")).endswith("_attached")
+        }
+        if _norm(reviewer) in contributors:
+            raise EditorialApprovalError(
+                "Approver must differ from the project's author and from anyone who attached "
+                "content to it; ask another reviewer to approve."
+            )
         now = datetime.now(UTC)
-        log = list(proj.audit_log) + [
-            {"event": "human_approved", "at": now.isoformat(), "reviewer_id": reviewer_id.strip()}
-        ]
-        updated = proj.model_copy(
-            update={
+        return self._commit(
+            proj,
+            "human_approved",
+            reviewer,
+            {
                 "status": "approved",
-                "approved_by": reviewer_id.strip(),
+                "approved_by": reviewer,
                 "approved_at": now,
                 "approval_notes": notes,
-                "audit_log": log,
-                "updated_at": now,
-            }
+            },
+            reviewer_id=reviewer,
         )
-        self._projects[project_id] = updated
-        return updated
 
     def publish_project(self, project_id: str, *, publisher_id: str) -> EditorialProject:
         """Refuse publication unless a human has approved a passing claim-verified script."""
@@ -565,18 +663,16 @@ class EditorialIntelligenceService:
             raise EditorialApprovalError(
                 "Publication blocked: human editorial approval is mandatory before publishing."
             )
-        now = datetime.now(UTC)
-        log = list(proj.audit_log) + [
-            {"event": "published", "at": now.isoformat(), "publisher_id": publisher_id}
-        ]
-        updated = proj.model_copy(
-            update={"status": "published", "published_at": now, "audit_log": log, "updated_at": now}
+        return self._commit(
+            proj,
+            "published",
+            publisher_id,
+            {"status": "published", "published_at": datetime.now(UTC)},
+            publisher_id=publisher_id,
         )
-        self._projects[project_id] = updated
-        return updated
 
     def _require_project(self, project_id: str) -> EditorialProject:
-        proj = self._projects.get(project_id)
+        proj = self._store.get(project_id)
         if proj is None:
             raise KeyError(f"Editorial project not found: {project_id}")
         return proj

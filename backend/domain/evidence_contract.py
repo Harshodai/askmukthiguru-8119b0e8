@@ -168,6 +168,7 @@ class ClaimEvidenceMapping(BaseModel):
     verification_status: Literal[
         "verified",
         "unsupported",
+        "unverifiable",
         "misattributed",
         "quote_mismatch",
         "outdated_version",

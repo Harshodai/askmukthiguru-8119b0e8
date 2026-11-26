@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any
 
 from qdrant_client.http.models import (
@@ -21,6 +22,14 @@ from services.first_person_rights import source_is_authoritatively_licensed
 from services.guru_registry import neutral_voice_id
 
 logger = logging.getLogger(__name__)
+
+
+def _is_uuid(value: str) -> bool:
+    try:
+        uuid.UUID(value)
+    except ValueError:
+        return False
+    return True
 
 
 class QdrantEvidenceAdapter:
@@ -73,6 +82,36 @@ class QdrantEvidenceAdapter:
             raise_on_error=raise_on_error,
         )
         return self._normalize_hits(hits, require_licensed=require_licensed)
+
+    def fetch_by_ids(
+        self, ids: list[str], *, require_licensed: bool = True
+    ) -> dict[str, EvidenceCandidate]:
+        """Read-only lookup of stored spans; returns {requested-or-stored id: candidate}."""
+        wanted = [i for i in dict.fromkeys(ids) if i]
+        if self._client is None or not wanted:
+            return {}
+        hits: list[Any] = []
+        for key in ("source_span_id", "evidence_id"):
+            points, _ = self._client.scroll(
+                collection_name=self._collection,
+                scroll_filter=Filter(must=[FieldCondition(key=key, match=MatchAny(any=wanted))]),
+                limit=len(wanted) * 2,
+                with_payload=True,
+            )
+            hits.extend(points)
+        uuid_ids = [i for i in wanted if _is_uuid(i)]
+        if uuid_ids:
+            hits.extend(
+                self._client.retrieve(
+                    collection_name=self._collection, ids=uuid_ids, with_payload=True
+                )
+            )
+        by_id: dict[str, EvidenceCandidate] = {}
+        for h in hits:
+            for ev in self._normalize_hits([h], require_licensed=require_licensed):
+                by_id.setdefault(ev.evidence_id, ev)
+                by_id.setdefault(str(getattr(h, "id", "")), ev)
+        return by_id
 
     def _execute_query(
         self,
