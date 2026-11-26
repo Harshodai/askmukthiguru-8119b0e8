@@ -267,7 +267,9 @@ def test_editorial_workflow_blocks_misattributed_scripts_and_requires_human_appr
     assert opps[0].topic == "Sufkor"
     assert "Ingestion incomplete" in opps[0].ingestion_completeness_note
 
-    proj = svc.create_project(title="Why Division Causes Suffering", topic="Suffering")
+    proj = svc.create_project(
+        title="Why Division Causes Suffering", topic="Suffering", author_id="author-1"
+    )
     proj = svc.attach_dossier(proj.project_id, dossier)
 
     # Misattributed script block (attributed to Krishnaji when evidence is Preethaji)
@@ -283,7 +285,7 @@ def test_editorial_workflow_blocks_misattributed_scripts_and_requires_human_appr
                 evidence_ids=["ev-ed-1"],
             )
         ],
-        evidence_pool=[ev],
+        trusted_evidence=[ev],
     )
     assert bad_script.verification.passed is False
     svc.attach_script(proj.project_id, bad_script)
@@ -309,7 +311,7 @@ def test_editorial_workflow_blocks_misattributed_scripts_and_requires_human_appr
                 text="Notice how this connects directly to daily relationship conflicts.",
             ),
         ],
-        evidence_pool=[ev],
+        trusted_evidence=[ev],
     )
     svc.attach_script(proj.project_id, good_script)
     approved = svc.approve_project(

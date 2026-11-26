@@ -115,7 +115,7 @@ class ClaimVerificationService:
                 results.append(
                     claim.model_copy(
                         update={
-                            "verification_status": "unsupported",
+                            "verification_status": "unverifiable",
                             "notes": "Referenced evidence_id(s) not found in verified pool.",
                         }
                     )
@@ -159,6 +159,17 @@ class ClaimVerificationService:
                 continue
 
             if claim.epistemic_category == EpistemicCategory.VERBATIM_EVIDENCE:
+                if not claim.teacher_attributed:
+                    unsupported += 1
+                    results.append(
+                        claim.model_copy(
+                            update={
+                                "verification_status": "unsupported",
+                                "notes": "Exact quote requires an attributed teacher.",
+                            }
+                        )
+                    )
+                    continue
                 # Only Qdrant-sourced spans with a verified speaker can back an exact quote:
                 # OKF is LLM-extracted summary (CLAUDE.md invariant 12) and graph rows are not
                 # speaker-verified clips. Field used: EvidenceCandidate.speaker_verified is True.

@@ -160,7 +160,6 @@ export default function EditorialWorkbenchPage() {
         method: "POST",
         body: JSON.stringify({
           blocks: [block],
-          evidence_pool: dossier.evidence_items,
         }),
       });
       setFactCheck(res);
@@ -219,7 +218,6 @@ export default function EditorialWorkbenchPage() {
           title: activeProject.title,
           topic: activeProject.topic,
           blocks: [block],
-          evidence_pool: dossier.evidence_items,
         }),
       });
       const approved = await fetchWithAuth<EditorialProject>(`/api/editorial/projects/${activeProject.project_id}/approve`, {

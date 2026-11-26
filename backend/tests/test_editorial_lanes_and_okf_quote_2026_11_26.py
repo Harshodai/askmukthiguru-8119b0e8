@@ -197,4 +197,4 @@ def test_evidence_pool_trust_flag_on_fact_check() -> None:
             container=SimpleNamespace(embedding=None, memgraph_driver=None),  # type: ignore[arg-type]
         )
     )
-    assert out["evidence_pool_trust"] == "client_supplied"
+    assert out["evidence_pool_trust"] == "server"

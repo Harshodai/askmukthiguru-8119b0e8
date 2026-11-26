@@ -393,6 +393,7 @@ def test_part13_editorial_end_to_end_workflow_and_gates():
         title="Why Resistance Creates Suffering",
         topic="inner peace",
         objective="10m YouTube teaching",
+        author_id="author-1",
     )
     dossier = svc.generate_dossier(topic=proj.topic, objective=proj.objective)
     proj = svc.attach_dossier(proj.project_id, dossier)
@@ -414,7 +415,7 @@ def test_part13_editorial_end_to_end_workflow_and_gates():
                 evidence_ids=[ev1.evidence_id],
             )
         ],
-        evidence_pool=dossier.evidence_items,
+        trusted_evidence=dossier.evidence_items,
     )
     proj = svc.attach_script(proj.project_id, bad_script)
     with pytest.raises(EditorialApprovalError):
@@ -436,7 +437,7 @@ def test_part13_editorial_end_to_end_workflow_and_gates():
                 evidence_ids=[ev1.evidence_id],
             ),
         ],
-        evidence_pool=dossier.evidence_items,
+        trusted_evidence=dossier.evidence_items,
     )
     proj = svc.attach_script(proj.project_id, good_script)
     with pytest.raises(EditorialApprovalError):

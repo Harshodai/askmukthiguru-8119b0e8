@@ -1,9 +1,9 @@
 # ============================================================
 # Mukthi Guru — Frontend Dockerfile
-# Multi-stage build: Node 22 builder -> non-root Nginx static server
+# Multi-stage build: Node 24 builder -> non-root Nginx static server
 # ============================================================
 
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
