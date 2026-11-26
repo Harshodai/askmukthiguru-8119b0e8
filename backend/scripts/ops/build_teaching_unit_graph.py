@@ -531,6 +531,7 @@ def _write_manifest(manifest: GraphBuildManifest) -> None:  # noqa: F821
     data["rejected_span_ids"] = manifest.rejected_span_ids
     with _MANIFEST_PATH.open("w") as fh:
         json.dump(data, fh, indent=2)
+        fh.write("\n")  # trailing newline: the pre-commit end-of-file-fixer requires it
     logger.info("Manifest written to %s", _MANIFEST_PATH)
 
 
