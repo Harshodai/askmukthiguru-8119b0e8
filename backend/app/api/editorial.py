@@ -20,6 +20,7 @@ from services.editorial.editorial_service import (
     LaneResults,
     ScriptBlock,
 )
+from services.editorial.editorial_store import EditorialStoreError, SupabaseEditorialStore
 from services.evidence_adapters import (
     EvidenceFusionEngine,
     MemgraphEvidenceAdapter,
@@ -32,6 +33,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/editorial", tags=["editorial"])
 
 _EDITORIAL_SINGLETON: EditorialIntelligenceService | None = None
+
+
+def _actor(user: dict) -> str:
+    """Acting user comes from the authenticated request, never from the body."""
+    return str(user.get("sub") or user.get("id") or user.get("email") or "")
 
 
 def _lane_err(lane: str, exc: Exception) -> str:
@@ -162,7 +168,13 @@ def get_editorial_service(container: ServiceContainer) -> EditorialIntelligenceS
             logger.debug("[EditorialAPI] seeker demand unavailable: %s", exc)
         return []
 
+    store = None
+    if settings.editorial_persistence_enabled:
+        sink = getattr(container, "telemetry_sink", None)
+        store = SupabaseEditorialStore(getattr(sink, "client", None))
+
     _EDITORIAL_SINGLETON = EditorialIntelligenceService(
+        store=store,
         search_fn=_search_fn,
         concept_graph_fn=_graph_fn,
         seeker_demand_fn=_seeker_demand_fn,
@@ -269,6 +281,7 @@ async def create_editorial_project(
         topic=body.topic,
         objective=body.objective,
         target_format=body.target_format,
+        author_id=_actor(_admin),
     )
     return proj.model_dump(mode="json")
 
@@ -308,7 +321,7 @@ async def attach_editorial_script(
         blocks=body.blocks,
         evidence_pool=pool,
     )
-    updated = svc.attach_script(project_id, script)
+    updated = svc.attach_script(project_id, script, actor_id=_actor(_admin))
     out = updated.model_dump(mode="json")
     out["evidence_pool_trust"] = "client_supplied" if client_supplied else "server"
     return out
@@ -331,7 +344,7 @@ async def build_and_attach_dossier(
         teacher_scope=body.teacher_scope,
         max_evidence=body.max_evidence,
     )
-    return svc.attach_dossier(project_id, dossier).model_dump(mode="json")
+    return svc.attach_dossier(project_id, dossier, actor_id=_actor(_admin)).model_dump(mode="json")
 
 
 @router.post("/projects/{project_id}/brief")
@@ -348,7 +361,7 @@ async def build_and_attach_brief(
         svc.generate_dossier, topic=proj.topic, objective=proj.objective, max_evidence=15
     )
     brief = svc.generate_brief(dossier=dossier, target_format=proj.target_format)
-    return svc.attach_brief(project_id, brief).model_dump(mode="json")
+    return svc.attach_brief(project_id, brief, actor_id=_actor(_admin)).model_dump(mode="json")
 
 
 @router.post("/projects/{project_id}/outline")
@@ -365,7 +378,7 @@ async def build_and_attach_outline(
         svc.generate_dossier, topic=proj.topic, objective=proj.objective, max_evidence=15
     )
     outline = svc.generate_outline(title=proj.title, dossier=dossier, brief=proj.brief)
-    return svc.attach_outline(project_id, outline).model_dump(mode="json")
+    return svc.attach_outline(project_id, outline, actor_id=_actor(_admin)).model_dump(mode="json")
 
 
 @router.post("/projects/{project_id}/approve")
@@ -376,7 +389,7 @@ async def approve_editorial_project(
     container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     svc = get_editorial_service(container)
-    reviewer = str(admin.get("sub") or admin.get("id") or admin.get("email") or "")
+    reviewer = _actor(admin)
     try:
         updated = svc.approve_project(project_id, reviewer_id=reviewer, notes=body.notes)
         return updated.model_dump(mode="json")
@@ -384,6 +397,8 @@ async def approve_editorial_project(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except EditorialApprovalError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except EditorialStoreError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post("/projects/{project_id}/publish")
