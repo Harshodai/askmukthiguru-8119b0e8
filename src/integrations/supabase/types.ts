@@ -402,6 +402,90 @@ export type Database = {
         }
         Relationships: []
       }
+      canonical_evidence: {
+        Row: {
+          canonical_uri: string
+          chapter: string | null
+          chunker_version: string
+          content_hash: string
+          created_at: string
+          end_time_ms: number | null
+          evidence_id: string
+          ingestion_model_version: string
+          language: string
+          normalized_text: string
+          original_text: string
+          page_number: number | null
+          provenance: Json
+          rights_status: string
+          segment_version: string
+          source_id: string
+          source_title: string
+          source_type: string
+          source_version: string
+          speaker_verified: boolean
+          start_time_ms: number | null
+          teacher_id: string | null
+          transcript_version: string
+          transcription_confidence: number | null
+          verification_status: string
+        }
+        Insert: {
+          canonical_uri?: string
+          chapter?: string | null
+          chunker_version?: string
+          content_hash: string
+          created_at?: string
+          end_time_ms?: number | null
+          evidence_id: string
+          ingestion_model_version?: string
+          language?: string
+          normalized_text?: string
+          original_text: string
+          page_number?: number | null
+          provenance?: Json
+          rights_status?: string
+          segment_version?: string
+          source_id: string
+          source_title?: string
+          source_type: string
+          source_version?: string
+          speaker_verified?: boolean
+          start_time_ms?: number | null
+          teacher_id?: string | null
+          transcript_version?: string
+          transcription_confidence?: number | null
+          verification_status?: string
+        }
+        Update: {
+          canonical_uri?: string
+          chapter?: string | null
+          chunker_version?: string
+          content_hash?: string
+          created_at?: string
+          end_time_ms?: number | null
+          evidence_id?: string
+          ingestion_model_version?: string
+          language?: string
+          normalized_text?: string
+          original_text?: string
+          page_number?: number | null
+          provenance?: Json
+          rights_status?: string
+          segment_version?: string
+          source_id?: string
+          source_title?: string
+          source_type?: string
+          source_version?: string
+          speaker_verified?: boolean
+          start_time_ms?: number | null
+          teacher_id?: string | null
+          transcript_version?: string
+          transcription_confidence?: number | null
+          verification_status?: string
+        }
+        Relationships: []
+      }
       canonical_memories: {
         Row: {
           confidence: number | null
@@ -921,6 +1005,48 @@ export type Database = {
         }
         Relationships: []
       }
+      corpus_sync_outbox: {
+        Row: {
+          created_at: string
+          event_type: string
+          evidence_id: string | null
+          id: number
+          last_error: string | null
+          payload: Json
+          processed_at: string | null
+          retry_count: number
+          source_id: string
+          status: string
+          target_store: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          evidence_id?: string | null
+          id?: number
+          last_error?: string | null
+          payload?: Json
+          processed_at?: string | null
+          retry_count?: number
+          source_id: string
+          status?: string
+          target_store: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          evidence_id?: string | null
+          id?: number
+          last_error?: string | null
+          payload?: Json
+          processed_at?: string | null
+          retry_count?: number
+          source_id?: string
+          status?: string
+          target_store?: string
+        }
+        Relationships: []
+      }
       corpus_takedowns: {
         Row: {
           created_at: string | null
@@ -1017,6 +1143,222 @@ export type Database = {
         }
         Relationships: []
       }
+      editorial_approvals: {
+        Row: {
+          created_at: string
+          decision: string
+          id: string
+          notes: string
+          project_id: string
+          reviewer_id: string
+          script_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          decision: string
+          id?: string
+          notes?: string
+          project_id: string
+          reviewer_id: string
+          script_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          decision?: string
+          id?: string
+          notes?: string
+          project_id?: string
+          reviewer_id?: string
+          script_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editorial_approvals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "editorial_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "editorial_approvals_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "editorial_scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      editorial_audit_log: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          detail: Json
+          event: string
+          from_state: string | null
+          id: number
+          project_id: string
+          to_state: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          event: string
+          from_state?: string | null
+          id?: number
+          project_id: string
+          to_state?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          event?: string
+          from_state?: string | null
+          id?: number
+          project_id?: string
+          to_state?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editorial_audit_log_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "editorial_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      editorial_dossiers: {
+        Row: {
+          concepts: Json
+          corpus_coverage: Json
+          created_at: string
+          evidence_ids: Json
+          id: string
+          project_id: string | null
+          provenance_versions: Json
+          research_query: string
+          underexplored_angles: Json
+        }
+        Insert: {
+          concepts?: Json
+          corpus_coverage?: Json
+          created_at?: string
+          evidence_ids?: Json
+          id?: string
+          project_id?: string | null
+          provenance_versions?: Json
+          research_query: string
+          underexplored_angles?: Json
+        }
+        Update: {
+          concepts?: Json
+          corpus_coverage?: Json
+          created_at?: string
+          evidence_ids?: Json
+          id?: string
+          project_id?: string | null
+          provenance_versions?: Json
+          research_query?: string
+          underexplored_angles?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editorial_dossiers_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "editorial_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      editorial_projects: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          assigned_editor_id: string | null
+          created_at: string
+          id: string
+          objective: string
+          published_url: string | null
+          snapshot: Json
+          status: string
+          target_format: string
+          title: string
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          assigned_editor_id?: string | null
+          created_at?: string
+          id?: string
+          objective?: string
+          published_url?: string | null
+          snapshot?: Json
+          status?: string
+          target_format?: string
+          title: string
+          topic: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          assigned_editor_id?: string | null
+          created_at?: string
+          id?: string
+          objective?: string
+          published_url?: string | null
+          snapshot?: Json
+          status?: string
+          target_format?: string
+          title?: string
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      editorial_scripts: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          sections: Json
+          validation_report: Json
+          validator_passed: boolean
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          sections?: Json
+          validation_report?: Json
+          validator_passed?: boolean
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          sections?: Json
+          validation_report?: Json
+          validator_passed?: boolean
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editorial_scripts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "editorial_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       eval_results: {
         Row: {
           answer_relevancy: number | null
@@ -1100,6 +1442,47 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "prompt_versions"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence_corrections: {
+        Row: {
+          approved: boolean
+          corrected_by: string | null
+          corrected_text: string
+          correction_version: number
+          created_at: string
+          evidence_id: string
+          id: string
+          reason: string
+        }
+        Insert: {
+          approved?: boolean
+          corrected_by?: string | null
+          corrected_text: string
+          correction_version?: number
+          created_at?: string
+          evidence_id: string
+          id?: string
+          reason?: string
+        }
+        Update: {
+          approved?: boolean
+          corrected_by?: string | null
+          corrected_text?: string
+          correction_version?: number
+          created_at?: string
+          evidence_id?: string
+          id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_corrections_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_evidence"
+            referencedColumns: ["evidence_id"]
           },
         ]
       }
@@ -2458,6 +2841,53 @@ export type Database = {
         }
         Relationships: []
       }
+      seeker_comprehension_signals: {
+        Row: {
+          concept_name: string
+          confidence: number
+          consent_receipt_id: string | null
+          created_at: string
+          evidence_id: string | null
+          id: string
+          signal_type: string
+          strategy_used: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          concept_name: string
+          confidence?: number
+          consent_receipt_id?: string | null
+          created_at?: string
+          evidence_id?: string | null
+          id?: string
+          signal_type: string
+          strategy_used?: string
+          tenant_id?: string
+          user_id: string
+        }
+        Update: {
+          concept_name?: string
+          confidence?: number
+          consent_receipt_id?: string | null
+          created_at?: string
+          evidence_id?: string | null
+          id?: string
+          signal_type?: string
+          strategy_used?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seeker_comprehension_signals_consent_receipt_id_fkey"
+            columns: ["consent_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "memory_consent_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       source_releases: {
         Row: {
           activated_at: string | null
@@ -2895,6 +3325,39 @@ export type Database = {
           version?: number
           wrap_mode?: string
           wrapped_dek?: string
+        }
+        Relationships: []
+      }
+      user_brain_keys_archive_20261119: {
+        Row: {
+          created_at: string | null
+          kdf: Json | null
+          rotated_at: string | null
+          updated_at: string | null
+          user_id: string | null
+          version: number | null
+          wrap_mode: string | null
+          wrapped_dek: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          kdf?: Json | null
+          rotated_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          version?: number | null
+          wrap_mode?: string | null
+          wrapped_dek?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          kdf?: Json | null
+          rotated_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          version?: number | null
+          wrap_mode?: string | null
+          wrapped_dek?: string | null
         }
         Relationships: []
       }
