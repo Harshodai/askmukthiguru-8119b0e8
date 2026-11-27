@@ -166,7 +166,7 @@ product choice, not only a cost one.
 | before (scikit-learn loaded by `ingest.raptor`) | 473, 457, 466 MB |
 | after | 388, 387, 393 MB |
 
-About 75 MB less, and `sklearn`/`scipy` are no longer in `sys.modules` (guarded by
+About 75 MB less in that isolated import (macOS; Linux not measured). The final review found `transformers` and `sklearn` still load via other imports when the full app is imported (`python -X importtime`), so the saving in the running API is smaller or zero until those imports are also made lazy. `sklearn`/`scipy` are no longer in `sys.modules` after importing `ingest.raptor` alone (guarded by
 `test_raptor_import_does_not_load_sklearn`). Isolated import deltas on the same machine: sklearn 145
 MB, pandas 74, qdrant_client 102, neo4j 108, torch 166, transformers 224, FlagEmbedding 449.
 

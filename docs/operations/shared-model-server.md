@@ -6,7 +6,7 @@ Authoritative for: how to run BGE-M3 + the reranker once for several API workers
 
 ## Why
 
-Each uvicorn worker is a separate process with its own copy of the models. Measured 2026-11-27: one process is ~2.5 GB (~0.5 GB libraries, the BGE-M3 INT8 ONNX session ~0.9 GB, the reranker). Railway bills memory, so `WEB_CONCURRENCY=2` doubles that. Loading the ONNX session before fork is not viable (forked children deadlock once inference starts: ORT and tokenizers threads do not survive fork), so the models are moved into one separate process instead.
+Each uvicorn worker is a separate process with its own copy of the models. One live process read ~2.6 GB RSS in the container and averaged 2.7 GB on Railway at `WEB_CONCURRENCY=1`; with 2 workers the 7-day average was 4.8 GB (~2.4 GB each). The split (~0.5 GB libraries, the BGE-M3 INT8 ONNX session ~0.9 GB, the reranker) is an estimate, not measured per component. Railway bills memory, so `WEB_CONCURRENCY=2` doubles it. Loading the ONNX session before fork is not adopted: one early test hung forked children, but a controlled re-test could not reproduce a deadlock (cause unproven; see `docs/operations/model-memory-sharing-research-2026-11-27.md`), so the models can instead live in one separate process.
 
 ## What it is
 

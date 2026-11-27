@@ -205,10 +205,14 @@ def get_web_concurrency(env=None) -> int:
     return workers
 
 
-# Measured 2026-11-27: one uvicorn worker process holds ~2.5 GB (~0.5 GB
-# libraries + BGE-M3 INT8 ONNX session ~0.9 GB + reranker). Railway bills
-# memory, and loading the ONNX session before fork is not viable (forked
-# children deadlock after inference starts), so extra workers duplicate it.
+# 2026-11-27: one live process (WEB_CONCURRENCY=1) read ~2.6 GB RSS in the container and
+# averaged 2.7 GB on Railway; with 2 workers the 7-day average was 4.8 GB (~2.4 GB each).
+# The 0.5 GB libraries + 0.9 GB BGE-M3 INT8 session + reranker split is an estimate, not a
+# per-component measurement. Railway bills memory, so extra workers duplicate it. Loading the
+# ONNX session before fork is NOT adopted: one early test hung forked children, but a controlled
+# re-test could not reproduce a deadlock, so the cause is unproven (see
+# docs/operations/model-memory-sharing-research-2026-11-27.md). Creating the session after fork
+# is the safe pattern.
 _WORKER_MODEL_MEMORY_GB = 2.5
 
 

@@ -6,7 +6,8 @@
 `scripts/ops/verify_fast_tokenizer_in_image.sh` shows 0 skipped on the transformers 5.x that
 serves (the host venv has 4.57, so its 5.x cases skip).
 
-## Memory (measured in the backend image)
+## Memory (measured in the backend image, isolated processes)
+These numbers come from isolated processes that load only the embedder and reranker. The full app still imports `transformers` through other paths (found in the final review with `-X importtime`), so the saving in the running API may be smaller until those imports are lazy. Not re-measured in the full app.
 - Shipped path, both services loaded: ~320-350 MB less RSS (2004 MB vs 2354 MB
   after load; 2131 MB vs 2447 MB after inference), because torch is still
   imported by `EmbeddingService._thread_setup`.
