@@ -118,7 +118,7 @@ describe('WaitlistSubscribersPage component', () => {
     renderPage();
     expect(screen.getAllByText('No subscribers yet').length).toBeGreaterThan(0);
     expect(
-      screen.getByText(/Email sending is not configured/i),
+      screen.getByText(/New signups request one confirmation/i),
     ).toBeInTheDocument();
   });
 
@@ -151,9 +151,9 @@ describe('WaitlistSubscribersPage component', () => {
     expect(screen.getByText('seeker2@example.com')).toBeInTheDocument();
     expect(screen.getByText('guide_serene_mind')).toBeInTheDocument();
 
-    // Verify sending is NOT configured and no send button exists
+    // Confirmation retry exists, but there is no campaign sender
     expect(
-      screen.getByText(/Email sending is not configured\. These addresses are collected only/i),
+      screen.getByText(/It does not send a launch campaign/i),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /send/i })).not.toBeInTheDocument();
   });
