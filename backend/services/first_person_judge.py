@@ -185,6 +185,13 @@ def judge_call_kwargs(model: str) -> dict[str, Any]:
     return kwargs
 
 
+def _gate_pins() -> dict[str, Any]:
+    """Opt-in provider pins for the judge calls (``{}`` when unset); see the scorer's."""
+    from services.first_person_pipeline import scorer_provider_kwargs
+
+    return scorer_provider_kwargs()
+
+
 def build_judge_prompt(question: str, clips: list[dict[str, Any]]) -> str:
     lines = []
     for i, clip in enumerate(clips):
@@ -422,6 +429,7 @@ async def judge_select_async(
             user_prompt=user_prompt,
             response_format=JUDGE_JSON_SCHEMA,
             **judge_call_kwargs(judge_model()),
+            **_gate_pins(),
         )
         if inspect.isawaitable(res):
             res = await res
@@ -560,6 +568,7 @@ async def comparative_select_async(
             user_prompt=user_prompt,
             response_format=COMPARATIVE_JSON_SCHEMA,
             **judge_call_kwargs(judge_model()),
+            **_gate_pins(),
         )
         if inspect.isawaitable(res):
             res = await res

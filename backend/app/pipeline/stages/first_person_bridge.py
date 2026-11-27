@@ -113,6 +113,11 @@ def _hyde_provider(container: Any) -> Any:
     provider, then the legacy aliases, and only accept an object that actually
     implements ``generate_hyde`` (including ``OpenRouterService``).
     """
+    if settings.first_person_llm_provider != "openrouter":
+        from services.first_person_llm_provider import resolve_first_person_llm
+
+        selected = resolve_first_person_llm(container)
+        return selected if hasattr(selected, "generate_hyde") else None
     for attribute in ("llm", "openrouter", "nim", "ollama"):
         candidate = getattr(container, attribute, None)
         if candidate is not None and hasattr(candidate, "generate_hyde"):
@@ -974,12 +979,9 @@ def _fp_pipeline(container: Any) -> Any:
     routers/limiters into the pipeline package.
     """
     from app.api.first_person import _pipeline
+    from services.first_person_llm_provider import resolve_first_person_llm
 
-    llm_service = (
-        getattr(container, "openrouter", None)
-        or getattr(container, "nim", None)
-        or getattr(container, "ollama", None)
-    )
+    llm_service = resolve_first_person_llm(container)
     rerank_embedding = (
         container.embedding if getattr(settings, "first_person_rerank_enabled", False) else None
     )
