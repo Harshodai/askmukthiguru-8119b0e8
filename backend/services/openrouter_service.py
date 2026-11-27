@@ -720,6 +720,17 @@ class OpenRouterService:
             _bad = set(_pins) - _PROVIDER_PIN_FIELDS
             if _bad:
                 raise ValueError(f"unsupported provider_overrides fields: {sorted(_bad)}")
+            # Defence in depth (Settings validates the same at boot): a pin only tightens.
+            if (
+                _pins.get("allow_fallbacks") is True
+                and provider_prefs.get("allow_fallbacks") is False
+            ):
+                raise ValueError("provider pin allow_fallbacks=true would loosen the global policy")
+            _order = provider_prefs.get("order")
+            if _order and not {str(x).lower() for x in _pins.get("only", _order)} <= {
+                str(x).lower() for x in _order
+            }:
+                raise ValueError("provider pin 'only' is not a subset of the allowed providers")
             provider_prefs.update(_pins)
 
         payload = {

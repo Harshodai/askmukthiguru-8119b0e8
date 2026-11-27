@@ -370,17 +370,6 @@ async def query_first_person_teaching(
             },
         )
 
-    from services.first_person_llm_provider import resolve_first_person_llm
-
-    llm_service = resolve_first_person_llm(container)
-
-    pipeline = _pipeline(
-        settings.first_person_collection,
-        getattr(container, "serene_mind", None),
-        container.embedding if settings.first_person_rerank_enabled else None,
-        llm_service,
-    )
-
     # No cache read here: execute() reads the exact cache only AFTER its crisis
     # pre-check and topic rail. A read here, before them, served a cached clip
     # to a question a newer safety pattern would now redirect (2026-10-05).
@@ -399,6 +388,25 @@ async def query_first_person_teaching(
             is_direct_answer=False,
             latency_ms=0.0,
         )
+
+    # Resolved AFTER the crisis check: a misconfigured provider (first_person_llm_provider)
+    # must never turn a crisis message into a 5xx instead of the helplines above.
+    from services.first_person_llm_provider import (
+        FirstPersonLLMProviderUnavailable,
+        resolve_first_person_llm,
+    )
+
+    try:
+        llm_service = resolve_first_person_llm(container)
+    except FirstPersonLLMProviderUnavailable as e:
+        logger.error("[FirstPersonRoute] %s", e)
+        raise HTTPException(status_code=503, detail="First-person retrieval unavailable") from None
+    pipeline = _pipeline(
+        settings.first_person_collection,
+        getattr(container, "serene_mind", None),
+        container.embedding if settings.first_person_rerank_enabled else None,
+        llm_service,
+    )
 
     try:
         encoded = await container.embedding.encode_single_full_async(retrieval_query)

@@ -258,10 +258,7 @@ class ServiceContainer:
         # OpenRouter free-tier service for fast/simple queries
         self.openrouter = OpenRouterService()
 
-        # Opt-in providers the first-person path can be pointed at
-        # (settings.first_person_llm_provider); None when not configured.
-        self.vllm = LLMServiceFactory.create("vllm") if settings.vllm_base_url.strip() else None
-        self.nim = LLMServiceFactory.create("nim") if settings.nim_api_key else None
+        self._build_first_person_providers()
 
         # Multi-provider LLM failover router & model registry (inert on request path; AMK-E-003)
         self.multi_provider_llm = None
@@ -270,6 +267,25 @@ class ServiceContainer:
         # Circuit Breaker Registry (provider-agnostic)
         self.circuit_breaker_registry = initialize_circuit_breakers()
         logger.info("CircuitBreakerRegistry initialized and active provider set")
+
+    def _build_first_person_providers(self) -> None:
+        """Build ``self.nim`` / ``self.vllm`` only when ``first_person_llm_provider`` selects them.
+
+        By default neither exists (both None), so no NimService is constructed. NimService builds
+        its own OpenRouterService, which would re-register the "openrouter" circuit breaker and
+        leave health reports pointing at an instance that carries no traffic.
+        """
+        from services.llm_factory import LLMServiceFactory
+
+        choice = settings.first_person_llm_provider
+        self.vllm = (
+            LLMServiceFactory.create("vllm")
+            if choice == "vllm" and settings.vllm_base_url.strip()
+            else None
+        )
+        self.nim = (
+            LLMServiceFactory.create("nim") if choice == "nim" and settings.nim_api_key else None
+        )
 
     def _build_observability(self) -> None:
         """Layer 4: Observability, cost tracking, A/B testing, and prompt store."""

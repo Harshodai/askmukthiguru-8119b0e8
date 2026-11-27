@@ -1011,6 +1011,28 @@ def scorer_provider_kwargs() -> dict[str, Any]:
     return {"provider_overrides": pins} if pins else {}
 
 
+def _gate_failure_log(msg: str, *args: Any, model: str = "") -> None:
+    """Log a gate-call failure: INFO as before, WARNING when provider pins are active.
+
+    With a pin set, a call that fails or returns an unusable reply may mean no OpenRouter
+    endpoint matches the pin (the turn then abstains as indeterminate), so it must be visible.
+    Logs the model id and the pin summary only; never prompt text.
+    """
+    pins = scorer_provider_kwargs().get("provider_overrides")
+    if not pins:
+        logger.info(msg, *args)
+        return
+    logger.warning(
+        msg + " [first_person_scorer pins active: model=%s pins=%s; if no endpoint matches "
+        "them every pinned gate call fails and the turn abstains]",
+        *args,
+        model
+        or str(getattr(settings, "first_person_relevance_model", "") or "")
+        or "<provider-default>",
+        json.dumps(pins, sort_keys=True),
+    )
+
+
 def _relevance_timeout_s() -> float:
     return float(getattr(settings, "first_person_relevance_timeout_s", 25.0))
 
@@ -1655,12 +1677,16 @@ async def _relevance_select_scored_async(
                     elapsed,
                 )
     except ProviderRefusalError as e:  # noqa: BLE001 - CA-4: fail closed, distinct line
-        logger.info("[FirstPersonPipeline] Relevance check refused by provider (%s); abstaining", e)
+        _gate_failure_log(
+            "[FirstPersonPipeline] Relevance check refused by provider (%s); abstaining", e
+        )
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt))
         return _RELEVANCE_INDETERMINATE
     except Exception as e:  # noqa: BLE001 - fail closed
-        logger.info("[FirstPersonPipeline] Relevance check indeterminate (timeout/error): %s", e)
+        _gate_failure_log(
+            "[FirstPersonPipeline] Relevance check indeterminate (timeout/error): %s", e
+        )
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt))
         # Provider errors, refusals, budget denials, and timeouts remain
@@ -1699,7 +1725,7 @@ async def _relevance_select_scored_async(
                         raise ValueError(f"non-integer score {v!r}")
                     scores.append(v)
         except (ValueError, KeyError, TypeError, AttributeError) as json_err:
-            logger.info(
+            _gate_failure_log(
                 "[FirstPersonPipeline] Relevance check unparseable JSON output %r (err=%s); abstaining",
                 str(raw)[:120],
                 json_err,
@@ -1710,13 +1736,15 @@ async def _relevance_select_scored_async(
             scores = [int(tok) for tok in str(raw).strip().replace(" ", "").split(",")]
         except ValueError:
             # The reply is a model answer to a scoring prompt (never seeker words); cap and flatten it.
-            logger.info(
+            _gate_failure_log(
                 "[FirstPersonPipeline] Relevance check unparseable output %r; abstaining",
                 str(raw)[:60],
             )
             return _RELEVANCE_INDETERMINATE
     if len(scores) != len(clips) or any(not 0 <= v <= 3 for v in scores):
-        logger.info("[FirstPersonPipeline] Relevance check malformed scores %s; abstaining", scores)
+        _gate_failure_log(
+            "[FirstPersonPipeline] Relevance check malformed scores %s; abstaining", scores
+        )
         return _RELEVANCE_INDETERMINATE
     if scores_out is not None:
         scores_out[:] = scores
@@ -2245,9 +2273,9 @@ async def _async_answerability_check(
             raw = str(res)
         except Exception as e:
             if isinstance(e, ProviderRefusalError):
-                logger.info("[FirstPersonPipeline] Answerability check refused by provider")
+                _gate_failure_log("[FirstPersonPipeline] Answerability check refused by provider")
             else:
-                logger.info(
+                _gate_failure_log(
                     "[FirstPersonPipeline] Answerability check indeterminate (timeout/error): %s",
                     e,
                 )
@@ -2265,7 +2293,7 @@ async def _async_answerability_check(
         if token == "no":
             return False
         retry = attempt == 0 and (time.monotonic() - started) < deadline_s
-        logger.info(
+        _gate_failure_log(
             "[FirstPersonPipeline] Answerability check unparseable output (len=%d, retries=%d); %s",
             len(raw),
             attempt,

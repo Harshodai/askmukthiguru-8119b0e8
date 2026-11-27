@@ -632,6 +632,9 @@ class Settings(BaseSettings):
     first_person_scorer_require_parameters: bool = False
     first_person_scorer_zdr: bool = False
     first_person_scorer_allow_fallbacks: Optional[bool] = None
+    # Pins may only TIGHTEN the global provider policy (see validate_scorer_pins_tighten_policy).
+    # A malformed pin value is a deliberate boot-time ValidationError: a failed boot fails the
+    # Railway deploy and the previous container keeps serving. Do not soften it into a fallback.
     # Timeout in seconds for the first-person LLM relevance scorer. 25s accommodates reasoning models and provider latency jitter.
     first_person_relevance_timeout_s: float = 25.0
     # Attempts per context for the relevance scorer (1 = no retry). 2 (2026-11-10): a
@@ -871,10 +874,12 @@ class Settings(BaseSettings):
     # Declared cost per call (vLLM reports no usage.cost). 0.0 = free: the shared OpenRouter
     # spend ledger is never touched. >0 reserves and settles at that amount on that ledger.
     vllm_fixed_cost_per_call_usd: float = Field(default=0.0, ge=0)
-    # Which registered provider object the first-person path (relevance scorer, answerability
-    # gate, HyDE, judge) calls. "openrouter" = today's resolution (container.openrouter, then
-    # nim, then the container's canonical LLM). "nim" or "vllm" are strict: a provider that is
-    # not configured raises (no fallback to OpenRouter). Changing it re-keys the exact cache.
+    # Which provider object the first-person path (relevance scorer, answerability gate, HyDE,
+    # judge) calls. "openrouter" = today's resolution (container.openrouter, then nim, then the
+    # container's canonical LLM). "vllm" is strict: if VLLM_BASE_URL is unset the first-person
+    # call raises (HTTP 503 on the route, after the crisis check). "nim" is NOT a strict
+    # no-fallback choice: NimService falls back to Sarvam/OpenRouter internally. The nim/vllm
+    # object is built only when selected here. Changing it re-keys the exact cache.
     first_person_llm_provider: Literal["openrouter", "nim", "vllm"] = "openrouter"
 
     # --- Qdrant ---
@@ -2018,6 +2023,37 @@ class Settings(BaseSettings):
     graphrag_total_timeout: float = Field(
         default=10.0, gt=0.0, le=60.0, description="Aggregate GraphRAG deadline in seconds"
     )
+
+    @model_validator(mode="after")
+    def validate_scorer_pins_tighten_policy(self):
+        """A first-person gate pin may only tighten the global OpenRouter provider policy.
+
+        Fails at boot (never silently ignored): allow_fallbacks=true cannot override
+        OPENROUTER_ALLOW_PROVIDER_FALLBACKS=false, and ``only`` must be a subset of a
+        non-empty OPENROUTER_ALLOWED_PROVIDERS.
+        """
+        if (
+            self.first_person_scorer_allow_fallbacks is True
+            and not self.openrouter_allow_provider_fallbacks
+        ):
+            raise ValueError(
+                "FIRST_PERSON_SCORER_ALLOW_FALLBACKS=true would loosen "
+                "OPENROUTER_ALLOW_PROVIDER_FALLBACKS=false; a scorer pin may only tighten the policy"
+            )
+        allowed = {
+            p.strip().lower() for p in self.openrouter_allowed_providers.split(",") if p.strip()
+        }
+        outside = [
+            p
+            for p in self.first_person_scorer_provider_only
+            if allowed and p.strip().lower() not in allowed
+        ]
+        if outside:
+            raise ValueError(
+                f"FIRST_PERSON_SCORER_PROVIDER_ONLY {outside} is not a subset of "
+                f"OPENROUTER_ALLOWED_PROVIDERS={sorted(allowed)}; a scorer pin may only tighten the policy"
+            )
+        return self
 
     @model_validator(mode="after")
     def validate_model_server_compat(self):
