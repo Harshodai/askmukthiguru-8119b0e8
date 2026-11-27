@@ -860,6 +860,23 @@ class Settings(BaseSettings):
     nim_classify_model: str = "meta/llama-3.1-8b-instruct"
     nim_rpm_limit: int = 30
 
+    # --- Self-hosted vLLM (opt-in, OpenAI-compatible; services/vllm_service.py) ---
+    # Registered ONLY when vllm_base_url is non-empty (e.g. http://vllm.internal:8000/v1).
+    # Model ids are whatever vLLM serves (--served-model-name); generation/fast reuse the
+    # openrouter_* model settings and the first-person scorer sends first_person_relevance_model.
+    vllm_base_url: str = ""
+    vllm_api_key: str = ""
+    vllm_timeout_s: float = Field(default=30.0, gt=0)
+    vllm_rpm_limit: int = Field(default=600, ge=1)
+    # Declared cost per call (vLLM reports no usage.cost). 0.0 = free: the shared OpenRouter
+    # spend ledger is never touched. >0 reserves and settles at that amount on that ledger.
+    vllm_fixed_cost_per_call_usd: float = Field(default=0.0, ge=0)
+    # Which registered provider object the first-person path (relevance scorer, answerability
+    # gate, HyDE, judge) calls. "openrouter" = today's resolution (container.openrouter, then
+    # nim, then the container's canonical LLM). "nim" or "vllm" are strict: a provider that is
+    # not configured raises (no fallback to OpenRouter). Changing it re-keys the exact cache.
+    first_person_llm_provider: Literal["openrouter", "nim", "vllm"] = "openrouter"
+
     # --- Qdrant ---
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "spiritual_wisdom_contextual"

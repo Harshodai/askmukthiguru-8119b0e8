@@ -1536,11 +1536,9 @@ async def get_breath_teaching(
                 status_code=503, detail="Verified teaching retrieval is unavailable."
             )
 
-        llm_service = (
-            getattr(container, "openrouter", None)
-            or getattr(container, "nim", None)
-            or getattr(container, "ollama", None)
-        )
+        from services.first_person_llm_provider import resolve_first_person_llm
+
+        llm_service = resolve_first_person_llm(container)
         pipeline = _pipeline(
             settings.first_person_collection,
             getattr(container, "serene_mind", None),

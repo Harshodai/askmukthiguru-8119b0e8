@@ -4078,6 +4078,13 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     if scorer_provider_kwargs()
                     else {}
                 ),
+                # Added only off the default, so the key is unchanged on "openrouter": a
+                # different backend can score the same model id differently.
+                **(
+                    {"llm_provider": str(settings.first_person_llm_provider)}
+                    if getattr(settings, "first_person_llm_provider", "openrouter") != "openrouter"
+                    else {}
+                ),
                 "serve_weak_match": str(bool(settings.first_person_serve_weak_match)),
                 "standalone_gate": str(bool(settings.first_person_standalone_gate_enabled)),
                 "standalone_min_words": str(

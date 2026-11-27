@@ -258,6 +258,11 @@ class ServiceContainer:
         # OpenRouter free-tier service for fast/simple queries
         self.openrouter = OpenRouterService()
 
+        # Opt-in providers the first-person path can be pointed at
+        # (settings.first_person_llm_provider); None when not configured.
+        self.vllm = LLMServiceFactory.create("vllm") if settings.vllm_base_url.strip() else None
+        self.nim = LLMServiceFactory.create("nim") if settings.nim_api_key else None
+
         # Multi-provider LLM failover router & model registry (inert on request path; AMK-E-003)
         self.multi_provider_llm = None
         self.model_registry = None

@@ -370,11 +370,9 @@ async def query_first_person_teaching(
             },
         )
 
-    llm_service = (
-        getattr(container, "openrouter", None)
-        or getattr(container, "nim", None)
-        or getattr(container, "ollama", None)
-    )
+    from services.first_person_llm_provider import resolve_first_person_llm
+
+    llm_service = resolve_first_person_llm(container)
 
     pipeline = _pipeline(
         settings.first_person_collection,
