@@ -60,6 +60,8 @@ def _retryable(exc: BaseException) -> bool:
 class VllmService:
     provider_name = _NAME
     _limiter: ClassVar[Optional[RedisBackedRateLimiter]] = None
+    # Set by app/container.py from rag.prompts.HYDE_PROMPT (services/ must not import rag).
+    hyde_prompt: str = ""
 
     def __init__(self) -> None:
         self._base_url = settings.vllm_base_url.strip()
@@ -212,9 +214,11 @@ class VllmService:
         )
 
     async def generate_hyde(self, question: str, **kwargs: Any) -> str:
-        from rag.prompts import HYDE_PROMPT
-
-        return await self._generate_fast(HYDE_PROMPT, question, **kwargs)
+        if not self.hyde_prompt:
+            # services/ must not import the rag layer (import_layer_lint): the app-layer
+            # container injects rag.prompts.HYDE_PROMPT. Raise, never run HyDE with no prompt.
+            raise RuntimeError("VllmService.hyde_prompt was not set by the container")
+        return await self._generate_fast(self.hyde_prompt, question, **kwargs)
 
     async def close(self) -> None:
         if self._client is not None:

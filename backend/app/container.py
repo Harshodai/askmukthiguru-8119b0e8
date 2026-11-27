@@ -283,6 +283,10 @@ class ServiceContainer:
             if choice == "vllm" and settings.vllm_base_url.strip()
             else None
         )
+        if self.vllm is not None:
+            from rag.prompts import HYDE_PROMPT
+
+            self.vllm.hyde_prompt = HYDE_PROMPT  # services/ cannot import rag; inject here
         self.nim = (
             LLMServiceFactory.create("nim") if choice == "nim" and settings.nim_api_key else None
         )

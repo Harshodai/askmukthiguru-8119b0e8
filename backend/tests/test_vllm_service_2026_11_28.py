@@ -214,3 +214,20 @@ async def test_rate_limited_locally_raises_instead_of_failing_open(make):
     VllmService._limiter = _Deny()
     with pytest.raises(ProviderRateLimitedError):
         await svc.generate("s", "u")
+
+
+@pytest.mark.asyncio
+async def test_generate_hyde_requires_the_injected_prompt(make):
+    """services/ cannot import rag (import_layer_lint): the container injects HYDE_PROMPT."""
+    seen = {}
+
+    def handler(request):
+        seen["body"] = json.loads(request.content)
+        return _ok("a hypothetical passage")
+
+    svc = make(handler)
+    with pytest.raises(RuntimeError, match="hyde_prompt"):
+        await svc.generate_hyde("what is a calm mind")
+    svc.hyde_prompt = "HYDE-SYSTEM-PROMPT"
+    assert await svc.generate_hyde("what is a calm mind") == "a hypothetical passage"
+    assert seen["body"]["messages"][0] == {"role": "system", "content": "HYDE-SYSTEM-PROMPT"}

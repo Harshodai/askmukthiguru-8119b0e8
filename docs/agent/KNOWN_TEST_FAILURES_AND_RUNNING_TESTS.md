@@ -38,4 +38,4 @@ npm test -- --run                                                        # front
 
 ## Guards that must stay green
 
-`scripts/guards/config_lint.py`, `scripts/guards/exception_ratchet.py` (ceiling 759), `scripts/guards/pipeline_order_guard.py`, `backend/tests/test_settings_guards.py`, `backend/tests/test_repo_layout.py`.
+`scripts/guards/config_lint.py`, `scripts/guards/exception_ratchet.py` (ceiling 759), `scripts/guards/pipeline_order_guard.py`, `backend/tests/test_settings_guards.py`, `backend/tests/test_repo_layout.py`. Also `backend/tests/test_exception_and_import_ratchets.py`: it contains the import-layer lint (`services/` must not import `rag`/`app.pipeline`/`app.api`; the allowlist `scripts/guards/import_layer_allowlist.txt` is at 24 of 25 slots, never add to it). A test selection by keyword (`openrouter|budget|...`) does NOT include it, so always run it by name before committing code under `services/`.

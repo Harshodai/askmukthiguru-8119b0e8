@@ -29,7 +29,7 @@ def _build(monkeypatch, choice, **cfg):
 
     def _create(name):
         created.append(name)
-        return f"<{name}>"
+        return SimpleNamespace(name=name)
 
     monkeypatch.setattr(LLMServiceFactory, "create", staticmethod(_create))
     monkeypatch.setattr(settings, "first_person_llm_provider", choice)
@@ -54,11 +54,15 @@ def test_selected_provider_is_built_alone(monkeypatch):
     holder, created = _build(
         monkeypatch, "nim", nim_api_key="nvapi-test", vllm_base_url="http://v/v1"
     )
-    assert created == ["nim"] and holder.nim == "<nim>" and holder.vllm is None
+    assert created == ["nim"] and holder.nim.name == "nim" and holder.vllm is None
     holder, created = _build(
         monkeypatch, "vllm", nim_api_key="nvapi-test", vllm_base_url="http://v/v1"
     )
-    assert created == ["vllm"] and holder.vllm == "<vllm>" and holder.nim is None
+    assert created == ["vllm"] and holder.vllm.name == "vllm" and holder.nim is None
+    # services/ cannot import rag (import_layer_lint): the container injects the HyDE prompt.
+    from rag.prompts import HYDE_PROMPT
+
+    assert holder.vllm.hyde_prompt == HYDE_PROMPT
 
 
 def test_selected_but_unconfigured_stays_none_so_resolution_raises(monkeypatch):
