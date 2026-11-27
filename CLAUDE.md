@@ -204,6 +204,7 @@ Backups stay local-cron per policy (`infrastructure/cron/mukthiguru-backup`: 02:
 
 ## Gotchas
 
+- **Before running tests or fixing a red test, read `docs/agent/KNOWN_TEST_FAILURES_AND_RUNNING_TESTS.md`**: how to run the suite (single `-q`, host venv, not in a memory-starved Docker VM), expected skips, and the known failing/flaky tests with evidence (`test_c20` timing flake, `test_flashrank_rerank`, `.claude/` worktree path filter, types.ts archive table, stale guru-literal baseline). Add a row there when you find a new one.
 - Backend on the host needs overrides: `QDRANT_URL=http://localhost:6333`, `NEO4J_URI=bolt://localhost:7687`, `REDIS_URL=redis://:...@localhost:6379/0`, reachable `SUPABASE_URL` (a wrong one is silent apart from `Telemetry Sink insert failed`; see `telemetry_sink_writes_total{outcome="error"}`).
 - Which LLM service class is live depends on `LLM_PROVIDER`; `OpenRouterService`, `SarvamCloudService` share no code (Ollama was removed 2026-11-16 by owner decision), so patch the provider actually in use. Live OpenRouter models: generation `deepseek/deepseek-chat`, fallback `meta-llama/llama-3.3-70b-instruct`, fast `meta-llama/llama-3.1-8b-instruct`.
 - Railway is scaled down and stays stopped until Harsha says otherwise; verify locally. When it resumes: deploy health gate is `/api/healthz` (`.railway/railway.ts`; `/api/health` is the deep check and needs the internal token, NEW-RW-7), `FORWARDED_ALLOW_IPS=10.0.0.0/8`, `PYTHON_MEMORY_LIMIT_MB=0` (archive `railway-deployment.md`).

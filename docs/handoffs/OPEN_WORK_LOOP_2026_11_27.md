@@ -1,6 +1,7 @@
 # Open-work loop (2026-11-27): read this first after any compaction or new session
 
 Goal (owner, at any cost): Railway healthy and cheap, many concurrent users served, nothing pending, everything documented.
+Tests: read `docs/agent/KNOWN_TEST_FAILURES_AND_RUNNING_TESTS.md` before running or fixing any test. Scope (owner, 2026-11-27): ALL work stays on the PR 121 branch worktree; never edit the `codex/evidence-platform-integration` checkout.
 Rule: a row closes only with evidence you ran. Every agent change gets an independent Opus review before it ships. Agents never push; the owner pushes, so give the exact command. Never raise a guard baseline on your own.
 
 ## The loop (repeat until every row is DONE)

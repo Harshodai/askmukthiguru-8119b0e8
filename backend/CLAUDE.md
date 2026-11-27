@@ -2,6 +2,8 @@
 
 Folder-level guidance for the FastAPI backend. The root `CLAUDE.md` documents the full RAG graph node-by-node; this file covers what you need while editing backend code. Python 3.12 (`.python-version`), venv at `backend/.venv/`.
 
+> Running tests: read `../docs/agent/KNOWN_TEST_FAILURES_AND_RUNNING_TESTS.md` first (how to run, expected skips, known failing/flaky tests).
+
 - Full subsystem/route inventory: ../docs/engineering-notes/subsystem-inventory.md
 
 > **#1 priority (2026-09-24): top-notch data and a stable baseline for first-person verbatim answers.** See the root `CLAUDE.md` banner and `../docs/agent/first_person_baseline_prompt.md`. Backend rules while this is in progress:
