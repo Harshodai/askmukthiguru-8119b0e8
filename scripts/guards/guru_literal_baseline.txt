@@ -1,6 +1,6 @@
 # T8-02 / GURU-010: lines naming a teacher in runtime code, per file.
 # RATCHET: counts may only go down. Format: <path><TAB><count>.
-# Total at write time: 574 lines in 121 files.
+# Total at write time: 572 lines in 119 files.
 backend/app/api/first_person.py	3
 backend/app/api/first_person_local_review.py	1
 backend/app/api/ingest.py	3
@@ -114,11 +114,9 @@ src/lib/greeting.ts	2
 src/lib/greetingConstants.ts	1
 src/lib/healingCourses.ts	1
 src/lib/practicesContent.ts	1
-src/pages/ChatPage.tsx	1
 src/pages/Index.tsx	4
 src/pages/ProfilePage.tsx	1
 src/pages/TeacherWords.tsx	1
 src/pages/guides/BeautifulStateMeditationPage.tsx	1
 src/pages/guides/SelfCentricThinkingPage.tsx	1
-src/pages/guides/SereneMindPracticePage.tsx	1
 src/pages/guides/SufferingToBeautifulStatePage.tsx	1
