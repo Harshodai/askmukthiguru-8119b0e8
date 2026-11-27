@@ -3,7 +3,7 @@
 - **Status:** Accepted for the default-off changes shipped on 2026-11-27. Not accepted: enabling the opt-in flags listed under "Rollout"; each needs the measurement named there first.
 - **Date:** 2026-11-27
 - **Deciders:** Project owner
-- **Evidence:** `docs/operations/railway-cost-and-deploy-review-2026-11-27.md`, `docs/operations/scaling-and-efficiency-audit-2026-11-27.md`, `docs/operations/capacity-and-load-test-2026-11-27.md`, `docs/operations/model-memory-sharing-research-2026-11-27.md`, `docs/operations/fast-tokenizer-2026-11-27.md`, `docs/operations/shared-model-server.md`, `docs/handoffs/OPEN_WORK_LOOP_2026_11_27.md`.
+- **Evidence:** `docs/operations/railway-cost-and-deploy-review-2026-11-27.md`, `docs/operations/scaling-and-efficiency-audit-2026-11-27.md`, `docs/operations/capacity-and-load-test-2026-11-27.md`, `docs/operations/model-memory-sharing-research-2026-11-27.md`, `docs/operations/fast-tokenizer-2026-11-27.md`, `docs/operations/shared-model-server.md`, `docs/operations/scaling-playbook-2026-11-27.md`, `docs/handoffs/OPEN_WORK_LOOP_2026_11_27.md`. Public write-up draft: `docs/blog/railway-cost-and-serving-efficiency-2026-11-27.md`.
 
 Convention in this document: **measured** = observed on the live stack or a real run; **modelled** = computed from measured inputs; **unverified** = not run.
 
