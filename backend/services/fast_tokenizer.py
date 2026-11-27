@@ -18,8 +18,8 @@ Anything outside that surface raises. Load-time problems raise
 it rather than switching models. Residual case: a corrupt tokenizer.json makes
 `tokenizers.Tokenizer.from_file` raise a bare `Exception`, which those generic
 handlers still treat like any other ONNX load failure (warning + fallback).
-`ONNX_TOKENIZER_BACKEND=transformers` (see `app.config`) keeps the old
-AutoTokenizer path as a rollback; it is imported lazily and only then.
+`ONNX_TOKENIZER_BACKEND=transformers` (see `app.config`) is the DEFAULT and keeps the old
+AutoTokenizer path; this module is used only when `ONNX_TOKENIZER_BACKEND=tokenizers` is set.
 
 NOTE: the live v13 index was built host-side with transformers 4.57.6, which
 tokenizes 215 of 11,070 real transcript lines differently from 5.x (trailing

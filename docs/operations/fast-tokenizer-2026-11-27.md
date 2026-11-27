@@ -1,8 +1,10 @@
 # FastTokenizer for the ONNX serving path (2026-11-27)
 
-`backend/services/fast_tokenizer.py` replaces `transformers.AutoTokenizer` in
-`EmbeddingService` and `OnnxReranker` (setting `ONNX_TOKENIZER_BACKEND`,
-default `tokenizers`; `transformers` is the rollback).
+`backend/services/fast_tokenizer.py` can replace `transformers.AutoTokenizer` in
+`EmbeddingService` and `OnnxReranker` (setting `ONNX_TOKENIZER_BACKEND`). **Default is
+`transformers` (unchanged behaviour); `tokenizers` is OPT-IN** and stays off until
+`scripts/ops/verify_fast_tokenizer_in_image.sh` shows 0 skipped on the transformers 5.x that
+serves (the host venv has 4.57, so its 5.x cases skip).
 
 ## Memory (measured in the backend image)
 - Shipped path, both services loaded: ~320-350 MB less RSS (2004 MB vs 2354 MB

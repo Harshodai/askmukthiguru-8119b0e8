@@ -269,8 +269,10 @@ def test_concurrent_calls_match_serial(embed_pair):
 # --- machine-independent checks (no model files needed) ----------------------
 
 
-def test_default_backend_is_tokenizers():
-    assert settings.onnx_tokenizer_backend == "tokenizers"
+def test_default_backend_is_transformers_until_5x_equivalence_is_verified():
+    """The swap is opt-in: it must not become the default before the in-image check
+    (scripts/ops/verify_fast_tokenizer_in_image.sh) shows 0 skipped on transformers 5.x."""
+    assert settings.onnx_tokenizer_backend == "transformers"
 
 
 def test_missing_tokenizer_json_raises_clear_error(tmp_path):

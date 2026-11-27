@@ -1056,15 +1056,17 @@ class Settings(BaseSettings):
     # "flagembedding" — fall back to sentence-transformers CrossEncoder (original).
     # Rollback: set RERANKER_BACKEND=flagembedding in .env and restart.
     reranker_backend: str = "onnx_int8"
-    # Tokenizer for the ONNX encoder + reranker. "tokenizers" (default) uses the
-    # raw `tokenizers` library via services/fast_tokenizer.py and never imports
+    # Tokenizer for the ONNX encoder + reranker. "transformers" (default) keeps
+    # AutoTokenizer exactly as before. "tokenizers" is OPT-IN: it uses the raw
+    # `tokenizers` library via services/fast_tokenizer.py and never imports
     # transformers (~320-350 MB less RSS while torch is still imported, about
-    # 860 MB for the tokenizer alone; identical token ids). Rollback:
-    # ONNX_TOKENIZER_BACKEND=transformers restores AutoTokenizer. With "tokenizers",
+    # 860 MB for the tokenizer alone; same token ids on the cases tested). It stays
+    # off until scripts/ops/verify_fast_tokenizer_in_image.sh shows 0 skipped
+    # against the transformers version that serves (5.x). With "tokenizers",
     # a missing/unsupported tokenizer file raises FastTokenizerLoadError and the
     # torch CrossEncoder fallbacks (embedding_service._ensure_reranker,
     # reranker_service._load_fallback) re-raise it instead of swapping models.
-    onnx_tokenizer_backend: Literal["tokenizers", "transformers"] = "tokenizers"
+    onnx_tokenizer_backend: Literal["tokenizers", "transformers"] = "transformers"
     reranker_onnx_model: str = "temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8"
     # Shared model server (opt-in, default OFF). Empty `model_server_url` keeps
     # the in-process BGE-M3 + reranker sessions exactly as before. When set,
