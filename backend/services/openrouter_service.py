@@ -180,15 +180,26 @@ class ProviderRefusalError(RuntimeError):
 # when that field is absent, never when a provider-reported value is present.
 # Keep this table synchronized with the production model configuration and
 # OpenRouter's model pages; the fallback must not influence generation.
+#
+# 2026-11-28 refresh: the three rows marked "2026-11-27" below were re-read on
+# 2026-11-27 from GET https://openrouter.ai/api/v1/models (USD per million
+# input/output tokens) after the old values had drifted. The two DeepSeek
+# aliases below were NOT re-read and keep their older numbers; the cached-input
+# table further down is also unchanged (DeepSeek cache-read price not re-read).
+# Fallback-only: a provider-reported usage.cost always wins.
 _OPENROUTER_FALLBACK_RATES_PER_MILLION: dict[str, tuple[float, float]] = {
-    "deepseek/deepseek-chat": (0.14, 0.28),
-    "deepseek/deepseek-chat-v3": (0.14, 0.28),
-    "deepseek/deepseek-v3": (0.14, 0.28),
-    "meta-llama/llama-3.3-70b-instruct": (0.12, 0.30),
+    "deepseek/deepseek-chat": (0.2574, 1.0287),  # 2026-11-27 (was 0.14/0.28)
+    "deepseek/deepseek-chat-v3": (0.14, 0.28),  # not re-read 2026-11-27
+    "deepseek/deepseek-v3": (0.14, 0.28),  # not re-read 2026-11-27
+    "meta-llama/llama-3.3-70b-instruct": (0.59, 0.79),  # 2026-11-27 (was 0.12/0.30)
     "google/gemini-2.0-flash-001": (0.10, 0.40),
     "qwen/qwen3-30b-a3b-instruct-2507": (0.04815, 0.1931),
-    "meta-llama/llama-3.1-8b-instruct": (0.02, 0.04),
+    # 2026-11-27 model listing: 0.05/0.08 (was 0.02/0.04). The cheapest endpoint
+    # (DeepInfra) is still 0.02/0.04; the listing price is the conservative estimate.
+    "meta-llama/llama-3.1-8b-instruct": (0.05, 0.08),
     "qwen/qwen-2.5-1.5b-instruct": (0.02, 0.04),
+    # DELISTED: sarvamai/sarvam-m was no longer on OpenRouter's model list on
+    # 2026-11-27. Kept because the "sarvam-m" preset and tests still reference it.
     "sarvamai/sarvam-m": (0.10, 0.20),
     # OpenRouter pricing pages verified 2026-08-22. Provider-reported
     # usage.cost always takes precedence over these accounting fallbacks.
@@ -205,7 +216,8 @@ _OPENROUTER_FALLBACK_RATES_PER_MILLION: dict[str, tuple[float, float]] = {
 }
 
 # OpenRouter Prompt Caching discount rates for prompt prefixes ($/1M tokens).
-# DeepSeek prefix caching: $0.14 regular input, $0.028 cached input (80% discount).
+# DeepSeek prefix caching: $0.028 cached input (read when the regular input rate was
+# $0.14; NOT re-read 2026-11-27 when the regular rate was refreshed to $0.2574).
 _OPENROUTER_CACHED_INPUT_RATES_PER_MILLION: dict[str, float] = {
     "deepseek/deepseek-chat": 0.028,
     "deepseek/deepseek-chat-v3": 0.028,
@@ -216,6 +228,26 @@ _OPENROUTER_CACHED_INPUT_RATES_PER_MILLION: dict[str, float] = {
     "sarvamai/sarvam-m": 0.02,
     "anthropic/claude-haiku-5.5": 0.01,  # D-16, read 2026-11-07 (see above)
 }
+
+_UNPRICED_MODELS_WARNED: set[str] = set()
+
+
+def _warn_unpriced_model_once(model: str) -> None:
+    """Loudly flag, once per model id, a fallback estimate that is priced at $0.
+
+    Accounting only: the estimate still returns 0.0 so served behaviour is unchanged,
+    but a $0 estimate for a model that reports no usage.cost under-counts spend.
+    """
+    if model in _UNPRICED_MODELS_WARNED:
+        return
+    _UNPRICED_MODELS_WARNED.add(model)
+    logger.warning(
+        "OpenRouter fallback cost: model %r has no entry in "
+        "_OPENROUTER_FALLBACK_RATES_PER_MILLION and the reply carried no usage.cost; "
+        "pricing it at $0 (spend under-counted). Add a dated price.",
+        model,
+    )
+
 
 if TYPE_CHECKING:
     from app.security_utils import RedisBackedRateLimiter
@@ -501,6 +533,8 @@ class OpenRouterService:
         Includes prompt caching prefix discount (e.g. DeepSeek-V3 / DeepSeek-Chat:
         $0.14 regular input, $0.028 cached input — 80% discount).
         """
+        if model not in _OPENROUTER_FALLBACK_RATES_PER_MILLION:
+            _warn_unpriced_model_once(model)
         input_rate, output_rate = _OPENROUTER_FALLBACK_RATES_PER_MILLION.get(model, (0.0, 0.0))
         cached_rate = _OPENROUTER_CACHED_INPUT_RATES_PER_MILLION.get(model, input_rate * 0.2)
         uncached_in = max(0, int(tokens_in) - int(cached_tokens))

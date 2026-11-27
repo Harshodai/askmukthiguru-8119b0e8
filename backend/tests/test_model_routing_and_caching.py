@@ -227,22 +227,22 @@ class TestPromptCachingAndCostSuite:
         assert settings.openrouter_x_title == "AskMukthiGuru"
 
     def test_deepseek_prompt_caching_rate_discount(self):
-        """DeepSeek prefix caching discount must be calculated (80% discount: $0.14 -> $0.028)."""
+        """DeepSeek prefix caching must use the cached-input rate ($0.028/M; input re-read 2026-11-27)."""
         model = "deepseek/deepseek-chat"
         assert model in _OPENROUTER_FALLBACK_RATES_PER_MILLION
         assert model in _OPENROUTER_CACHED_INPUT_RATES_PER_MILLION
 
-        # Uncached cost: 1,000,000 in, 0 out = $0.14
+        # Uncached cost: 1,000,000 in, 0 out = $0.2574 (rate re-read 2026-11-27)
         uncached_cost = OpenRouterService._fallback_cost(1_000_000, 0, model, cached_tokens=0)
-        assert pytest.approx(uncached_cost, 0.001) == 0.14
+        assert pytest.approx(uncached_cost, 0.001) == 0.2574
 
         # Fully cached input cost: 1,000,000 in (all cached), 0 out = $0.028
         cached_cost = OpenRouterService._fallback_cost(1_000_000, 0, model, cached_tokens=1_000_000)
         assert pytest.approx(cached_cost, 0.001) == 0.028
 
-        # 50% cached: 500k regular ($0.07) + 500k cached ($0.014) = $0.084
+        # 50% cached: 500k regular ($0.1287) + 500k cached ($0.014) = $0.1427
         half_cost = OpenRouterService._fallback_cost(1_000_000, 0, model, cached_tokens=500_000)
-        assert pytest.approx(half_cost, 0.001) == 0.084
+        assert pytest.approx(half_cost, 0.001) == 0.1427
 
     def test_cost_effective_presets_defined(self):
         """Cost-effective presets (deepseek-v3, gemini-flash, sarvam-m) must be defined."""

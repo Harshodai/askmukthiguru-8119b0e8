@@ -4,6 +4,12 @@ Reservations intentionally use a conservative per-call ceiling. When OpenRouter
 returns an actual cost, unused reservation is atomically refunded. Missing usage
 keeps the reservation so unavailable accounting never turns into uncapped spend.
 
+A provider that never reports cost (a self-hosted OpenAI-compatible endpoint) can
+declare ``fixed_cost_usd`` instead (2026-11-28): the guard then reserves and settles
+at that amount, so a free endpoint (0.0) never moves the shared spend ledger and a
+metered one is billed its declared price. ``None`` (the default, and what OpenRouter
+uses) keeps the behaviour above unchanged.
+
 When Redis is unreachable and ``fail_closed`` is set, reservations fall back to an
 in-process ledger capped at ``LOCAL_FALLBACK_FRACTION`` of the daily and monthly
 budgets, instead of refusing every call. Spend stays capped, never open.
@@ -84,7 +90,9 @@ class BudgetReservation:
             return
         if not request_sent:
             await self.settle(0.0)
-        elif response_arrived and response_cost_usd is not None:
+        elif response_arrived and (
+            response_cost_usd is not None or self._declared_cost() is not None
+        ):
             await self.settle(response_cost_usd)
         else:
             self.settled = True
@@ -112,11 +120,17 @@ class BudgetReservation:
         ):  # pragma: no cover - a metric must not break a call
             logger.debug("budget kept-reservation metric failed", exc_info=True)
 
+    def _declared_cost(self) -> float | None:
+        return None if self.guard is None else getattr(self.guard, "fixed_cost_usd", None)
+
     async def settle(self, actual_cost_usd: float | None) -> None:
-        """Refund unused known cost; unknown usage deliberately retains reserve."""
+        """Refund unused known cost; unknown usage retains reserve unless the guard
+        declares a fixed per-call cost (then that cost is the actual)."""
         self.settled = True
         if self.guard is None:
             return
+        if actual_cost_usd is None:
+            actual_cost_usd = self._declared_cost()
         if actual_cost_usd is None:
             self._note_kept("cost_unreported")
             return
@@ -138,6 +152,7 @@ class OpenRouterBudgetGuard:
         monthly_budget_usd: float,
         max_request_cost_usd: float,
         fail_closed: bool,
+        fixed_cost_usd: float | None = None,
     ) -> None:
         self._enabled = enabled
         self._redis_url = redis_url
@@ -145,12 +160,18 @@ class OpenRouterBudgetGuard:
         self._monthly_budget_usd = monthly_budget_usd
         self._max_request_cost_usd = max_request_cost_usd
         self._fail_closed = fail_closed
+        if fixed_cost_usd is not None and fixed_cost_usd < 0:
+            raise ValueError("fixed_cost_usd must be >= 0 or None")
+        self.fixed_cost_usd = fixed_cost_usd
         self._client: Any = None
         self._local_spend: dict[str, float] = {}
 
     @classmethod
-    def from_settings(cls, settings: Any, policy: Any) -> OpenRouterBudgetGuard:
+    def from_settings(
+        cls, settings: Any, policy: Any, *, fixed_cost_usd: float | None = None
+    ) -> OpenRouterBudgetGuard:
         return cls(
+            fixed_cost_usd=fixed_cost_usd,
             enabled=bool(getattr(settings, "openrouter_budget_guard_enabled", False)),
             redis_url=settings.redis_url,
             daily_budget_usd=policy.daily_budget_usd,
@@ -191,8 +212,16 @@ class OpenRouterBudgetGuard:
             max(1, int((next_month - current).total_seconds())),
         )
 
+    def _amount(self) -> float:
+        """Per-call reservation: the declared fixed cost, else the conservative ceiling."""
+        return self._max_request_cost_usd if self.fixed_cost_usd is None else self.fixed_cost_usd
+
     async def reserve(self) -> BudgetReservation:
         if not self._enabled:
+            return BudgetReservation(None)
+        if self.fixed_cost_usd == 0.0:
+            # Declared free (self-hosted): nothing to reserve, so the shared ledger,
+            # Redis and the local fallback are never touched.
             return BudgetReservation(None)
         day_key, month_key, day_ttl, month_ttl = self._keys()
         try:
@@ -202,7 +231,7 @@ class OpenRouterBudgetGuard:
                 2,
                 day_key,
                 month_key,
-                self._max_request_cost_usd,
+                self._amount(),
                 self._daily_budget_usd,
                 self._monthly_budget_usd,
                 day_ttl,
@@ -215,11 +244,11 @@ class OpenRouterBudgetGuard:
         if not result or int(result[0]) != 1:
             BUDGET_DENIED_TOTAL.labels(reason="limit").inc()
             raise OpenRouterBudgetExceeded("OpenRouter daily or monthly spend limit reached")
-        return BudgetReservation(self, self._max_request_cost_usd)
+        return BudgetReservation(self, self._amount())
 
     def _reserve_local(self, day_key: str, month_key: str, cause: Exception) -> BudgetReservation:
         """Reserve against the in-process ledger at a fraction of the real caps."""
-        amount = self._max_request_cost_usd
+        amount = self._amount()
         day = self._local_spend.get(day_key, 0.0)
         month = self._local_spend.get(month_key, 0.0)
         if (
