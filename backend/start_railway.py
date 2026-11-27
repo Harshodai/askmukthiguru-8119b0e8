@@ -75,6 +75,21 @@ _last_executor_canary = _process_start
 # boot surfaces 503 immediately instead of being masked for _GRACE_SECONDS.
 _lifespan_failed = False
 
+# Opt-in readiness gate for /api/healthz (2026-11-27 scaling audit). Off by default so the
+# 180 s grace behaviour is unchanged. On: healthz stays 503 until the real app finished
+# startup (app.dependencies.startup_complete), in the grace window AND after it. Railway then
+# keeps the old container serving until the new one can actually answer /api/chat; a boot that
+# never finishes fails the deploy instead of being promoted.
+_READY_GATE = os.environ.get("HEALTHZ_REQUIRE_READY", "").strip().lower() in {"1", "true", "yes"}
+
+
+def _app_ready() -> bool:
+    """True once the real app finished startup. Never imports: this runs on the loop while
+    the real app is being imported in a thread, so only read the module if already loaded."""
+    deps = sys.modules.get("app.dependencies") if _real_app is not None else None
+    return _lifespan_startup_done and bool(getattr(deps, "startup_complete", False))
+
+
 # Must stay < .railway/railway.ts's deploy healthcheckTimeout (330) — that
 # file (healthcheck "/api/healthz", NOT /api/health) is the IaC source since
 # railway.json was removed 2026-09-19. Railway keeps retrying the healthcheck
@@ -188,6 +203,47 @@ def get_web_concurrency(env=None) -> int:
             "refusing to start rather than guessing a worker count."
         )
     return workers
+
+
+# Measured 2026-11-27: one uvicorn worker process holds ~2.5 GB (~0.5 GB
+# libraries + BGE-M3 INT8 ONNX session ~0.9 GB + reranker). Railway bills
+# memory, and loading the ONNX session before fork is not viable (forked
+# children deadlock after inference starts), so extra workers duplicate it.
+_WORKER_MODEL_MEMORY_GB = 2.5
+
+
+def model_duplication_warning(workers: int, model_server_url: str) -> str | None:
+    """Warning text when WEB_CONCURRENCY > 1 would duplicate the models, else None.
+
+    Not fatal: the owner may choose the cost. The shared model server
+    (SERVICE_TYPE=model-server + MODEL_SERVER_URL) is the way around it.
+    """
+    if workers <= 1 or model_server_url:
+        return None
+    return (
+        f"WEB_CONCURRENCY={workers} with MODEL_SERVER_URL empty: every worker loads its own "
+        f"BGE-M3 + reranker, measured ~{_WORKER_MODEL_MEMORY_GB} GB per worker process, so "
+        f"~{workers * _WORKER_MODEL_MEMORY_GB:.1f} GB total for the API service. Run the models "
+        "once in a separate service (SERVICE_TYPE=model-server) and set MODEL_SERVER_URL + "
+        "MODEL_SERVER_TOKEN to avoid this; see docs/operations/shared-model-server.md."
+    )
+
+
+def _run_model_server() -> int:
+    """SERVICE_TYPE=model-server: one process that loads the models for the API workers."""
+    import uvicorn
+
+    from app.config import settings
+    from services.model_server.app import create_app
+
+    if not settings.model_server_token:
+        logger.error("MODEL_SERVER_TOKEN must be set; refusing to start the model server")
+        return 1
+    logger.info("Starting Mukthi Guru model server on port %s (single process)", port)
+    # "::" is dual-stack on Linux (IPv4 too); Railway legacy environments
+    # resolve *.railway.internal to IPv6 only.
+    uvicorn.run(create_app(), host="::", port=port, workers=1, log_level="info")
+    return 0
 
 
 # NEW-RW-3 (RW-04, 2026-11-06): graceful shutdown of the Celery child.
@@ -638,7 +694,8 @@ async def app(scope, receive, send):
         elif within_grace:
             # During the grace window, 200 unconditionally — Railway must not
             # kill the replica while the real app is still initializing.
-            healthy = True
+            # With HEALTHZ_REQUIRE_READY the same readiness test as post-grace applies.
+            healthy = _app_ready() if _READY_GATE else True
         else:
             # Post-grace: healthy only if the real lifespan completed AND both
             # the heartbeat AND the executor canary are fresh. Stale heartbeat
@@ -660,6 +717,8 @@ async def app(scope, receive, send):
             heartbeat_stale = (time.monotonic() - _last_heartbeat) > _HEARTBEAT_STALE_S
             executor_stale = (time.monotonic() - _last_executor_canary) > _HEARTBEAT_STALE_S
             healthy = _lifespan_startup_done and not heartbeat_stale and not executor_stale
+            if _READY_GATE:
+                healthy = healthy and _app_ready()
         if healthy:
             await _send_http(send, 200, _OK_HEADERS, _OK_BODY)
         else:
@@ -760,6 +819,11 @@ def main() -> None:
                 grace_s=get_celery_shutdown_grace_s(),
             )
         )
+
+    # Opt-in shared model server (default OFF): one copy of BGE-M3 + reranker
+    # for several API workers; see docs/operations/shared-model-server.md.
+    if os.environ.get("SERVICE_TYPE") == "model-server":
+        sys.exit(_run_model_server())
 
     # Railway cron modes (cost): no always-on worker or beat.
     if os.environ.get("SERVICE_TYPE") == "celery-on-demand":
@@ -877,6 +941,9 @@ def main() -> None:
         raise SystemExit(1)
 
     uvicorn_workers = get_web_concurrency()
+    duplication_warning = model_duplication_warning(uvicorn_workers, settings.model_server_url)
+    if duplication_warning:
+        logger.warning("MEMORY WARNING: %s", duplication_warning)
     # RP-A3: the chat admission cap (max_concurrent_chat) is enforced per
     # worker process, so log both numbers together — the replica-wide ceiling
     # is roughly uvicorn_workers x max_concurrent_chat. /api/health reports

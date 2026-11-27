@@ -20,6 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, ClassVar, Optional
 
 from app.config import settings
+from services.fast_tokenizer import FastTokenizerLoadError
 
 logger = logging.getLogger(__name__)
 
@@ -178,10 +179,12 @@ class RerankerService:
         # Phase 1: prefer ONNX INT8 reranker when configured.
         if settings.reranker_backend == "onnx_int8":
             try:
-                from services.onnx_reranker import OnnxReranker
+                from services.model_server.client import make_onnx_reranker
 
                 start_time = time.perf_counter()
-                self._fallback_reranker = OnnxReranker(model_id=settings.reranker_onnx_model)
+                # In-process OnnxReranker, or the shared model server's when
+                # MODEL_SERVER_URL is set (then nothing is loaded here).
+                self._fallback_reranker = make_onnx_reranker(settings.reranker_onnx_model)
                 # OnnxReranker.predict() applies sigmoid internally; flag this so
                 # _run_cross_encoder() does not apply sigmoid a second time
                 # (mirrors embedding_service._ensure_reranker line 414-418).
@@ -194,6 +197,10 @@ class RerankerService:
                 )
                 self._is_fallback = True
                 return
+            except FastTokenizerLoadError:
+                # Fast-tokenizer backend selected and its files are unusable:
+                # raise instead of swapping to the torch CrossEncoder.
+                raise
             except Exception as e:
                 logger.warning(
                     "ONNX reranker load failed (%s); falling back to PyTorch CrossEncoder", e
@@ -295,16 +302,26 @@ class RerankerService:
     ) -> list[dict[str, Any]] | None:
         if self._fallback_reranker is None:
             return None
+        import contextlib
+
         import numpy as np
-        import torch
 
         pairs = [(query, doc["text"]) for doc in documents]
         if getattr(self, "_reranker_outputs_probs", False):
             # OnnxReranker: session.run() is thread-safe and takes the shared
             # native-inference memory gate inside its own predict().
-            with torch.inference_mode():
+            if getattr(self._fallback_reranker, "is_remote", False):
+                # Shared model server: no torch may be imported in this process.
+                inference_ctx = contextlib.nullcontext()
+            else:
+                import torch
+
+                inference_ctx = torch.inference_mode()
+            with inference_ctx:
                 raw_scores = self._fallback_reranker.predict(pairs)
         else:
+            import torch
+
             # PyTorch CrossEncoder: NOT thread-safe. One shared module object
             # (this service is a container singleton) called from a thread per
             # in-flight chat races inside torch and segfaults the interpreter —

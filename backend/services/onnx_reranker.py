@@ -186,7 +186,6 @@ class OnnxReranker:
         """Download (once) and load the ONNX session + tokeniser."""
         import onnxruntime as ort
         from huggingface_hub import snapshot_download
-        from transformers import AutoTokenizer
 
         # 2026-09-16: bound HF download concurrency/backend before any
         # snapshot_download, same guard embedding_service.py applies before
@@ -299,18 +298,26 @@ class OnnxReranker:
         # nosec B615: local_path is a locally pinned snapshot_download dir, not
         # a repo-head model id — the pinned-revision requirement is already
         # enforced in _load() via snapshot_download(revision=...).
-        try:
-            self._tokenizer = AutoTokenizer.from_pretrained(
-                local_path,
-                use_fast=True,
-                trust_remote_code=True,
-            )  # nosec B615
-        except Exception:
-            self._tokenizer = AutoTokenizer.from_pretrained(
-                local_path,
-                use_fast=True,
-                trust_remote_code=False,
-            )  # nosec B615
+        if settings.onnx_tokenizer_backend == "tokenizers":
+            # Torch-free path (no transformers import); raises if tokenizer.json is absent.
+            from services.fast_tokenizer import FastTokenizer
+
+            self._tokenizer = FastTokenizer(local_path)
+        else:
+            from transformers import AutoTokenizer
+
+            try:
+                self._tokenizer = AutoTokenizer.from_pretrained(
+                    local_path,
+                    use_fast=True,
+                    trust_remote_code=True,
+                )  # nosec B615
+            except Exception:
+                self._tokenizer = AutoTokenizer.from_pretrained(
+                    local_path,
+                    use_fast=True,
+                    trust_remote_code=False,
+                )  # nosec B615
         logger.info(
             "Loaded ONNX INT8 reranker: %s  (file=%s, inputs=%s, token_type_ids=%s, outputs=%s)",
             model_id,

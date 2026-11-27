@@ -25,6 +25,7 @@ import asyncio
 import logging
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -45,6 +46,11 @@ from services.ontology_exporter import OntologyExporter
 from services.tenant_context import TenantContext, get_tenant_id_from_user
 
 logger = logging.getLogger(__name__)
+
+# Own small pool for the public subgraph scan. asyncio's default executor is the pool the
+# start_railway.py executor canary watches (and every to_thread caller shares); a burst of slow
+# CONTAINS scans there could starve it, the incident class the health route's own pool avoids.
+_KG_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="kg-subgraph")
 
 # Bounded admission control for Neo4j read queries.
 # Limits concurrent residual work when asyncio.wait_for times out
@@ -523,7 +529,9 @@ async def kg_subgraph(
     # remains bounded even when callers request the maximum node limit.
     edge_cap = max(1, settings.kg_subgraph_max_edges // max(1, limit))
 
-    try:
+    def _query_sync() -> None:
+        # Sync Bolt driver + a CONTAINS scan: run off the event loop (this route is public
+        # and the single worker serves every chat on the same loop).
         with driver.session() as session:
             # 1-hop neighborhood: any node whose entity_id contains the query,
             # plus its immediate neighbours. LightRAG writes `entity_id`.
@@ -572,6 +580,9 @@ async def kg_subgraph(
                             teacher=_teacher_from_labels(rec.get("dst_labels")),
                         )
                     edges.append(KGEdge(source=src, target=dst, label=rec.get("rel")))
+
+    try:
+        await asyncio.get_running_loop().run_in_executor(_KG_EXECUTOR, _query_sync)
     except Exception as exc:  # noqa: BLE001
         logger.warning("kg/subgraph query failed: %s", exc)
         return SubgraphResponse(nodes=[], edges=[], query=query, count=0)

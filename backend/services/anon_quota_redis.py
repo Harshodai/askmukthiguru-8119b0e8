@@ -74,6 +74,7 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
         # reservations recorded there are claimed/released/inspected against
         # the same store; entries expire with the quota window.
         self._degraded_sessions: dict[str, float] = {}
+        self._last_degraded_sweep = 0.0
         self._degraded_lock = asyncio.Lock()
 
     def _key(self, session_id: str) -> str:
@@ -116,7 +117,15 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
     async def _track_degraded(self, session_id: str, window_seconds: float) -> None:
         """Route this session to the fallback for the rest of the quota window."""
         async with self._degraded_lock:
-            self._degraded_sessions[session_id] = time.time() + window_seconds
+            now = time.time()
+            # Entries used to leave only on re-access. Above 10,000, sweep expired ones at most
+            # once a minute (one scan a minute, not one per call).
+            if len(self._degraded_sessions) > 10_000 and now - self._last_degraded_sweep >= 60.0:
+                self._last_degraded_sweep = now
+                self._degraded_sessions = {
+                    sid: exp for sid, exp in self._degraded_sessions.items() if exp >= now
+                }
+            self._degraded_sessions[session_id] = now + window_seconds
 
     async def _check_degraded(
         self, session_id: str, limit: int, window_seconds: float, claim_ttl_seconds: float

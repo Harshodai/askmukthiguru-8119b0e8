@@ -138,9 +138,18 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
         # across replicas; upgrade to a shared cross-process store if that
         # matters more than "some" enforcement during a Redis outage.
         self._local_buckets: dict[str, tuple[float, float]] = {}  # key -> (tokens, ts)
+        self._last_sweep = 0.0
 
     def _local_allowed(self, key: str) -> tuple[bool, float]:
         now = time.time()
+        # Outage-only fallback: above 10,000 buckets, drop idle (full) ones, at most once a minute
+        # so a flood of distinct keys costs one scan a minute, not one per request.
+        if len(self._local_buckets) > 10_000 and now - self._last_sweep >= 60.0:
+            self._last_sweep = now
+            refill_s = self.capacity / self.refill if self.refill else 0.0
+            self._local_buckets = {
+                k: v for k, v in self._local_buckets.items() if now - v[1] < refill_s
+            }
         tokens, ts = self._local_buckets.get(key, (self.capacity, now))
         tokens = min(self.capacity, tokens + max(0.0, now - ts) * self.refill)
         allowed = tokens >= 1

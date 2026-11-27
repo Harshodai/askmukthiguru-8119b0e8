@@ -193,6 +193,34 @@ def _redact_health_body(response: JSONResponse) -> JSONResponse:
     return JSONResponse(shallow, status_code=response.status_code)
 
 
+# Public (token-less) /api/health result, shared by every caller for
+# settings.health_public_cache_ttl_s. The probe behind it pings Qdrant, Redis, Memgraph and the
+# LLM provider and encodes one string on the embedding pool; the redacted public body is only
+# ready/status, so bots and page-load pings must not each pay for a fresh one. Only a finished
+# probe is stored (never "starting"), so readiness still flips on the next call after boot.
+_public_health_cache: dict[str, object] = {"until": 0.0, "body": None, "status": 200}
+_public_health_lock: asyncio.Lock | None = None
+
+
+def _public_health_hit() -> JSONResponse | None:
+    body = _public_health_cache["body"]
+    if body is not None and time.monotonic() < float(_public_health_cache["until"]):  # type: ignore[arg-type]
+        return JSONResponse(body, status_code=int(_public_health_cache["status"]))  # type: ignore[arg-type]
+    return None
+
+
+def _public_health_store(response: JSONResponse) -> None:
+    ttl = float(getattr(settings, "health_public_cache_ttl_s", 0.0) or 0.0)
+    try:
+        body = json.loads(response.body)
+    except (ValueError, TypeError):
+        return
+    if ttl > 0 and body.get("status") != "starting":
+        _public_health_cache.update(
+            until=time.monotonic() + ttl, body=body, status=response.status_code
+        )
+
+
 @router.get("/health", include_in_schema=False)
 @router.get("/api/health")
 async def health_endpoint(
@@ -204,12 +232,36 @@ async def health_endpoint(
     Returns per-service status, latency, and an overall 'ready' flag. Hard-
     bounded to _HEALTH_HARD_BOUND_SECONDS total wall time regardless of how
     downstream checks behave -- see that constant's docstring.
+
+    Callers without the internal token get the redacted ready/status view from a
+    short shared cache (``health_public_cache_ttl_s``); concurrent callers wait for one
+    probe instead of each running their own. Token callers always probe fresh.
     """
+    global _public_health_lock
+    internal = _has_internal_health_token(request)
+    use_cache = not internal and float(getattr(settings, "health_public_cache_ttl_s", 0.0)) > 0
+    if use_cache:
+        hit = _public_health_hit()
+        if hit is not None:
+            return hit
+        if _public_health_lock is None:
+            _public_health_lock = asyncio.Lock()
+        async with _public_health_lock:
+            hit = _public_health_hit()  # another caller finished while we waited
+            if hit is not None:
+                return hit
+            response = await _probe_health(container, internal=False)
+            _public_health_store(response)
+            return response
+    return await _probe_health(container, internal=internal)
+
+
+async def _probe_health(container: ServiceContainer, *, internal: bool) -> JSONResponse:
     try:
         response = await asyncio.wait_for(
             _build_health_response(container), timeout=_HEALTH_HARD_BOUND_SECONDS
         )
-        if _has_internal_health_token(request):
+        if internal:
             return response
         return _redact_health_body(response)
     except TimeoutError:

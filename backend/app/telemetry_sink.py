@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -588,6 +589,31 @@ class SupabaseTelemetrySink:
         await asyncio.to_thread(do_inserts)
 
 
+def _stream_id_key(stream_id: str | bytes) -> tuple[int, int]:
+    """Orderable form of a Redis stream id ("<ms>-<seq>"); (-1, -1) when unparseable."""
+    text = stream_id.decode("utf-8") if isinstance(stream_id, bytes) else str(stream_id)
+    ms, _, seq = text.partition("-")
+    try:
+        return int(ms), int(seq or 0)
+    except ValueError:
+        return -1, -1
+
+
+async def _advance_stream_cursor(redis: Any, key: str, new_id: str) -> str:
+    """Store ``new_id`` only if it is ahead of the stored cursor; return the furthest cursor.
+
+    Two consumers overlapping during a deploy used to interleave plain SETs and move the stored
+    cursor backwards. The caller continues from the returned id, so an overlapping consumer
+    also skips what the other one already handled. GET then SET is two round trips, not atomic:
+    a race can still lose one advance, which only re-delivers a batch, never skips one.
+    """
+    stored = await redis.get(key)
+    if stored is not None and _stream_id_key(stored) >= _stream_id_key(new_id):
+        return stored.decode("utf-8") if isinstance(stored, bytes) else str(stored)
+    await redis.set(key, new_id)
+    return new_id
+
+
 class TelemetryWorker:
     """Background worker to consume telemetry events from Redis Stream and write to Supabase."""
 
@@ -610,19 +636,27 @@ class TelemetryWorker:
 
     async def _loop(self):
         logger.info("Starting telemetry consumer loop from 'telemetry:stream'...")
+        # Idle cost matters on Railway (every Redis round trip is "activity"): the cursor
+        # is read from Redis once, then tracked in memory, and the blocking read waits up
+        # to telemetry_worker_block_ms (returns at once when a message arrives). Before:
+        # GET + XREAD(5 s) + sleep(1 s) per 6 s idle cycle; now one XREAD per wait.
+        block_ms = int(getattr(settings, "telemetry_worker_block_ms", 8000))
+        cursor: str | None = None
         while self.running:
             try:
                 if not self.sink.redis or not self.sink.client:
                     await asyncio.sleep(5)
                     continue
 
-                # Read from the stream (blocking read, timeout 5000ms)
-                last_id = await self.sink.redis.get("telemetry:stream:last_id") or "0-0"
-                if isinstance(last_id, bytes):
-                    last_id = last_id.decode("utf-8")
+                if cursor is None:
+                    cursor = await self.sink.redis.get("telemetry:stream:last_id") or "0-0"
+                    if isinstance(cursor, bytes):
+                        cursor = cursor.decode("utf-8")
+                last_id = cursor
 
+                read_started = time.monotonic()
                 streams = await self.sink.redis.xread(
-                    {"telemetry:stream": last_id}, count=10, block=5000
+                    {"telemetry:stream": last_id}, count=10, block=block_ms
                 )
                 if streams:
                     for _, messages in streams:
@@ -642,12 +676,16 @@ class TelemetryWorker:
                             last_id = (
                                 msg_id.decode("utf-8") if isinstance(msg_id, bytes) else msg_id
                             )
-                            await self.sink.redis.set("telemetry:stream:last_id", last_id)
+                            cursor = await _advance_stream_cursor(
+                                self.sink.redis, "telemetry:stream:last_id", last_id
+                            )
                             # Auto-prune stream to prevent infinite Redis memory growth
                             await self.sink.redis.xtrim(
                                 "telemetry:stream", maxlen=1000, approximate=True
                             )
-                else:
+                elif time.monotonic() - read_started < 0.1:
+                    # A "blocking" read that returned at once (server ignored BLOCK, test
+                    # double): never spin.
                     await asyncio.sleep(1)
             except asyncio.CancelledError:
                 break

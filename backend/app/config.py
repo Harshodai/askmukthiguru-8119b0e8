@@ -242,6 +242,12 @@ class Settings(BaseSettings):
     # 2026-11-17: ON by default to bridge situational seeker vocabulary into EKAM spiritual terminology.
     first_person_hyde_enabled: bool = True
     first_person_hyde_timeout_s: float = 2.5
+    # Startup retrieval canary (app/fp_startup_canary.py): right after the app reports ready, a
+    # separate task runs the first-person retrieval path once (real embed, context-store
+    # retrieval, candidate expansion, graph sizing; no LLM call) so lazy initialisation is paid
+    # at boot, not by the first seeker. Failure or timeout logs and never affects readiness.
+    startup_retrieval_canary_enabled: bool = True
+    startup_retrieval_canary_timeout_s: float = 60.0
     # Quarantine clips whose verbatim text has no sentence end or opens on orphan
     # punctuation (ingest.verbatim.boundaries). OFF: on 2026-09-28 it would have
     # removed 59% of first_person_v2 and 68% of v5. Enable only with a
@@ -1020,6 +1026,22 @@ class Settings(BaseSettings):
     # flip in production without a full re-index — see
     # scripts/validate_onnx_embedding.py.
     embedding_backend: str = "flagembedding"
+    # OFF by default. When true (embedding_backend="onnx_int8"), the INT8 encoder
+    # loads from a host-built, memory-mapped prepacked copy of the model
+    # (services/onnx_prepacked.py) so initializer memory is file-backed page
+    # cache shared across worker processes instead of ~840 MB private heap per
+    # process. Embeddings were bit-identical when measured. Costs ~830 MB of
+    # disk and a one-off ~1 GB build at first start. See
+    # docs/operations/model-memory-sharing-research-2026-11-27.md.
+    onnx_mmap_prepacked_enabled: bool = False
+    # Where the prepacked artifact is built. Empty = <hf_home>/onnx_prepacked.
+    onnx_prepacked_cache_dir: str = ""
+    # Hard cap on the one-off build child. The lifespan startup budget is 180 s,
+    # so the default leaves headroom; the child is killed and the load raises.
+    onnx_prepacked_build_timeout_s: float = Field(default=120.0, gt=0)
+    # Re-hash the 832 MB data file on every load (reads it all once, ~1-3 s,
+    # estimated not measured). False still checks sizes and the graph hash.
+    onnx_prepacked_verify_data_hash: bool = True
     embed_torch_threads: int = Field(default=1, ge=1)
     hf_revision: Optional[str] = None
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
@@ -1034,7 +1056,29 @@ class Settings(BaseSettings):
     # "flagembedding" — fall back to sentence-transformers CrossEncoder (original).
     # Rollback: set RERANKER_BACKEND=flagembedding in .env and restart.
     reranker_backend: str = "onnx_int8"
+    # Tokenizer for the ONNX encoder + reranker. "tokenizers" (default) uses the
+    # raw `tokenizers` library via services/fast_tokenizer.py and never imports
+    # transformers (~320-350 MB less RSS while torch is still imported, about
+    # 860 MB for the tokenizer alone; identical token ids). Rollback:
+    # ONNX_TOKENIZER_BACKEND=transformers restores AutoTokenizer. With "tokenizers",
+    # a missing/unsupported tokenizer file raises FastTokenizerLoadError and the
+    # torch CrossEncoder fallbacks (embedding_service._ensure_reranker,
+    # reranker_service._load_fallback) re-raise it instead of swapping models.
+    onnx_tokenizer_backend: Literal["tokenizers", "transformers"] = "tokenizers"
     reranker_onnx_model: str = "temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8"
+    # Shared model server (opt-in, default OFF). Empty `model_server_url` keeps
+    # the in-process BGE-M3 + reranker sessions exactly as before. When set,
+    # this process does not load the BGE-M3 encoder or the reranker; it calls
+    # the model-server service (SERVICE_TYPE=model-server) over its private
+    # network instead, so WEB_CONCURRENCY > 1 does not duplicate those ~2 GB
+    # per worker. Other local models (LettuceDetect, the intent model,
+    # FlashRank) still load in each API process. There
+    # is no silent in-process fallback: an unreachable server raises. The token
+    # is the same shared secret on both sides; the server refuses to start
+    # without it. See docs/operations/shared-model-server.md.
+    model_server_url: str = ""
+    model_server_token: Optional[str] = None
+    model_server_timeout_s: float = Field(default=30.0, gt=0)
     # Railway image-size reduction (W6, 2026-09-19): bake only the INT8 ONNX
     # models, skip the PyTorch fallback reranker entirely.
     quantized_only: bool = False
@@ -1169,6 +1213,12 @@ class Settings(BaseSettings):
     # Must be ≥1; zero or negative is rejected at startup by Pydantic validation.
     # Set to 12 (raised 2026-10-04 with Redis-backed cross-process RPM limiter).
     max_concurrent_chat: int = Field(default=12, ge=1)
+    # Per-client-IP token bucket on /api/chat* (app/middleware/rate_limit.py). Defaults keep the
+    # historical 20-burst / 20-per-minute. The key is the peer IP, so every seeker behind one
+    # NAT (a venue, campus or event Wi-Fi) shares ONE bucket: raise these for a known crowd;
+    # per-user abuse is still bounded by the per-session anon quota and the cost caps.
+    chat_token_bucket_capacity: int = Field(default=20, ge=1)
+    chat_token_bucket_refill_per_minute: float = Field(default=20.0, gt=0)
 
     # Concurrent native (ONNX/torch) model-inference slots per process.
     #
@@ -1245,6 +1295,20 @@ class Settings(BaseSettings):
     # the user's passphrase, but the default Mode-A wrap still needs this.
     brain_kek: Optional[str] = None
     allowed_hosts: str = "localhost,127.0.0.1"  # Trusted hosts for Origin/Referer validation
+    # Seconds a public (token-less) /api/health result is reused, one deep probe shared by all
+    # callers. The deep probe pings Qdrant, Redis, Memgraph and the LLM provider and runs an
+    # embedding on the shared pool, and the public body is only ready/status. 0 disables.
+    # Internal-token callers (METRICS_SCRAPE_TOKEN) always get a fresh probe.
+    health_public_cache_ttl_s: float = Field(default=10.0, ge=0.0, le=300.0)
+    # Seconds a browser/CDN may reuse GET /api/capabilities (Cache-Control max-age); the
+    # in-process manifest is recomputed at most this often too. 0 disables caching.
+    capabilities_cache_ttl_s: float = Field(default=60.0, ge=0.0, le=3600.0)
+    # Telemetry consumer idle wait (XREAD BLOCK, ms). Longer = fewer idle Redis round trips;
+    # data still flows the instant it arrives. Must stay below the 10 s client socket timeout.
+    telemetry_worker_block_ms: int = Field(default=8000, ge=1000, le=9000)
+    # Seconds a "this user is not an admin" lookup is reused (an "is admin" result keeps the fixed
+    # 90 s). Default equals the old behaviour; 600 cuts Supabase round trips for signed-in seekers.
+    admin_role_negative_cache_ttl_s: int = Field(default=90, ge=0, le=3600)
 
     # --- Auth & Rate Limiting ---
     # Default to PRODUCTION (secure-by-default). Override with IS_PRODUCTION=false for local dev only.
@@ -1904,6 +1968,19 @@ class Settings(BaseSettings):
     graphrag_total_timeout: float = Field(
         default=10.0, gt=0.0, le=60.0, description="Aggregate GraphRAG deadline in seconds"
     )
+
+    @model_validator(mode="after")
+    def validate_model_server_compat(self):
+        """ColBERT needs token-level vectors, which the model server does not serve."""
+        if self.model_server_url and self.enable_colbert:
+            raise ValueError(
+                "ENABLE_COLBERT=true is not supported with MODEL_SERVER_URL set: the shared "
+                "model server does not serve ColBERT vectors, so every ColBERT rerank would "
+                "fail. Unset ENABLE_COLBERT or unset MODEL_SERVER_URL."
+            )
+        if self.model_server_url and not self.model_server_token:
+            raise ValueError("MODEL_SERVER_URL is set but MODEL_SERVER_TOKEN is empty")
+        return self
 
     @model_validator(mode="after")
     def validate_graphrag_token_budget(self):

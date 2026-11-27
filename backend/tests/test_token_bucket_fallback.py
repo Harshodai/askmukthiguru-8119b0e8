@@ -174,3 +174,25 @@ def test_signed_token_tenant_scopes_the_bucket(monkeypatch):
     assert TenantContext.get() == "tenant-a"
     assert _chat_bucket_key(_request_with_auth(genuine)) == "rl:chat:tenant-a:10.0.0.9"
     TenantContext.clear()
+
+
+def test_token_bucket_built_from_settings_applies_capacity_and_refill(monkeypatch):
+    """Behaviour: a bucket built the way main.py builds it (from settings) admits exactly
+    `capacity` requests, then refills at `refill_per_minute / 60` per second."""
+    from app.config import Settings, settings
+
+    fields = Settings.model_fields  # defaults are the historical 20 burst / 20 per minute
+    assert fields["chat_token_bucket_capacity"].default == 20
+    assert fields["chat_token_bucket_refill_per_minute"].default == 20.0
+
+    monkeypatch.setattr(settings, "chat_token_bucket_capacity", 4)
+    monkeypatch.setattr(settings, "chat_token_bucket_refill_per_minute", 120.0)
+    mw = _make_middleware(
+        capacity=settings.chat_token_bucket_capacity,
+        refill_per_sec=settings.chat_token_bucket_refill_per_minute / 60,
+    )
+    assert mw.capacity == 4 and mw.refill == 2.0
+    results = [mw._local_allowed("k")[0] for _ in range(6)]
+    assert results[:4] == [True] * 4 and results[4] is False
+    mw._local_buckets["k"] = (0.0, mw._local_buckets["k"][1] - 1.0)  # one second passes: +2 tokens
+    assert mw._local_allowed("k")[0] is True

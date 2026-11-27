@@ -109,3 +109,73 @@ if __name__ == "__main__":
     m._lifespan_failed = True
     assert asyncio.run(_healthz_status(m)) == 503
     print("ok")
+
+
+# --- HEALTHZ_REQUIRE_READY (2026-11-27 scaling audit) -------------------------------------
+# Gate on: healthz must not report 200 until the real app finished startup, in the grace
+# window and after it, so a rolling deploy never promotes a container that answers /api/chat 503.
+
+import sys  # noqa: E402
+from types import SimpleNamespace  # noqa: E402
+
+
+def _arm(monkeypatch, mod, *, gate, grace, loaded, startup_complete, lifespan_done=True):
+    now = mod.time.monotonic()
+    monkeypatch.setattr(mod, "_READY_GATE", gate, raising=False)
+    monkeypatch.setattr(mod, "_lifespan_failed", False, raising=False)
+    monkeypatch.setattr(mod, "_lifespan_startup_done", lifespan_done, raising=False)
+    monkeypatch.setattr(mod, "_real_app", object() if loaded else None, raising=False)
+    # inside grace = just started; after grace = started well before the window
+    monkeypatch.setattr(
+        mod, "_process_start", now if grace else now - mod._GRACE_SECONDS - 5, raising=False
+    )
+    monkeypatch.setattr(mod, "_last_heartbeat", now, raising=False)
+    monkeypatch.setattr(mod, "_last_executor_canary", now, raising=False)
+    monkeypatch.setitem(
+        sys.modules, "app.dependencies", SimpleNamespace(startup_complete=startup_complete)
+    )
+
+
+@pytest.mark.asyncio
+async def test_gate_off_keeps_grace_200_even_when_not_ready(monkeypatch):
+    mod = _load()
+    _arm(monkeypatch, mod, gate=False, grace=True, loaded=True, startup_complete=False)
+    assert await _healthz_status(mod) == 200
+
+
+@pytest.mark.asyncio
+async def test_gate_on_inside_grace_is_503_until_startup_complete(monkeypatch):
+    mod = _load()
+    _arm(monkeypatch, mod, gate=True, grace=True, loaded=True, startup_complete=False)
+    assert await _healthz_status(mod) == 503
+    _arm(monkeypatch, mod, gate=True, grace=True, loaded=True, startup_complete=True)
+    assert await _healthz_status(mod) == 200
+
+
+@pytest.mark.asyncio
+async def test_gate_on_after_grace_blocks_init_that_never_completed(monkeypatch):
+    """Lifespan yielded and heartbeats are fresh, but background init timed out: the
+    post-grace branch used to report 200 here (the finding the audit review caught)."""
+    mod = _load()
+    _arm(monkeypatch, mod, gate=True, grace=False, loaded=True, startup_complete=False)
+    assert await _healthz_status(mod) == 503
+    _arm(monkeypatch, mod, gate=False, grace=False, loaded=True, startup_complete=False)
+    assert await _healthz_status(mod) == 200, "gate off must keep the old post-grace behaviour"
+    _arm(monkeypatch, mod, gate=True, grace=False, loaded=True, startup_complete=True)
+    assert await _healthz_status(mod) == 200
+
+
+@pytest.mark.asyncio
+async def test_gate_on_is_503_while_real_app_is_still_importing(monkeypatch):
+    """_real_app is None: the readiness check must not import app.dependencies from the loop."""
+    mod = _load()
+    _arm(monkeypatch, mod, gate=True, grace=True, loaded=False, startup_complete=True)
+    assert await _healthz_status(mod) == 503
+
+
+@pytest.mark.asyncio
+async def test_gate_on_still_503_when_boot_failed(monkeypatch):
+    mod = _load()
+    _arm(monkeypatch, mod, gate=True, grace=True, loaded=True, startup_complete=True)
+    monkeypatch.setattr(mod, "_lifespan_failed", True, raising=False)
+    assert await _healthz_status(mod) == 503

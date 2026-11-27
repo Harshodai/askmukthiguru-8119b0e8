@@ -785,6 +785,14 @@ async def _background_startup_body(container, fastapi_app) -> None:
     _app_deps.startup_complete = True
     logger.info("=== Mukthi Guru Backend Ready ===")
 
+    # First-person retrieval canary: warms the retrieval path the warm-ups above leave cold
+    # (context-store retrieval, candidate expansion, Memgraph driver, OKF matrix); the first
+    # seeker request used to pay 23-29 s for it. LAST step, after startup_complete, as its own
+    # task: nothing it raises can fail startup or chat readiness (app/fp_startup_canary.py).
+    from app.fp_startup_canary import schedule_first_person_retrieval_canary
+
+    schedule_first_person_retrieval_canary(container, fastapi_app.state)
+
 
 # === Lifespan (startup/shutdown) ===
 
@@ -1552,7 +1560,10 @@ from app.middleware.rate_limit import TokenBucketMiddleware
 
 if settings.redis_url and settings.redis_url.startswith(("redis://", "rediss://", "unix://")):
     app.add_middleware(
-        TokenBucketMiddleware, redis_url=settings.redis_url, capacity=20, refill_per_sec=20 / 60
+        TokenBucketMiddleware,
+        redis_url=settings.redis_url,
+        capacity=settings.chat_token_bucket_capacity,
+        refill_per_sec=settings.chat_token_bucket_refill_per_minute / 60,
     )
 
 # Audit logging middleware — logs method, path, status, duration for all requests

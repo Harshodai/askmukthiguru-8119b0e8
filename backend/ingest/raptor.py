@@ -28,8 +28,6 @@ import logging
 import uuid
 
 import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.mixture import GaussianMixture
 
 from app.config import settings
 from services.embedding_service import EmbeddingService
@@ -244,6 +242,9 @@ class RaptorIndexer:
         if getattr(settings, "raptor_clustering_method", "kmeans") == "gmm":
             return self._cluster_gmm(embeddings, n_clusters)
 
+        # Lazy: sklearn+scipy cost ~150 MB RSS and ~1 s at import; only ingest clusters.
+        from sklearn.cluster import KMeans
+
         n_clusters = min(n_clusters, embeddings.shape[0])
         kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
         labels = kmeans.fit_predict(embeddings)
@@ -262,6 +263,9 @@ class RaptorIndexer:
         ponytail: BIC over k = O(k·fit); fine for chunk batches < few hundred.
         Subsample or switch to ANN-blocking if larger.
         """
+        from sklearn.cluster import KMeans
+        from sklearn.mixture import GaussianMixture
+
         n = embeddings.shape[0]
         if n < 2:
             return {0: list(range(n))}
