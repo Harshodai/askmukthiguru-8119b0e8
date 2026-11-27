@@ -1,6 +1,6 @@
 # AskMukthiGuru scaling playbook (2026-11-27)
 
-Status: research only. No load test was run. Every capacity figure below is **MODELLED** unless marked MEASURED. Railway is stopped, so nothing here describes the live service.
+Status: research only. LLM-tier and self-hosting detail: `docs/operations/self-hosted-llm-research-2026-11-27.md`. No load test was run. Every capacity figure below is **MODELLED** unless marked MEASURED. Railway is stopped, so nothing here describes the live service.
 
 ## Verdict
 
@@ -223,3 +223,81 @@ Risks: invariant drift from gate changes; provider concentration.
 Repo code read (not web): `backend/services/openrouter_service.py` (global Redis RPM limiter, fail-open after wait rounds), `backend/app/services/job_queue.py` (Redis-backed job state, leases, global exec slot, crisis bypass, per-process queue), `backend/app/api/chat.py` and `backend/app/core/limiter.py` (per-IP limit on POST routes only, Redis storage), `backend/start_railway.py` and `backend/docker-entrypoint.sh` (`WEB_CONCURRENCY` default 1).
 
 Snippet-only (not opened): Railway 2023 horizontal-scaling changelog and a community answer that autoscaling is vertical. Not relied on.
+
+---
+
+# Architect's plan: Phase 1 (launch to faculty, ~100 users) and Phase 2 (1,000+ users)
+
+Added 2026-11-28. Evidence: the sections above plus `docs/operations/self-hosted-llm-research-2026-11-27.md` (LLM tier, break-even arithmetic, sources). Everything about capacity and cost is **MODELLED** from measured inputs unless marked; no live load test exists. Assumption used for sizing: **each daily user sends about 5 chats**, so 100 users = 500 chats/day and 1,000 users = 5,000 chats/day.
+
+## The call: do not build vLLM next
+
+Your instinct (host an open-source model) is reasonable, and it is the right *later* move for a specific reason, but it is the wrong *next* move.
+
+1. **Our LLM work is small.** Per chat, about 11 short calls (7 relevance scorings, a distress check, three 8B-class tasks), roughly 8k input and 2.2k output tokens (modelled). The model never writes teacher text. A 7B to 30B model is enough, which makes self-hosting technically feasible, but it also means managed endpoints are cheap.
+2. **The money is in the scorer's reasoning, not the GPU.** More than 60% of today's per-chat cost is Haiku's hidden reasoning output. A non-reasoning open-weight scorer through the OpenRouter gateway you already run cuts modelled cost per 1,000 chats from about $1.72 to about $0.53-$0.72, and cuts the latency floor, with no new infrastructure.
+3. **A GPU only wins at high volume.** One always-on L4 in Mumbai is about $705/month (two for high availability, $1,411), plus on-call time. Break-even is about 13,700 chats/day against today's Haiku scorer and about 33,000 (one GPU) to 65,000 (a pair) against a managed open-weight scorer. At 5,000 chats/day self-hosting costs 2.7x to 13x more.
+4. **Railway has no GPUs.** Its own vLLM template says only a CPU build is viable there. A GPU tier would live on AWS (or Modal/RunPod) behind an auth proxy, reached over the public internet.
+5. **Changing the scorer model changes a gate** (invariant 24). Any model swap, hosted or not, needs a registered graded run, and the Indic-language quality of candidates is unproven for our task.
+
+**vLLM becomes the right step only if one of these is true:** a data-residency requirement (DPDP, India region) that managed endpoints cannot satisfy; a latency target managed endpoints cannot meet; or sustained traffic above roughly 30,000 chats/day.
+
+## Phase 1: now to faculty readiness (about 100 users)
+
+**Architecture stays as it is.** One Railway API container (`WEB_CONCURRENCY=1`, models in-process), Redis, Qdrant, Memgraph, OpenRouter with the Haiku scorer. Load at 100 users is small: 500 chats/day is about $0.86/day on the Haiku scorer (modelled) and about 9 scorer calls per minute at the busiest hour, well inside a 120/min limiter. The faculty preview (12 reviewers) is trivial.
+
+Do:
+1. Deploy this branch with every new flag at its default, then enable `HEALTHZ_REQUIRE_READY=true` (safe failure mode: a deploy that never becomes ready fails, the old container keeps serving).
+2. **Check the live `OPENROUTER_RPM_LIMIT`.** Compose defaults to 20 per model, which is close to binding even at 100 users; the code default is 120. The live Railway value was not read in this research.
+3. Keep spend caps as set ($15/day, $150/month). They are far above the modelled $26/month for 100 users, so they only act as a safety net.
+4. Add the missing signals: abstain-by-reason (especially `relevance_indeterminate`), queue wait, upstream 429 count. Overload here shows up as slow answers and silent abstains, not errors.
+5. Record **measured** tokens and cost per chat from live traffic (this replaces every modelled number in this document).
+6. Run the load matrix once Railway is resumed (owner decision, Railway spend): sustained 15, 30 and 60 msgs/min for 10 minutes, plus a burst of 100 in 5 s. Confirm crisis requests still answer inside budget during the burst.
+7. Event warning: everyone on one venue Wi-Fi shares one public IP, and the 20/min per-IP limit trips first. For a known event, raise `CHAT_TOKEN_BUCKET_*` deliberately.
+
+Do not: add replicas, raise `WEB_CONCURRENCY`, stand up a model server, or touch vLLM. None of it moves the first limit (our own rate limiter and budgets), and each adds cost or risk.
+
+**Exit gate to Phase 2:** faculty sign-offs and the other human gates done; measured tokens/chat and cost/chat recorded; the load matrix passes; p95 latency known.
+
+## Phase 2: 1,000+ users, in this order
+
+Capacity target: about 5,000 chats/day, about 0.2 chats/s at the peak hour, roughly 150 to 500 msgs/min bursts (modelled).
+
+**2a. Remove the ceilings that bind before any model choice (env, owner approval for spend).** The checked-in defaults stop 1,000 users cold: `$40/month` budget is about 775 chats/day, `$10/day` leaves no headroom at 5,000 chats/day on Haiku (about $8.60/day), and a 20 RPM limiter caps about 170 chats/hour. Set the monthly cap near $300, raise `OPENROUTER_RPM_LIMIT` in steps (120, 300, 600) watching upstream 429s, and size `QUEUE_MAX_SIZE`/`QUEUE_CONCURRENCY`/`max_concurrent_chat` so queue wait stays under about 30 s. Put Cloudflare or similar in front for bot and abuse blocking (it counts by IP only, so it does not fix shared Wi-Fi).
+
+**2b. Change the scorer model through the gateway you already run (the biggest saving, gated).** Shadow-score non-reasoning open-weight candidates (Gemma-4-26B-A4B, Qwen3-30B-A3B-Instruct, Mistral-Small-3.2, gpt-oss-20b) offline against the frozen graded set and negative controls, per language (English, Indic script, romanized). Pin provider, quantization and temperature first (`only`, `quantizations`, `allow_fallbacks: false`, `require_parameters: true`, `zdr: true`), because one model id is served at fp4 through bf16 across providers. A candidate agreeing with Haiku is a regression check, not proof of quality (Haiku's labels are AI-authored, invariant 3). Then a registered graded run and an owner decision. Modelled saving at 5,000 chats/day: about $258/month down to about $108/month.
+
+**2c. Treat the Llama-3.1-8B classify/distress model as a safety item, not a cost item.** Its model card lists Hindi as the only supported Indic language, and it runs the distress escalation. The crisis regex remains the floor and never calls an LLM, but replacing the 8B model (Qwen3 lists all the major Indic languages) needs its own evaluation with the safety reviewers.
+
+**2d. Scale the API tier only when measurements say CPU or availability binds.** Not before. The recipe is ready: turn on the opt-in model server as its own service, run 2 to 4 thin API replicas (about $11/month each; model server about $50-70/month; total about $80-120/month on Railway, modelled), make Redis a hard dependency for multi-replica (fail closed instead of degrading to memory), expose a load metric, and add a small autoscaler worker that sets `numReplicas` on queue depth (Railway has no built-in horizontal autoscaling). Replicas do not raise the LLM limit, which is global.
+
+**2e. Reliability for the LLM path.** Build the failover the first-person path lacks today: the bridge hard-wires `container.openrouter`, so `LLM_PROVIDER` and the gateway failover do not cover the scorer, the answerability gate or HyDE. Fail over to the **same weights** on another endpoint, never to a different model (that changes the gate); if none exists, abstain (the scorer already fails closed).
+
+**2f. Redis and Qdrant.** Redis becomes a hard dependency at multiple replicas: plan Redis HA before relying on it. Qdrant at 13k points does not need distribution; revisit at the 10k-user tier.
+
+## If and when you build vLLM (the trigger conditions above)
+
+1. **Where:** AWS `g6` (L4, 24 GB) or `g6e` (L40S, 48 GB, needed for a 26-31B model at FP8) in `ap-south-1`, on a single EC2 instance or ECS task behind an ALB or proxy. EKS is not justified at one or two GPUs. Request the G-instance quota first: the default is 0 vCPU.
+2. **How:** two GPUs for availability; vLLM behind a reverse proxy that allowlists `/v1/chat/completions` only (vLLM's `--api-key` does not cover all endpoints); bearer token plus TLS; never expose `/metrics` or `/update_weights`; never set the runtime-LoRA flag.
+3. **Our code:** add a `vllm` provider class using `NimService` as the template, and **fix spend accounting first**. Pointed at vLLM today, `OpenRouterService` would keep the full $0.03 reservation for every call (vLLM returns no `usage.cost`), exhaust the guard after about 30 chats/day, and with the Railway fail-closed setting every chat would abstain. Also give it its own circuit-breaker name and limiter key, add its model ids to the allowlist (`--served-model-name` keeps them stable), add them deliberately to the scorer's schema and temperature branches, and test how vLLM treats the extra `provider`/`reasoning` request fields on the pinned version.
+4. **Gate discipline:** weights, quantization, vLLM version and chat template can each move the scorer's scores. Pin all four in the image tag and re-run the graded run on any change. Fine-tuning a scorer (multi-LoRA) only after at least 299 human gold labels exist (invariant 3).
+5. **Ops:** you become the on-call for GPU, driver and OOM incidents. Scale-from-zero takes minutes, so one GPU stays warm.
+
+## Summary by user count (all modelled)
+
+| Users (5 chats/day each) | Chats/day | LLM cost/month (Haiku / open-weight) | Infra shape | What to do |
+|---|---|---|---|---|
+| About 100 | 500 | about $26 / about $11 | 1 Railway container, OpenRouter | Phase 1 list; measure; do not scale |
+| About 1,000 | 5,000 | about $258 / about $108 | 1 container, raised caps; thin replicas + model server only if measured | 2a, 2b, 2c; 2d if CPU or uptime binds |
+| About 5,000 to 10,000 | 25,000 to 50,000 | Haiku about $1,290 to $2,580; open-weight about $540 to $1,080 | Replicas + model server, Redis HA, gateway failover; compare a GPU pair here | 2d to 2f; re-run the break-even with measured tokens |
+| 30,000 chats/day or more, or a residency rule | 30,000+ | at 30,000/day: Haiku about $1,550, managed open-weight about $650, GPU pair $1,411 plus on-call | vLLM on AWS ap-south-1 | The vLLM section |
+
+Note: the 25,000 to 50,000 chats/day row scales the modelled per-chat costs linearly; it ignores volume discounts, rate-limit tiers and engineering time.
+
+## What is still unmeasured
+
+- Live tokens and cost per chat (the modelled figures drive every cost line).
+- Real concurrent capacity on Railway; CPU seconds per chat under load.
+- Indic-language quality of every open-weight candidate on our task; no public benchmark covers it.
+- An L4 vLLM throughput number on our prompt shape (`vllm bench serve` with the real mix is required before sizing a GPU).
+- The live Railway budget and RPM values; Savings Plan, SageMaker and Bedrock Llama prices; retention policies of Together, Groq, Modal and RunPod.
