@@ -988,6 +988,29 @@ def _judge_rubric_fingerprint() -> dict[str, str]:
     return {} if rubric == "v1" else {"judge_rubric": rubric}
 
 
+def scorer_provider_kwargs() -> dict[str, Any]:
+    """``{"provider_overrides": {...}}`` for first-person gate calls, ``{}`` when no pin is set.
+
+    Opt-in (``first_person_scorer_*`` settings). Empty means NO new keyword reaches the
+    provider, so unset requests are byte-identical to before.
+    """
+    pins: dict[str, Any] = {}
+    only = [str(x).strip() for x in getattr(settings, "first_person_scorer_provider_only", [])]
+    if only := [x for x in only if x]:
+        pins["only"] = only
+    quants = [str(x).strip() for x in getattr(settings, "first_person_scorer_quantizations", [])]
+    if quants := [x for x in quants if x]:
+        pins["quantizations"] = quants
+    if getattr(settings, "first_person_scorer_require_parameters", False):
+        pins["require_parameters"] = True
+    if getattr(settings, "first_person_scorer_zdr", False):
+        pins["zdr"] = True
+    allow_fallbacks = getattr(settings, "first_person_scorer_allow_fallbacks", None)
+    if allow_fallbacks is not None:
+        pins["allow_fallbacks"] = bool(allow_fallbacks)
+    return {"provider_overrides": pins} if pins else {}
+
+
 def _relevance_timeout_s() -> float:
     return float(getattr(settings, "first_person_relevance_timeout_s", 25.0))
 
@@ -1540,7 +1563,7 @@ async def _relevance_select_scored_async(
         import asyncio
         import inspect
 
-        gen_kwargs: dict[str, Any] = {"temperature": 0.0}
+        gen_kwargs: dict[str, Any] = {"temperature": 0.0, **scorer_provider_kwargs()}
         scorer_model = str(getattr(settings, "first_person_relevance_model", "") or "").strip()
         if scorer_model:
             # 1024, not 24/256: Haiku 5.5 reasons internally (provider caps reasoning at max_tokens/4) and an
@@ -2105,7 +2128,11 @@ async def _joint_sufficiency_verdict(
     if resolved_question and resolved_question != question:
         user_prompt += f"Earlier user turn it follows: {neutralise(resolved_question)}\n"
     user_prompt += f"Clip:\n{neutralise(clip_text)}"
-    gen_kwargs: dict[str, Any] = {"temperature": 0.0, "max_tokens": 16}
+    gen_kwargs: dict[str, Any] = {
+        "temperature": 0.0,
+        "max_tokens": 16,
+        **scorer_provider_kwargs(),
+    }
     model = str(getattr(settings, "first_person_relevance_model", "") or "").strip()
     if model:
         gen_kwargs.update(model=model, max_tokens=2048)
@@ -2211,6 +2238,7 @@ async def _async_answerability_check(
                 user_prompt=neutralise(query) + suffix,
                 temperature=0.0,
                 max_tokens=16,
+                **scorer_provider_kwargs(),
             )
             if inspect.isawaitable(res):
                 res = await res
@@ -4037,6 +4065,17 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 **(
                     {"joint_sufficiency": _JOINT_SUFFICIENCY_PROMPT_VERSION}
                     if getattr(settings, "first_person_joint_sufficiency_enabled", False)
+                    else {}
+                ),
+                # Added only when a gate pin is set (it can change a score), so the key
+                # stays byte-identical with every pin unset.
+                **(
+                    {
+                        "scorer_routing": json.dumps(
+                            scorer_provider_kwargs()["provider_overrides"], sort_keys=True
+                        )
+                    }
+                    if scorer_provider_kwargs()
                     else {}
                 ),
                 "serve_weak_match": str(bool(settings.first_person_serve_weak_match)),

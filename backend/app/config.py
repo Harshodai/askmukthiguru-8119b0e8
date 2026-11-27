@@ -618,6 +618,20 @@ class Settings(BaseSettings):
     # empty = the provider's default generation model. 2026-10-11: the default model rated
     # same-theme clips 3/3, so precision was poor.
     first_person_relevance_model: str = ""
+    # Opt-in OpenRouter provider pinning for the first-person gate calls ONLY (relevance
+    # scorer, joint sufficiency, answerability, evidence/comparative judge). One model id is
+    # served by OpenRouter endpoints at different precisions (fp4 to bf16), so an unpinned
+    # score can change with the routed endpoint. Defaults (empty / false / None) add nothing
+    # to the request and nothing to the exact-cache fingerprint. Field names follow
+    # openrouter.ai/docs/guides/routing/provider-selection (read 2026-11-28):
+    # only, quantizations, require_parameters, zdr, allow_fallbacks. Lists accept JSON or
+    # comma-separated text. One pin set covers every gate call, including the 8B answerability
+    # call: a pin with no matching endpoint makes that call fail, and the turn abstains.
+    first_person_scorer_provider_only: Annotated[list[str], NoDecode] = []
+    first_person_scorer_quantizations: Annotated[list[str], NoDecode] = []
+    first_person_scorer_require_parameters: bool = False
+    first_person_scorer_zdr: bool = False
+    first_person_scorer_allow_fallbacks: Optional[bool] = None
     # Timeout in seconds for the first-person LLM relevance scorer. 25s accommodates reasoning models and provider latency jitter.
     first_person_relevance_timeout_s: float = 25.0
     # Attempts per context for the relevance scorer (1 = no retry). 2 (2026-11-10): a
@@ -1366,6 +1380,23 @@ class Settings(BaseSettings):
             except (ValueError, json.JSONDecodeError):
                 return [h.strip() for h in v.split(",") if h.strip()]
         return v
+
+    @field_validator(
+        "first_person_scorer_provider_only", "first_person_scorer_quantizations", mode="before"
+    )
+    @classmethod
+    def _parse_scorer_pin_lists(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (ValueError, json.JSONDecodeError):
+                return [h.strip() for h in v.split(",") if h.strip()]
+        return v
+
+    @field_validator("first_person_scorer_allow_fallbacks", mode="before")
+    @classmethod
+    def _empty_allow_fallbacks_is_unset(cls, v: Any) -> Any:
+        return None if isinstance(v, str) and not v.strip() else v
 
     @field_validator("first_person_mode", mode="before")
     @classmethod

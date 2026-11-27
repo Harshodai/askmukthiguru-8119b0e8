@@ -229,6 +229,11 @@ _OPENROUTER_CACHED_INPUT_RATES_PER_MILLION: dict[str, float] = {
     "anthropic/claude-haiku-5.5": 0.01,  # D-16, read 2026-11-07 (see above)
 }
 
+# provider-selection fields a per-call pin may set (openrouter.ai/docs/guides/routing/provider-selection).
+_PROVIDER_PIN_FIELDS = frozenset(
+    {"only", "quantizations", "require_parameters", "zdr", "allow_fallbacks"}
+)
+
 _UNPRICED_MODELS_WARNED: set[str] = set()
 
 
@@ -708,6 +713,14 @@ class OpenRouterService:
         provider_prefs = dict(self._policy.provider_preferences())
         if isinstance(provider_prefs.get("sort"), dict):
             provider_prefs["sort"] = provider_prefs["sort"].get("by") or "throughput"
+        # Opt-in per-call pins (first-person gate calls; see scorer_provider_kwargs). Only
+        # these fields may be set, so a pin cannot override data_collection or the order.
+        _pins = kwargs.get("provider_overrides")
+        if _pins:
+            _bad = set(_pins) - _PROVIDER_PIN_FIELDS
+            if _bad:
+                raise ValueError(f"unsupported provider_overrides fields: {sorted(_bad)}")
+            provider_prefs.update(_pins)
 
         payload = {
             "model": model,
