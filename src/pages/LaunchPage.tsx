@@ -19,12 +19,12 @@ export default function LaunchPage() {
         <img src={hero} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />
         <div className="absolute inset-0 -z-10 bg-background/85" />
         <motion.div initial={reduced ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="mx-auto max-w-5xl px-6 py-14 sm:py-20 text-center">
-          <img src="/images/askmukthiguru-3d-logo.webp" alt="" width={88} height={88} className="mx-auto mb-6 h-22 w-22 max-w-full rounded-full object-cover" />
+          <img src="/images/askmukthiguru-3d-logo.webp" alt="" width={88} height={88} className="mx-auto mb-6 h-20 w-20 max-w-full rounded-full object-cover" />
           <p className="mb-4 text-sm font-medium text-ojas-ink dark:text-ojas">{t('launch.eyebrow', 'A moment for your inner life')}</p>
           <h1 className="break-words font-serif text-4xl font-semibold text-foreground sm:text-5xl">AskMukthiGuru</h1>
           <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">{t('launch.intro', 'Spiritual reflection, recorded teachings, and a little room to breathe. Begin with a guide. Let your own inquiry lead.')}</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Button asChild size="lg"><Link to="/guides/ai-spiritual-companion">{t('launch.primary', 'Read the spiritual guidance guide')}<ArrowRight className="ml-2 h-4 w-4 shrink-0" /></Link></Button>
+            <Button asChild size="lg" className="h-auto min-h-11 max-w-full whitespace-normal py-3"><Link to="/guides/ai-spiritual-companion">{t('launch.primary', 'Read the spiritual guidance guide')}<ArrowRight className="ml-2 h-4 w-4 shrink-0" /></Link></Button>
             <Button asChild variant="outline" size="lg"><Link to="/guides/serene-mind-practice">{t('launch.secondary', 'Try a 3-minute practice')}</Link></Button>
           </div>
           <p className="mx-auto mt-6 max-w-lg text-sm text-muted-foreground">{t('launch.boundary', 'For reflection and personal practice. Not a replacement for a teacher, therapy, or professional care.')}</p>

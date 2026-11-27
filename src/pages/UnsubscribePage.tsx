@@ -1,6 +1,6 @@
-import { FormEvent, useId, useState } from 'react';
+import { FormEvent, useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,9 +16,18 @@ const UnsubscribePage = () => {
   const { t } = useTranslation();
   const emailId = useId();
   const [params] = useSearchParams();
-  const token = params.get('token');
-  const [email, setEmail] = useState(params.get('email') ?? '');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [privateLink] = useState(() => {
+    const fragment = new URLSearchParams(location.hash.slice(1));
+    return { token: fragment.get('token') ?? params.get('token'), email: fragment.get('email') ?? params.get('email') ?? '' };
+  });
+  const token = privateLink.token;
+  const [email, setEmail] = useState(privateLink.email);
   const [status, setStatus] = useState<Status>('idle');
+  useEffect(() => {
+    if (location.hash || location.search) navigate('/unsubscribe', { replace: true });
+  }, [location.hash, location.search, navigate]);
 
   usePageMeta({
     title: t('unsubscribe.pageTitle', { defaultValue: 'Unsubscribe from launch updates — AskMukthiGuru' }),
