@@ -248,8 +248,8 @@ Your instinct (host an open-source model) is reasonable, and it is the right *la
 
 Do:
 1. Deploy this branch with every new flag at its default, then enable `HEALTHZ_REQUIRE_READY=true` (safe failure mode: a deploy that never becomes ready fails, the old container keeps serving).
-2. **Check the live `OPENROUTER_RPM_LIMIT`.** Compose defaults to 20 per model, which is close to binding even at 100 users; the code default is 120. The live Railway value was not read in this research.
-3. Keep spend caps as set ($15/day, $150/month). They are far above the modelled $26/month for 100 users, so they only act as a safety net.
+2. **Live rate limit (read 2026-11-28): `OPENROUTER_RPM_LIMIT=120` per model on the backend**, so Phase 1 is not rate-limit-bound (the compose default of 20 applies only to local runs).
+3. Keep spend caps as set. Live values read 2026-11-28: $15/day, $150/month, guard enabled and fail-closed, `MAX_CONCURRENT_CHAT`/`QUEUE_*` unset (code defaults). Against the modelled $26/month for 100 users these are a safety net. They are NOT enough for 1,000 users: $150/month is about 87,000 Haiku chats/month, about 2,900 chats/day, or roughly 580 daily users at 5 chats each (modelled).
 4. Add the missing signals: abstain-by-reason (especially `relevance_indeterminate`), queue wait, upstream 429 count. Overload here shows up as slow answers and silent abstains, not errors.
 5. Record **measured** tokens and cost per chat from live traffic (this replaces every modelled number in this document).
 6. Run the load matrix once Railway is resumed (owner decision, Railway spend): sustained 15, 30 and 60 msgs/min for 10 minutes, plus a burst of 100 in 5 s. Confirm crisis requests still answer inside budget during the burst.
@@ -300,4 +300,4 @@ Note: the 25,000 to 50,000 chats/day row scales the modelled per-chat costs line
 - Real concurrent capacity on Railway; CPU seconds per chat under load.
 - Indic-language quality of every open-weight candidate on our task; no public benchmark covers it.
 - An L4 vLLM throughput number on our prompt shape (`vllm bench serve` with the real mix is required before sizing a GPU).
-- The live Railway budget and RPM values; Savings Plan, SageMaker and Bedrock Llama prices; retention policies of Together, Groq, Modal and RunPod.
+- Savings Plan, SageMaker and Bedrock Llama prices; retention policies of Together, Groq, Modal and RunPod. (Live Railway budget and RPM values were read 2026-11-28: $15/day, $150/month, 120 RPM per model.)

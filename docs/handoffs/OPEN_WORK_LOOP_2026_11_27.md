@@ -48,5 +48,8 @@ Steps:
 ## Environment risk
 Other sessions run `codex-*` compose stacks; the Docker VM is memory-starved and `mukthiguru-backend` was OOM-killed twice today by measurement runs. Agents were told to check `docker stats`, use limited throwaway containers and never touch `codex-*` or restart `mukthiguru-backend`.
 
+## Live config read 2026-11-28 (backend vs celery-worker)
+Backend: RPM 120/model, caps $15/day and $150/month, guard on and fail-closed, `WEB_CONCURRENCY=1`, scorer `anthropic/claude-haiku-5.5`, posture `v13_shadow`, fallback false, `HEALTHZ_REQUIRE_READY` unset, `ONNX_TOKENIZER_BACKEND` unset. Celery worker: same caps/guard, but `FIRST_PERSON_RELEVANCE_MODEL=deepseek/deepseek-chat` and posture `v10_only` (nightly cron only; still diverges from the backend: align when `first_person_v10` is retired, row 8). $150/month supports about 2,900 Haiku chats/day (modelled): raise before 1,000 users.
+
 ## Done today (evidence in the Railway review doc and lessons.md)
 `WEB_CONCURRENCY` 2 to 1 (backend memory 4.8 GB to 2.7 GB); fallback flag false; backend redeployed from `main` and healthy; Railway Memgraph TU layer rebuilt (2,999 of 2,999); Railway Qdrant 13-point patch (fingerprint identical to local); empty 50 GB Memgraph service and volume deleted; OpenRouter caps $15/day and $150/month; soft limit $45; celery watch paths; local ingestion-only Memgraph nodes and `guru_tone_podcast` deleted after snapshots; PRs 114-120 merged earlier.
