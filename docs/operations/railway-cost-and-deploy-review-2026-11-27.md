@@ -57,5 +57,20 @@ Measured in the backend image: python and libraries about 0.5 GB, the BGE-M3 INT
 - **Decision:** production stays at `WEB_CONCURRENCY=1` (the service is I/O-bound on LLM calls; one async process is enough). Use the model-server mode before raising the worker count. The audit guard flags `WEB_CONCURRENCY>1`, and the boot log warns when it is above 1 without a model server.
 - **Railway sleep mode is not a lever here:** private-network calls count as outbound activity ([Railway docs](https://docs.railway.com/reference/app-sleeping)), so a backend that polls Redis never sleeps.
 
+## Local vs Railway data parity (verified 2026-11-27)
+- **OKF:** identical (`compiled.json` sha256 prefix `6e0fde67`, 493 entries); it ships inside the image.
+- **Qdrant:** `first_person_v13_shadow` (4,730), `first_person_v12_shadow` (4,086), `spiritual_wisdom_contextual` (13,458), the three LightRAG collections and `second_brain_vault` have identical id and payload fingerprints on both sides. Railway-only: `first_person_v10` (4,224, the old generation the celery config still references) and runtime caches/memory vectors. Local-only: `guru_tone_podcast` (9 points, seeded by a script, not read by serving).
+- **Memgraph:** curated layers identical (base 6,427, TU layer 2,999 units / 511 concepts / 104 topics, Concept, Teacher, Practice, Quarantined). Left local on purpose: 128 `TeachingUnit` + 37 `Video` nodes written by `ingest/video_pipeline.py` with an `ingest_namespace` (ingestion-shadow artifacts, never read by serving) and local test-conversation provenance (`GuruResponse`, `InferenceActivity`, `SeekerTurn`).
+
+## Query timing on the live backend (2026-11-27, anonymous session, uncached questions)
+| Case | End to end | Pipeline |
+|---|---|---|
+| First query after a container (re)start | 28 to 29 s | 25 to 28 s |
+| Warm, in-domain (served verbatim clip) | 5.0 s | 4.2 to 4.3 s |
+| Warm, abstain | 7.4 s | 5.5 s |
+| Repeat of the same question (exact cache) | 2.2 s | 0.02 s |
+| Out-of-corpus control (off-topic boundary) | 1.3 s | n/a |
+In-container timings: Memgraph connect 0.26 s then 4 to 5 ms per query; Qdrant dense search 4 to 36 ms; BGE-M3 encode 60 to 210 ms warm but about 24 s on the first call in a fresh process (includes model load). The ~23 s first-query block is unlogged and sits between HyDE and the context harness; the startup warm-ups (embedder, reranker, intent, router) finish minutes earlier, so a lazy initialization on the real retrieval path is missed. A startup retrieval-path canary is being added. Models are healthy after warm-up: no abstain-on-timeout, correct off-topic abstain, verbatim citation served with `model_used=null`.
+
 ## Guard
 `python3 scripts/ops/railway_live_audit.py` (read only; exit 0 clean, 1 warnings, 2 critical). Run it before and after any Railway change.

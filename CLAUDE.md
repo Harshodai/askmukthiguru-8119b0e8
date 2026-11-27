@@ -258,6 +258,7 @@ All code, vector ingestion, serving contract updates, and deployments are comple
 
 ## Open work (read before answering "what's pending?")
 
+- **Read first after compaction:** `docs/handoffs/OPEN_WORK_LOOP_2026_11_27.md` is the live task table (agent ids, worktrees, owner actions, next step per row). Update it every pass.
 - Railway cost and deploy review (2026-11-27): `docs/operations/railway-cost-and-deploy-review-2026-11-27.md`. Memory is 98% of the bill; the live backend ran a Nov 24 build 146 commits behind `main` with `FIRST_PERSON_LLM_FALLBACK_ENABLED=true` (set false 2026-11-27, which also deployed `main`). Run `python3 scripts/ops/railway_live_audit.py` (read only) before and after any Railway change.
 - Latest state (2026-11-26): `docs/handoffs/HANDOFF_2026_11_26_PR_QUEUE_AND_HARDENING.md` and `docs/architecture/2026-11-26-verified-audit-findings.md` §7-9. CI now runs ruff (CI-pinned 0.15.13), Bandit, the full pytest suite and the pre-commit guards on every PR; the exception ceiling is 759 (raise only with owner approval); CI and the frontend image use Node 24.
 
