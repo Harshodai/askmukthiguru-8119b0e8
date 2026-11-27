@@ -12,8 +12,9 @@ Deno.serve(async (req) => {
     const raw = await req.text();
     if (raw.length > 2048) return reply({ error: 'Request too large' }, 413);
     const body: unknown = JSON.parse(raw);
-    if (!validSignup(body)) return reply({ error: 'Valid email, source and contact consent required' }, 400);
-    const email = body.email.trim().toLowerCase();
+    const retry = Boolean(body && typeof body === 'object' && 'action' in body && body.action === 'retry');
+    if (!retry && !validSignup(body)) return reply({ error: 'Valid email, source and contact consent required' }, 400);
+    const email = validSignup(body) ? body.email.trim().toLowerCase() : null;
     const url = Deno.env.get('SUPABASE_URL');
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -21,15 +22,25 @@ Deno.serve(async (req) => {
     const brevoKey = Deno.env.get('BREVO_API_KEY');
     if (!url || !anonKey || !serviceKey || !gatewayKey || !brevoKey) return reply({ error: 'Signup service unavailable' }, 503);
 
+    const db = createClient(url, serviceKey, { auth: { persistSession: false } });
+    if (retry) {
+      const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer /, '');
+      const { data: auth, error: authError } = await db.auth.getUser(token);
+      if (authError || !auth.user) return reply({ error: 'Sign in required' }, 401);
+      let aal = '';
+      try { aal = JSON.parse(atob(token.split('.')[1].replaceAll('-', '+').replaceAll('_', '/'))).aal; } catch { /* denied below */ }
+      const role = await db.from('user_roles').select('user_id').eq('user_id', auth.user.id).eq('role', 'admin').maybeSingle();
+      if (role.error || !role.data || aal !== 'aal2') return reply({ error: 'Admin MFA required' }, 403);
+    }
     // Public intake retains database validation/throttling; never use elevated privileges for signup.
     const intake = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { 'x-forwarded-for': req.headers.get('x-forwarded-for') ?? '' } } });
-    const { data, error } = await intake.rpc('subscribe_launch_updates', { p_email: email, p_consent: true, p_source: body.source });
-    if (error || data !== 'accepted') return reply({ error: 'Could not save signup. Please try again.' }, 503);
-    const db = createClient(url, serviceKey, { auth: { persistSession: false } });
-    // Unique job supports a single confirmation for existing consented subscribers too.
-    const queued = await db.rpc('queue_existing_launch_confirmation', { p_email: email });
-    if (queued.error) console.error('launch confirmation enqueue failed', queued.error.code);
-    const claimed = await db.rpc('claim_launch_confirmations', { p_email: email, p_limit: 1 });
+    if (validSignup(body)) {
+      const { data, error } = await intake.rpc('subscribe_launch_updates', { p_email: email, p_consent: true, p_source: body.source });
+      if (error || data !== 'accepted') return reply({ error: 'Could not save signup. Please try again.' }, 503);
+      const queued = await db.rpc('queue_existing_launch_confirmation', { p_email: email });
+      if (queued.error) console.error('launch confirmation enqueue failed', queued.error.code);
+    }
+    const claimed = await db.rpc('claim_launch_confirmations', { p_email: email, p_limit: retry ? 5 : 1 });
     if (claimed.error) console.error('launch confirmation claim failed', claimed.error.code);
     for (const job of claimed.data ?? []) {
       try {
@@ -62,7 +73,7 @@ Deno.serve(async (req) => {
       }
     }
     // Same public result for a new/duplicate address and provider success/failure.
-    return reply({ status: 'accepted' });
+    return reply(retry ? { status: 'accepted', attempted: (claimed.data ?? []).length } : { status: 'accepted' });
   } catch {
     return reply({ error: 'Could not save signup. Please try again.' }, 400);
   }

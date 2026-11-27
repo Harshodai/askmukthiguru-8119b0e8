@@ -5,16 +5,28 @@ import { useWaitlistSubscribers } from '@/admin/hooks/useAdminData';
 import { fmtDateTime } from '@/admin/lib/formatters';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Mail } from 'lucide-react';
 
 /**
  * Owner view of consented launch-update subscribers.
  *
- * Read-only on purpose: addresses are stored now, but no email sending or
- * owner notification is configured. Do not add a "send" control here until a
- * verified sender, destination and unsubscribe flow exist.
+ * Confirmation retry is server-authorized with admin MFA; not a campaign sender.
  */
 export default function WaitlistSubscribersPage() {
   const { data, isLoading, isError, error, refetch } = useWaitlistSubscribers();
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState('');
+  const retryConfirmations = async () => {
+    if (sending) return;
+    setSending(true);
+    try {
+      const result = await supabase.functions.invoke('launch-signup', { body: { action: 'retry' } });
+      setSendResult(result.error ? 'Could not retry confirmations. Admin MFA is required; try again.' : `Retried ${result.data?.attempted ?? 0} queued confirmation(s). Provider acceptance is not inbox delivery.`);
+    } catch { setSendResult('Could not retry confirmations. Please try again.'); }
+    finally { setSending(false); }
+  };
 
   if (isLoading) {
     return (
@@ -49,15 +61,16 @@ export default function WaitlistSubscribersPage() {
             Consented launch-update opt-ins, newest first. Owner-only; no public read path exists.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void refetch()}>
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => void refetch()}>Refresh</Button>
+          <Button variant="outline" size="sm" disabled={sending} onClick={() => void retryConfirmations()}><Mail className="mr-2 h-4 w-4" />{sending ? 'Retrying…' : 'Retry queued confirmations'}</Button>
+        </div>
       </div>
 
       <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-        Email sending is not configured. These addresses are collected only; no update or owner
-        notification is being sent.
+        New signups request one confirmation with a private unsubscribe link. Retry handles up to five due jobs, with three attempts maximum. It does not send a launch campaign.
       </div>
+      {sendResult && <p role="status" className="text-sm text-muted-foreground">{sendResult}</p>}
 
       <Card>
         <CardHeader>

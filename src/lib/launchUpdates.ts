@@ -70,9 +70,8 @@ export async function submitLaunchSignup({
 /**
  * Withdraw consent and erase one address from the launch list.
  *
- * The database answers `accepted` for any well-formed address, whether or not it was on the
- * list, so this never reveals membership. Interim design: there is no confirmation email yet
- * (PENDING), so the RPC is throttled server-side instead. Never logs or returns the address.
+ * Requires the private per-subscriber token delivered in the confirmation email.
+ * The database answers `accepted` without revealing membership. Never logs or returns the address.
  */
 export async function submitLaunchErase(email: string, token: string | null): Promise<LaunchSignupResult> {
   const normalized = sanitizeLaunchEmail(email);
