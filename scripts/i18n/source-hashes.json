@@ -879,6 +879,7 @@
   "launchUpdates.notice": "e00b8002a6c7",
   "launchUpdates.privacyLink": "54a57c3147c4",
   "launchUpdates.unsubscribeLink": "14df0ece41a6",
+  "launchUpdates.title": "93a691c78c0d",
   "unsubscribe.pageTitle": "07811bb304c7",
   "unsubscribe.title": "21517a29ea75",
   "unsubscribe.intro": "5e2cd10dd4c0",
@@ -2344,6 +2345,16 @@
   "events.title": "df9110b56fb1",
   "events.details": "45989de49fb7",
   "safety.getHelpNow": "704b7be9e3fc",
-  "safety.getHelpNowBody": "6e569e23dd3e"
+  "safety.getHelpNowBody": "6e569e23dd3e",
+  "launch.eyebrow": "54032034d00a",
+  "launch.intro": "e15abc6b6eb7",
+  "launch.primary": "e0a4b49eec34",
+  "launch.secondary": "bbef44619abb",
+  "launch.boundary": "dd1285f0808f",
+  "launch.guides": "57c3e780a302",
+  "launch.guidanceTitle": "328fcb1ae2d3",
+  "launch.guidanceBody": "30cac592aeec",
+  "launch.practiceTitle": "31d03a8eb1f7",
+  "launch.practiceBody": "7607070ff201"
  }
 }

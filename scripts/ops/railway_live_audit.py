@@ -65,6 +65,16 @@ def evaluate_service_vars(
                 "directive (2026-11-23) requires false",
             )
         )
+    workers = _num(values.get("WEB_CONCURRENCY"))
+    if workers is not None and workers > 1:
+        out.append(
+            Finding(
+                WARN,
+                "web_concurrency",
+                f"{service}: WEB_CONCURRENCY={workers:g}; every uvicorn worker holds its own copy of "
+                "the embedding and reranker models (about 2.5 GB each), and the repo default is 1",
+            )
+        )
     if str(values.get("OPENROUTER_BUDGET_GUARD_ENABLED", "")).strip().lower() not in TRUTHY:
         out.append(
             Finding(

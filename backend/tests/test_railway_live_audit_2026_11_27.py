@@ -48,6 +48,17 @@ def test_loose_spend_caps_warn():
     assert _checks(found, audit.WARN) == {"llm_daily_cap", "llm_monthly_cap"}
 
 
+def test_extra_uvicorn_workers_warn():
+    found = audit.evaluate_service_vars(
+        "svc", {**CLEAN, "WEB_CONCURRENCY": "2"}, max_daily_usd=15, max_monthly_usd=150
+    )
+    assert _checks(found, audit.WARN) == {"web_concurrency"}
+    one = audit.evaluate_service_vars(
+        "svc", {**CLEAN, "WEB_CONCURRENCY": "1"}, max_daily_usd=15, max_monthly_usd=150
+    )
+    assert one == []
+
+
 def test_posture_drift_between_services_warns():
     v13 = {"FIRST_PERSON_SERVING_POSTURE": "v13_shadow"}
     v10 = {"FIRST_PERSON_SERVING_POSTURE": "v10_only"}

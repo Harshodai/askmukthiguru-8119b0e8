@@ -26,8 +26,16 @@ Nothing here was changed except the one setting listed under "Changed". The guar
 | Memgraph | two services (3.12.0 with a 50 GB volume, 3.14.0 with 2 GB); apps use `memgraph.railway.internal`; the 50 GB one also has a public TCP proxy | one service, no public database port |
 | Wait for CI on celery-worker | off | on |
 
-## Changed
+## Changed (all with the owner's approval unless noted)
+- `WEB_CONCURRENCY` 2 to 1 on the backend (live drift from the repo's `WEB_CONCURRENCY=1`): backend memory 4.8 GB week-average to 2.7 GB. Each uvicorn worker holds its own models.
+- `FIRST_PERSON_LLM_FALLBACK_ENABLED` true to false on the backend. The variable change also redeployed the backend from current `main` (deployment `23746d76`, healthy).
+- The Railway Memgraph the apps use (`memgraph.railway.internal`) had the old graph (2,760 units, 429 resolving in v13). After a Railway snapshot, the `TU*` layer was dropped and rebuilt from Railway's Qdrant: 2,999 of 2,999 resolve, 511 concept and 104 topic nodes, non-TU data unchanged.
+- The unused 50 GB Memgraph service (0 nodes) set to sleep with a 0.5 GB cap. Deleting it and closing its public proxy were denied by the permission layer and remain for the owner.
 - `celery-worker` watch patterns set to `/backend/**`, `!/backend/tests/**`, `!/backend/**/*.md`, `/memory/**`, `/config/helplines.yaml`, `/scripts/ops/rotate_brain_kek.py` and the rights manifest, so docs, tests, frontend, CI and workflow pushes no longer rebuild it. Rollback: set the service's watch patterns back to empty.
+
+## Not done
+- Railway Qdrant still has the 13 pre-fix `passage` points as `speaker_verified=true` (2,540 vs 2,527 local); the backend's key is read-only and the admin key was not used without the owner's go-ahead. Every other collection count matches local.
+- Delete the empty 50 GB Memgraph service and its volume, and remove its public TCP proxy.
 
 ## Decisions for the owner
 1. Done 2026-11-27 with the owner's approval: `FIRST_PERSON_LLM_FALLBACK_ENABLED=false` on the backend. Setting a variable rebuilds the service from current `main`, so it also deployed `main` (see item 2).
@@ -36,6 +44,18 @@ Nothing here was changed except the one setting listed under "Changed". The guar
 4. Lower the OpenRouter caps (suggested ceiling $15/day, $150/month unless a graded run needs more).
 5. Limits: after the cuts the projection should fit; keep the hard limit as a guardrail but raise the soft limit above the expected bill so the alert means something.
 6. Backend memory: a 4.8 GB average for an idle service is the bill. Options: keep sleep mode and accept cold starts, cap the container, or move the models out of the request process.
+
+## More changes after the first pass (owner-approved)
+- Deleted the empty 50 GB Memgraph service and its detached volume (0 nodes verified first). Its public database proxy went with it.
+- OpenRouter caps on the backend and the celery worker lowered to $15/day and $150/month (were $50 and $500). Soft usage limit raised from $30 to $45; the $60 hard limit is unchanged because it is the guardrail that takes everything offline.
+- Railway Qdrant: the 13 pre-fix `passage` points patched after a Railway snapshot; fingerprint now identical to local (`speaker_verified=true` 2,527).
+
+## Running more than one worker without duplicating models: research and decision
+Measured in the backend image: python and libraries about 0.5 GB, the BGE-M3 INT8 session about 0.9 GB, so one process is about 2.5 GB and every extra uvicorn worker adds the same again.
+- **Load before fork (gunicorn `--preload`, copy-on-write).** Reported savings are real in the literature ([Rippling](https://www.rippling.com/blog/rippling-gunicorn-pre-fork-journey-memory-savings-and-cost-reduction), [Bolna](https://www.bolna.ai/blog/cutting-per-pod-memory-gunicorn-preload), [Trendyol](https://medium.com/trendyol-tech/sharing-large-language-models-among-gunicorn-workers-reducing-memory-usage-and-boosting-18c0efd8e942)), but sharing erodes as CPython touches pages and the child only sees a snapshot. **Tested here and rejected:** with the ONNX session loaded before `fork()`, the forked children deadlocked on their first inference (ORT and tokenizer threads do not survive fork) and never completed.
+- **Separate model server (the other pattern large systems use, e.g. TEI or Triton).** Weights load once; API workers call it over the private network. This is the supported way to scale workers here. It pays off only above one worker (1 server plus 2 API workers is about 3.5 GB against about 5 GB for 2 duplicated workers); at one worker the in-process model is cheaper. Built as an opt-in `SERVICE_TYPE=model-server` / `MODEL_SERVER_URL` mode, default off (see `docs/operations/shared-model-server.md` when merged).
+- **Decision:** production stays at `WEB_CONCURRENCY=1` (the service is I/O-bound on LLM calls; one async process is enough). Use the model-server mode before raising the worker count. The audit guard flags `WEB_CONCURRENCY>1`, and the boot log warns when it is above 1 without a model server.
+- **Railway sleep mode is not a lever here:** private-network calls count as outbound activity ([Railway docs](https://docs.railway.com/reference/app-sleeping)), so a backend that polls Redis never sleeps.
 
 ## Guard
 `python3 scripts/ops/railway_live_audit.py` (read only; exit 0 clean, 1 warnings, 2 critical). Run it before and after any Railway change.
