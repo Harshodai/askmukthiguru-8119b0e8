@@ -119,7 +119,7 @@ async def test_bridge_reply_is_honest_outage_message(
     assert result.verification["passed"] is False
     assert result.verification["abstain_cause"] == "system_unavailable"
     assert result.route_metadata["abstain_cause"] == "system_unavailable"
-    assert "try again" in result.final_answer.lower()
+    assert "asking again" in result.final_answer.lower()
     assert "verified verbatim teaching" not in result.final_answer
     assert "Suffering is resistance" not in result.final_answer
 

@@ -140,7 +140,7 @@ async def test_scorer_failure_copy_says_try_again(fp_pipeline):
 
     result = await FirstPersonBridgeStage().run(_ctx(_container()))
 
-    assert "Please try again" in result.final_answer
+    assert "asking again in a few minutes" in result.final_answer
     assert _NO_TEACHING not in result.final_answer
     assert result.verification["method"] == "first_person_check_unavailable"
 
@@ -162,7 +162,7 @@ async def test_scorer_failure_skips_the_native_no_teaching_copy(fp_pipeline):
     result = await FirstPersonBridgeStage().run(_ctx(container, lang="hi", is_indic=True))
 
     assert result.final_answer != _STATIC_ABSTAIN["hi"]
-    assert "Please try again" in result.final_answer
+    assert "asking again in a few minutes" in result.final_answer
 
 
 @pytest.mark.asyncio
