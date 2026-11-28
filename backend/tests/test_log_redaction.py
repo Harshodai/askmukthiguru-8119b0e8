@@ -64,3 +64,29 @@ if __name__ == "__main__":
     test_empty_url_is_empty_string()
     test_pseudonym_hides_raw_anonymous_id_and_is_stable()
     print("log redaction self-check passed")
+
+
+def test_pseudonymize_identity_default_is_the_unkeyed_digest(monkeypatch):
+    """With LOG_PSEUDONYM_KEY unset the tag is exactly what it was before the key existed."""
+    import hashlib
+
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "log_pseudonym_key", "")
+    assert pseudonymize_identity("anon-1") == "id-" + hashlib.sha256(b"anon-1").hexdigest()[:12]
+
+
+def test_pseudonymize_identity_with_key_is_keyed_stable_and_not_the_plain_hash(monkeypatch):
+    import hashlib
+
+    from app.config import settings
+
+    plain = "id-" + hashlib.sha256(b"anon-1").hexdigest()[:12]
+    monkeypatch.setattr(settings, "log_pseudonym_key", "k1-long-random-value")
+    keyed = pseudonymize_identity("anon-1")
+    assert keyed == pseudonymize_identity("anon-1")  # stable
+    assert keyed != plain  # an attacker hashing candidates without the key cannot match it
+    assert "anon-1" not in keyed
+    monkeypatch.setattr(settings, "log_pseudonym_key", "a-different-key")
+    assert pseudonymize_identity("anon-1") != keyed  # depends on the key
+    assert pseudonymize_identity(None) == "none" and pseudonymize_identity("") == "none"

@@ -1,14 +1,13 @@
-import hashlib
 import logging
 import re
 from typing import Optional
 
+from app.log_safe import q_tag
+
 
 def _q_tag(text: str) -> str:
-    """Length + short sha256 prefix; never the seeker's words (SEC-003)."""
-    return (
-        f"len={len(text or '')} sha={hashlib.sha256((text or '').encode('utf-8')).hexdigest()[:8]}"
-    )
+    """Length + keyed short hash; never the seeker's words (SEC-003)."""
+    return q_tag(text or "")
 
 
 logger = logging.getLogger(__name__)

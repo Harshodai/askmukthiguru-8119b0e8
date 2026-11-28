@@ -537,17 +537,32 @@ class TokenAccumulator:
         tokens_in: int,
         tokens_out: int,
         cost_usd: float = 0.0,
+        duration_ms: float | None = None,
+        attempts: int | None = None,
+        limiter_wait_ms: float | None = None,
+        status: str | None = None,
     ) -> None:
-        """T2-03: record individual LLM call metadata (no text/payloads)."""
-        self.llm_calls.append(
-            {
-                "prompt_id": str(prompt_id or "unknown"),
-                "model": str(model or "unknown"),
-                "tokens_in": max(0, int(tokens_in or 0)),
-                "tokens_out": max(0, int(tokens_out or 0)),
-                "cost_usd": max(0.0, float(cost_usd or 0.0)),
-            }
-        )
+        """T2-03: record individual LLM call metadata (no text/payloads).
+
+        The timing keys are added only when given, so callers that pass none keep the
+        row exactly as before. ``status`` is ok|timeout|cancelled|refusal|error.
+        """
+        row: dict[str, Any] = {
+            "prompt_id": str(prompt_id or "unknown"),
+            "model": str(model or "unknown"),
+            "tokens_in": max(0, int(tokens_in or 0)),
+            "tokens_out": max(0, int(tokens_out or 0)),
+            "cost_usd": max(0.0, float(cost_usd or 0.0)),
+        }
+        if duration_ms is not None:
+            row["duration_ms"] = max(0.0, float(duration_ms))
+        if attempts is not None:
+            row["attempts"] = max(0, int(attempts))
+        if limiter_wait_ms is not None:
+            row["limiter_wait_ms"] = max(0.0, float(limiter_wait_ms))
+        if status is not None:
+            row["status"] = str(status)[:16]
+        self.llm_calls.append(row)
 
 
 token_accumulator_var: ContextVar[Optional[TokenAccumulator]] = ContextVar(

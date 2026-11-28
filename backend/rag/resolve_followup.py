@@ -16,7 +16,6 @@ Examples:
   Resolved: "How do I meditate specifically for anxiety?"
 """
 
-import hashlib
 import logging
 import re
 from dataclasses import dataclass
@@ -25,14 +24,13 @@ from typing import Optional
 from langchain_core.runnables import RunnableConfig
 
 from app.config import settings
+from app.log_safe import q_digest, q_tag
 from rag.states import GraphState
 
 
 def _q_tag(text: str) -> str:
-    """Length + short sha256 prefix; never the seeker's words (SEC-003)."""
-    return (
-        f"len={len(text or '')} sha={hashlib.sha256((text or '').encode('utf-8')).hexdigest()[:8]}"
-    )
+    """Length + keyed short hash; never the seeker's words (SEC-003)."""
+    return q_tag(text or "")
 
 
 logger = logging.getLogger(__name__)
@@ -236,7 +234,7 @@ class FollowupResolution:
             "reason": self.reason_code,
             "history_used": self.history_used,
             "raw_len": len(text),
-            "raw_sha": hashlib.sha256(text.encode("utf-8")).hexdigest()[:12],
+            "raw_sha": q_digest(text, 12),
         }
 
 

@@ -223,7 +223,9 @@ def record_shadow_outcome(outcome: str) -> None:
         try:
             _FP_CONTEXT_SHADOW.labels(outcome=safe_outcome).inc()
         except Exception as exc:  # noqa: BLE001 - metrics must never break serving
-            logger.debug("[FPContextHarness] shadow metric increment failed: %s", exc)
+            logger.debug(
+                "[FPContextHarness] shadow metric increment failed: %s", type(exc).__name__
+            )
     logger.info("[FPContextShadow] outcome=%s", safe_outcome)
 
 
@@ -248,7 +250,7 @@ def _record_metrics(decision: RetrievalDecision) -> None:
                 abstain_reason=reason,
             ).inc()
         except Exception as exc:  # noqa: BLE001 - metrics must never break serving
-            logger.debug("[FPContextHarness] metric increment failed: %s", exc)
+            logger.debug("[FPContextHarness] metric increment failed: %s", type(exc).__name__)
     logger.info(
         "[FPContextHarness] decision=%s state=%s abstain_reason=%s abstain_stage=%s "
         "state_path=%s gates=%s",

@@ -36,6 +36,11 @@ import threading
 import time
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+# Tag the bootstrap handler: app.main swaps ONLY tagged handlers when LOG_JSON_STDOUT_ENABLED is on.
+# Lines logged before the app import (or if it fails) keep this stderr handler.
+for _bootstrap_handler in logging.getLogger().handlers:
+    if type(_bootstrap_handler) is logging.StreamHandler:  # not pytest's capture handler
+        _bootstrap_handler._mg_bootstrap = True  # type: ignore[attr-defined]
 logger = logging.getLogger(__name__)
 
 port = int(os.environ.get("PORT", 8000))

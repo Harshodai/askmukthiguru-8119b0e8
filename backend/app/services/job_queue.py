@@ -562,7 +562,10 @@ class JobQueueService:
             await r.lrem("job_queue:pending", 1, job_id)
             await r.delete(f"job:{job_id}:meta")
             raise QueueFullError("Server is busy. Please try again shortly.")
-        logger.info(f"JobQueue: enqueued {job_id} (stream={is_stream}, user={user_id})")
+        # Privacy: no user id in logs (anon ids carry a signed payload); the job id joins the turn.
+        logger.info(
+            f"JobQueue: enqueued {job_id} (stream={is_stream}, queue_position={queue_position})"
+        )
         return job_id, queue_position
 
     async def get_job(self, job_id: str) -> Optional[dict]:
@@ -909,14 +912,19 @@ class JobQueueService:
                     "dispatch_started_at": str(dispatch_started_at),
                 },
             )
-            queue_token = queue_timing_var.set(
-                {
-                    "admitted_at": self._safe_float(meta.get("created_at")) or dispatch_started_at,
-                    "claimed_at": claimed_at,
-                    "dispatch_started_at": dispatch_started_at,
-                    "correlation_id": str(meta.get("correlation_id") or "-")[:128],
-                }
-            )
+            worker_correlation_id = str(meta.get("correlation_id") or "-")[:128]
+            queue_timing = {
+                "admitted_at": self._safe_float(meta.get("created_at")) or dispatch_started_at,
+                "claimed_at": claimed_at,
+                "dispatch_started_at": dispatch_started_at,
+                "correlation_id": worker_correlation_id,
+            }
+            ingress_ms = self._safe_float(request_data.get("_ingress_ms"))
+            if ingress_ms:  # present only with LOG_TURN_TRACE_ENABLED; trace only
+                queue_timing["ingress_ms"] = ingress_ms
+            queue_token = queue_timing_var.set(queue_timing)
+            # Logging only: worker log lines carry the enqueuing request's id.
+            correlation_token = correlation_id_var.set(worker_correlation_id)
             # Token/cost accounting has to live HERE, not on the HTTP handler.
             # /api/chat enqueues and returns 202 immediately, so the handler's
             # accumulator was always read before a single token had been spent —
@@ -930,6 +938,7 @@ class JobQueueService:
                 result = await worker_factory(request_data, is_stream, job_id)
             finally:
                 queue_timing_var.reset(queue_token)
+                correlation_id_var.reset(correlation_token)
                 try:
                     self._record_job_cost(accumulator, request_data, is_stream)
                 finally:

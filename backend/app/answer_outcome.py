@@ -7,6 +7,7 @@ counts and labels only: never seeker text, answer text, user id or session id
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -93,8 +94,14 @@ def build_answer_outcome(
     errored: bool = False,
     stage_latencies_ms: dict[str, float] | None = None,
     llm_calls: list[dict[str, Any]] | None = None,
+    trace: Any | None = None,
 ) -> dict[str, Any]:
-    """Build the record. Takes no text or identity arguments by design."""
+    """Build the record. Takes no text or identity arguments by design.
+
+    ``trace`` (a ``TurnTrace``, only when LOG_TURN_TRACE_ENABLED) adds the additive
+    ``turn``/``fp``/``summary`` blocks and per-call timing; without it the record is
+    exactly what it was before.
+    """
     route = str(route_decision or "error")
     state = str(grounding_state or "unknown")
     ver = verification if isinstance(verification, dict) else {}
@@ -125,19 +132,20 @@ def build_answer_outcome(
             }
         )
 
-    return {
+    outcome = classify_outcome(
+        route,
+        state,
+        blocked,
+        errored,
+        served_clip=served_clip,
+        system_unavailable=ver.get("abstain_cause") == "system_unavailable",
+    )
+    record = {
         "request_id": request_id,
         "lane": lane_for(route),
         "route_decision": route,
         "route_reason": route_reason,
-        "outcome": classify_outcome(
-            route,
-            state,
-            blocked,
-            errored,
-            served_clip=served_clip,
-            system_unavailable=ver.get("abstain_cause") == "system_unavailable",
-        ),
+        "outcome": outcome,
         "grounding_state": state,
         "citation_count": len(citations or []),
         "span_ids": ids,
@@ -152,6 +160,92 @@ def build_answer_outcome(
         "total_tokens_out": sum(c["tokens_out"] for c in clean_calls),
         "total_cost_usd": round(sum(c["cost_usd"] for c in clean_calls), 6),
     }
+    if trace is not None:
+        _add_trace(record, trace, llm_calls or [], outcome)
+    return record
+
+
+_CALL_STATUSES = {"ok", "timeout", "cancelled", "refusal", "error"}
+
+
+def _num(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def _gate_that_rejected(fp: dict[str, Any], rejected: dict[str, int], scores: list[int]) -> Any:
+    """A label for humans, derived at build time; it decides nothing."""
+    reason = fp.get("abstain_reason")
+    if reason and reason not in ("none", "no_verified_clips"):
+        return reason
+    if rejected and not fp.get("n_scored"):
+        return max(rejected, key=lambda name: rejected[name])
+    min_score = fp.get("min_score")
+    if scores and isinstance(min_score, (int, float)) and all(s < min_score for s in scores):
+        return "relevance_min_score"
+    if fp.get("answerability") in ("no", "indeterminate"):
+        return "answerability"
+    return reason if reason and reason != "none" else None
+
+
+def _add_trace(
+    record: dict[str, Any], trace: Any, raw_calls: list[dict[str, Any]], outcome: str
+) -> None:
+    """Merge the turn trace into ``record``. Total: a failure leaves the base record intact."""
+    try:
+        snap = trace.snapshot()
+        turn = dict(snap.get("turn") or {})
+        fp = dict(snap.get("fp") or {})
+        rejected = {k: int(v) for k, v in (snap.get("rejected") or {}).items() if v}
+        scores = list(snap.get("scores") or [])
+        for key in ("job_id", "correlation_id", "pid"):
+            if key in turn:
+                record[key] = turn.pop(key)
+        turn["stage_ms"] = snap.get("stage_ms") or {}
+        if scores:
+            fp["scores"] = scores
+            fp["n_scored"] = fp.get("n_scored", len(scores))
+        if rejected:
+            fp["rejected"] = rejected
+        if fp:
+            fp["gate_that_rejected"] = (
+                None if outcome == "served" else _gate_that_rejected(fp, rejected, scores)
+            )
+            record["fp"] = fp
+        record["turn"] = turn
+
+        # Per-call timing rides the existing llm_calls rows (bounded, no text).
+        durations: list[float] = []
+        throttle = retries = 0.0
+        raw_dicts = [c for c in raw_calls if isinstance(c, dict)]
+        if record.get("route_reason") is not None:
+            record["route_reason"] = str(record["route_reason"])[:80]
+        for row, raw in zip(record["llm_calls"], raw_dicts, strict=False):
+            duration = _num(raw.get("duration_ms"))
+            attempts = _num(raw.get("attempts"))
+            limiter = _num(raw.get("limiter_wait_ms"))
+            status = str(raw.get("status") or "")
+            if duration is not None:
+                row["duration_ms"] = round(max(0.0, duration), 1)
+                durations.append(row["duration_ms"])
+            if attempts is not None:
+                row["attempts"] = int(attempts)
+                retries += max(0, int(attempts) - 1)
+            if limiter is not None:
+                row["limiter_wait_ms"] = round(max(0.0, limiter), 1)
+                throttle += row["limiter_wait_ms"]
+            if status in _CALL_STATUSES:
+                row["status"] = status
+        record["summary"] = {
+            "llm_calls_n": len(record["llm_calls"]),
+            "llm_ms_sum": round(sum(durations), 1),
+            "llm_ms_max": round(max(durations), 1) if durations else 0.0,
+            "throttle_wait_ms_sum": round(throttle, 1),
+            "retries_sum": int(retries),
+        }
+    except (RuntimeError, ValueError, TypeError, AttributeError, KeyError) as exc:
+        logger.debug("turn trace not merged: %s", type(exc).__name__)
 
 
 def compute_useful_answer(
@@ -216,7 +310,16 @@ def emit_answer_outcome(record: dict[str, Any], *, first_person_only: bool) -> N
         if is_integrity_breach(record, first_person_only=first_person_only):
             INTEGRITY_BREACH_TOTAL.labels(lane=lane).inc()
             logger.error("integrity_breach: generated answer in first-person-only mode")
-        logger.info("answer_outcome %s", record)
+        if "turn" in record:
+            # Turn trace on: valid JSON in the message (greppable on any handler) plus the
+            # same fields as top-level attributes for the JSON formatter.
+            logger.info(
+                "answer_outcome %s",
+                json.dumps(record, default=str, separators=(",", ":")),
+                extra={"mg_fields": record},
+            )
+        else:
+            logger.info("answer_outcome %s", record)
     except (
         RuntimeError,
         ValueError,

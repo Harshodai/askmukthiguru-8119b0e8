@@ -5,11 +5,14 @@ import base64
 import hashlib
 import hmac
 import logging
+import re
 import secrets
+import threading
 import time
 import uuid
 from abc import ABC, abstractmethod
 from typing import Optional
+from urllib.parse import urlparse
 
 import jwt
 from anyio import Lock as AsyncLock
@@ -18,7 +21,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
-from jwt import PyJWKClient, PyJWKClientError
+from jwt import PyJWKClient, PyJWKClientConnectionError, PyJWKClientError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -255,7 +258,8 @@ class LocalAuthStrategy(AuthStrategy):
                     "tenant_id": get_settings().default_tenant_id,
                 }
         except Exception as e:
-            logger.debug(f"Local auth attempt failed: {e}")
+            # type name only: exception text from token decoding can echo token fragments
+            logger.debug("Local auth attempt failed: %s", type(e).__name__)
         return None
 
 
@@ -352,6 +356,99 @@ def _cache_admin_lookup(
     cache[user_id] = (is_admin, now)
 
 
+# --- Failed-credential logging (2026-11-28) ---
+# A stale or foreign token used to produce two WARNING lines per request with no way to
+# tell the cases apart (387 of 401 live WARNING lines). Now: ONE line carrying a bounded
+# reason code taken from the exception TYPE (never its message), the unverified header's
+# alg and kid prefix, and the unverified issuer HOST. Never the token, never other claims.
+# Identical (reason, kid, iss_host) lines are rate-limited per process.
+_AUTH_FAIL_INTERVAL_S = 60.0
+_AUTH_FAIL_MAX_KEYS = 256
+_AUTH_FAIL_LOCK = threading.Lock()
+_AUTH_FAIL_SEEN: dict[tuple[str, str, str], tuple[float, int]] = {}
+_AUTH_FAIL_SAFE = re.compile(r"[^A-Za-z0-9_.:-]")
+
+# Order matters: InvalidSignatureError subclasses DecodeError, PyJWKClientConnectionError
+# subclasses PyJWKClientError.
+_AUTH_FAIL_REASONS: tuple[tuple[type[BaseException], str], ...] = (
+    (jwt.ExpiredSignatureError, "expired"),
+    (jwt.ImmatureSignatureError, "not_yet_valid"),
+    (jwt.InvalidSignatureError, "bad_signature"),
+    (jwt.InvalidIssuerError, "bad_issuer"),
+    (jwt.InvalidAudienceError, "bad_audience"),
+    (jwt.InvalidAlgorithmError, "bad_algorithm"),
+    (jwt.MissingRequiredClaimError, "missing_claim"),
+    (jwt.DecodeError, "malformed"),
+    (PyJWKClientConnectionError, "jwks_fetch_failed"),
+    (PyJWKClientError, "jwks_key_not_found"),
+    (jwt.InvalidTokenError, "invalid_token"),
+)
+
+
+def auth_failure_reason(exc: BaseException) -> str:
+    """Bounded reason code from the exception TYPE only; exception text can echo token parts."""
+    for exc_type, reason in _AUTH_FAIL_REASONS:
+        if isinstance(exc, exc_type):
+            return reason
+    return "other"
+
+
+def _unverified_token_tags(token: str) -> tuple[str, str, str]:
+    """(alg, kid[:8], iss host) read WITHOUT verifying the signature; ``unknown`` on any failure."""
+    alg = kid = host = "unknown"
+    try:
+        header = jwt.get_unverified_header(token)
+        alg = _AUTH_FAIL_SAFE.sub("", str(header.get("alg") or ""))[:12] or "unknown"
+        kid = _AUTH_FAIL_SAFE.sub("", str(header.get("kid") or ""))[:8] or "none"
+    except (jwt.InvalidTokenError, AttributeError, TypeError):
+        pass
+    try:
+        claims = jwt.decode(token, options={"verify_signature": False})
+        iss = claims.get("iss")
+        parsed = urlparse(iss).hostname if isinstance(iss, str) else None
+        host = _AUTH_FAIL_SAFE.sub("", parsed or "")[:64] or "unknown"
+    except (jwt.InvalidTokenError, AttributeError, TypeError, ValueError):
+        pass
+    return alg, kid, host
+
+
+def _auth_failure_suppressed_count(
+    key: tuple[str, str, str], now: float | None = None
+) -> int | None:
+    """None: stay quiet (and count it). Otherwise emit, reporting how many were suppressed."""
+    now = time.monotonic() if now is None else now
+    with _AUTH_FAIL_LOCK:
+        entry = _AUTH_FAIL_SEEN.get(key)
+        if entry is not None and now - entry[0] < _AUTH_FAIL_INTERVAL_S:
+            _AUTH_FAIL_SEEN[key] = (entry[0], entry[1] + 1)
+            return None
+        if entry is None and len(_AUTH_FAIL_SEEN) >= _AUTH_FAIL_MAX_KEYS:
+            _AUTH_FAIL_SEEN.pop(next(iter(_AUTH_FAIL_SEEN)), None)
+        _AUTH_FAIL_SEEN[key] = (now, 0)
+        return entry[1] if entry is not None else 0
+
+
+def log_auth_failure(request: Request | None, token: str | None, reason: str) -> None:
+    """Emit the single rate-limited failure line and mark the request as already logged."""
+    try:
+        request.state.auth_failure_logged = True  # type: ignore[union-attr]
+    except AttributeError:
+        pass
+    alg, kid, host = _unverified_token_tags(token or "")
+    suppressed = _auth_failure_suppressed_count((reason, kid, host))
+    if suppressed is None:
+        return
+    logger.warning(
+        "auth failed for provided token reason=%s alg=%s kid=%s iss_host=%s suppressed=%d; "
+        "falling back to anonymous where the route allows it",
+        reason,
+        alg,
+        kid,
+        host,
+        suppressed,
+    )
+
+
 class SupabaseAuthStrategy(AuthStrategy):
     """
     Strategy for Supabase JWTs (Production Seeker Flow).
@@ -376,7 +473,7 @@ class SupabaseAuthStrategy(AuthStrategy):
         try:
             unverified_header = jwt.get_unverified_header(token)
         except jwt.DecodeError as e:
-            logger.warning(f"Malformed JWT header: {e}")
+            log_auth_failure(request, token, auth_failure_reason(e))
             return None
 
         alg = unverified_header.get("alg", "")
@@ -487,11 +584,11 @@ class SupabaseAuthStrategy(AuthStrategy):
                 "aal": aal,
             }
 
-        except jwt.ExpiredSignatureError:
-            logger.warning("Supabase credential expired")
+        except jwt.ExpiredSignatureError as e:
+            log_auth_failure(request, token, auth_failure_reason(e))
             raise HTTPException(status_code=401, detail="Token expired. Please sign in again.")
         except (jwt.InvalidTokenError, PyJWKClientError) as e:
-            logger.warning(f"Invalid Supabase credential: {type(e).__name__}")
+            log_auth_failure(request, token, auth_failure_reason(e))
             return None
         except Exception as e:
             logger.error(f"Supabase auth bridge error: {type(e).__name__}")
@@ -671,15 +768,18 @@ async def get_optional_user(
     """
     try:
         user = await auth_bridge.get_user(request, token)
-    except HTTPException as e:
+    except HTTPException:
         # get_user() raises 401 both for "no token" (the case this dependency
         # exists to allow) and for a token that failed validation (e.g.
         # expired). Log the latter — silently downgrading to anonymous with
         # no trace makes a real auth failure indistinguishable from incognito.
         if token:
-            logger.warning(
-                f"get_optional_user: auth failed for provided token ({e.detail}); falling back to anonymous"
-            )
+            # The strategy that rejected the token already logged one reason-coded line.
+            # Log here only when none did, so each failure produces one line, not two.
+            if getattr(request.state, "auth_failure_logged", False):
+                logger.debug("get_optional_user: falling back to anonymous after a failed token")
+            else:
+                log_auth_failure(request, token.credentials, "rejected")
         return {"id": "anonymous", "email": None, "is_anonymous": True}
 
     is_privileged = user.get("is_superuser") or user.get("role") == "service_role"

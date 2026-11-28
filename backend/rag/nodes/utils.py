@@ -821,7 +821,7 @@ async def expand_query_with_synonyms(query: str, assistant_slug: str = "default"
                     expansions.append(alt)
     if expansions:
         expanded = f"{query} (also: {', '.join(expansions[:5])})"
-        logger.info(f"Query expansion: added {len(expansions)} synonym(s) -> {expanded[:120]}...")
+        logger.info(f"Query expansion: added {len(expansions)} synonym(s)")
         return expanded
     return query
 

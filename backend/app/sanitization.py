@@ -6,6 +6,7 @@ and free-form text to reduce injection and poisoning surfaces.
 """
 
 import hashlib
+import hmac
 import re
 from typing import Optional
 
@@ -128,7 +129,17 @@ def pseudonymize_identity(identity: Optional[str]) -> str:
     """Stable, non-reversible tag for logging an anonymous or user id (never the raw id)."""
     if not identity:
         return "none"
-    digest = hashlib.sha256(str(identity).encode("utf-8")).hexdigest()
+    # Optional server-side key (LOG_PSEUDONYM_KEY): with it the tag is an HMAC, so an enumerable id
+    # (short or guessable anonymous ids) cannot be recovered from a log by hashing candidates, and
+    # the tag stays stable across restarts and replicas. Unset keeps the original unkeyed digest.
+    from app.config import settings
+
+    key = (getattr(settings, "log_pseudonym_key", "") or "").strip()
+    raw = str(identity).encode("utf-8")
+    if key:
+        digest = hmac.new(key.encode("utf-8"), raw, hashlib.sha256).hexdigest()
+    else:
+        digest = hashlib.sha256(raw).hexdigest()
     return f"id-{digest[:12]}"
 
 

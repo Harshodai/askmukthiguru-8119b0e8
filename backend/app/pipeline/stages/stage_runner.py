@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
+from app.turn_trace import stage_note
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
@@ -32,6 +33,7 @@ def _emit_stage_telemetry(
     release_id: str = "unknown",
 ):
     """Append stage telemetry entry to ctx.stage_telemetry."""
+    stage_note(stage_name, duration_ms)  # turn trace (no-op unless LOG_TURN_TRACE_ENABLED)
     start_ms = (
         0.0
         if not getattr(ctx, "start_time", 0.0)

@@ -82,7 +82,7 @@ class EmbeddingTool(Tool):
 
     async def execute(self, *, text: str, is_query: bool = True) -> list[float]:
         """Return the embedding vector for the given text."""
-        logger.debug(f"[EmbeddingTool] text={text[:60]!r}..., is_query={is_query}")
+        logger.debug(f"[EmbeddingTool] text={q_tag(text)}, is_query={is_query}")
         return (
             self._embedding.embed_query(text) if is_query else self._embedding.embed_document(text)
         )
@@ -106,7 +106,7 @@ class LLMGenerateTool(Tool):
         self, *, system_prompt: str, user_prompt: str, context: str = "", **kwargs
     ) -> str:
         """Generate text using the LLM service."""
-        logger.debug(f"[LLMGenerateTool] user_prompt={user_prompt[:60]!r}...")
+        logger.debug(f"[LLMGenerateTool] user_prompt={q_tag(user_prompt)}")
         return await self._llm.generate(system_prompt, user_prompt, context, **kwargs)
 
 

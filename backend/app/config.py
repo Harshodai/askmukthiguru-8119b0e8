@@ -1355,6 +1355,29 @@ class Settings(BaseSettings):
     # default: a deployed target sets ENVIRONMENT=production (Railway) or
     # staging, so "production-hardened" branches can tell where they are.
     environment: str = "local"
+    # Logging bootstrap (docs/operations/observability-log-events-2026-11-28.md).
+    # start_railway.py installs a plain stderr handler before app.main runs, so
+    # app.main's JSON handler never attaches and Railway labels every line "error".
+    # True: replace ONLY that bootstrap handler with the JSON formatter on stdout, map
+    # level to Railway's debug/info/warn/error, and route uvicorn loggers through root.
+    # Default False keeps today's output byte-identical; rollback = unset.
+    log_json_stdout_enabled: bool = False
+    # Optional server-side key for the user/session id tags in coordinator log lines
+    # (app.sanitization.pseudonymize_identity). Empty (default) keeps the unkeyed sha256 tag
+    # exactly as today; set a long random value to make the tag an HMAC (not recoverable by
+    # hashing candidate ids) while staying stable across restarts and replicas.
+    log_pseudonym_key: str = ""
+    # Per-turn trace on the existing `answer_outcome` line: ids, timings (ingress, queue,
+    # dispatch, stages), the first-person gate counters and per-call LLM duration/status.
+    # Ids, counts, scores and durations only; never seeker, clip or LLM text. Default False:
+    # the record and its log line are byte-identical to before; rollback = unset.
+    log_turn_trace_enabled: bool = False
+    # Comma list of EXACT logger names set to DEBUG at startup, e.g.
+    # "services.first_person_pipeline,app.pipeline.stages.first_person_bridge". Empty = unchanged.
+    # Only the six audited first-person modules in app.main.DEBUG_LOGGER_ALLOWLIST are honoured;
+    # anything else (including a parent such as "services") is ignored. Those modules never format
+    # exception text or content at DEBUG/INFO (tests/test_debug_logs_no_exception_text_2026_11_28.py).
+    log_debug_loggers: str = ""
     # Gate Swagger/OpenAPI docs. Disabled in production to avoid exposing the full API schema.
     show_swagger: bool = False
     # Explicit opt-in for the X-Test-Key backdoor strategy. NEVER enable in production.

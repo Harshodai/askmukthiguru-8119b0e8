@@ -680,7 +680,9 @@ class DistressStage(Stage):
                 timeout=settings.distress_llm_escalation_timeout_s,
             )
         except Exception as e:  # includes asyncio.TimeoutError
-            logger.warning("Distress LLM escalation unavailable; keeping regex level: %s", e)
+            logger.warning(
+                "Distress LLM escalation unavailable; keeping regex level: %s", type(e).__name__
+            )
             return assessment
         # A reasoning model may add words around the label: take the first one.
         found = _ESCALATION_VERDICT_RE.search(str(raw or "").upper())
@@ -688,8 +690,8 @@ class DistressStage(Stage):
             llm_level = DistressLevel[found.group(1) if found else ""]
         except KeyError:
             logger.warning(
-                "Distress LLM escalation returned an unparseable verdict %r; keeping regex level",
-                raw,
+                "Distress LLM escalation returned an unparseable verdict (len=%d); keeping regex level",
+                len(str(raw or "")),
             )
             return assessment
         # Only SEVERE/CRISIS act: a MODERATE verdict would send an ordinary
