@@ -239,8 +239,8 @@ def process_whatsapp_turn_task(
         return {"status": "ai_paused_for_human", "phone": mask_phone(clean_p)}
 
     from app.dependencies import get_container
-    from tasks.worker_loop import run_in_worker_loop
     from services.whatsapp_service import get_account_link_by_phone
+    from tasks.worker_loop import run_in_worker_loop
 
     container = get_container()
     db = getattr(container, "supabase_client", None)
@@ -263,8 +263,12 @@ def process_whatsapp_turn_task(
             return await PipelineCoordinator(container).execute(
                 user_msg=user_message,
                 preferred_lang="en",
-                chat_body=ChatRequest(user_message=user_message, session_id=session_id,
-                                     messages=[], incognito=not memory_write),
+                chat_body=ChatRequest(
+                    user_message=user_message,
+                    session_id=session_id,
+                    messages=[],
+                    incognito=not memory_write,
+                ),
                 session_id=session_id,
                 user={"id": user_id, "is_anonymous": False},
             )
@@ -273,7 +277,9 @@ def process_whatsapp_turn_task(
     raw_response = getattr(pipeline_res, "final_answer", "") or ""
     if not raw_response.strip():
         return {"status": "answer_unavailable"}
-    answer_text = format_whatsapp_message(raw_response, getattr(pipeline_res, "citations", []) or [])
+    answer_text = format_whatsapp_message(
+        raw_response, getattr(pipeline_res, "citations", []) or []
+    )
     # A queued turn must not outlive STOP, unlink or replacement of its binding.
     current = run_in_worker_loop(get_account_link_by_phone(db, clean_p))
     if not current or current.get("id") != link["id"] or current.get("user_id") != user_id:
@@ -294,10 +300,15 @@ def process_whatsapp_turn_task(
 
     # History writes recheck consent transactionally; memory uses the shared MemoryStage.
     if sent and sync_history:
-        db.rpc("sync_whatsapp_turn", {
-            "p_link_id": link["id"], "p_user_id": user_id,
-            "p_question": user_message, "p_answer": answer_text,
-        }).execute()
+        db.rpc(
+            "sync_whatsapp_turn",
+            {
+                "p_link_id": link["id"],
+                "p_user_id": user_id,
+                "p_question": user_message,
+                "p_answer": answer_text,
+            },
+        ).execute()
     return {
         "status": "accepted_by_provider" if sent else "delivery_failed",
         "phone": mask_phone(clean_p),
