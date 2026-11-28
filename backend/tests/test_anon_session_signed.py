@@ -3,7 +3,7 @@
 Locks in:
   - POST /api/auth/anon-session issues a signed token (status 200).
   - The signed token resolves an anonymous identity via resolve_anon_identity.
-  - Tampered signatures are rejected with 400.
+  - Tampered or rotated-secret signatures are rejected with 401 (deployed clients re-mint on 401).
   - Bare "anon:<id>" is rejected with 400 in production, accepted in dev.
   - The resolve step never trusts an unsigned id asserted by the client.
 
@@ -50,7 +50,7 @@ def test_signed_token_resolves_identity():
 
 
 def test_tampered_signature_rejected():
-    """Flipping a character in the signature must yield 400 at resolve time."""
+    """Flipping a character in the signature must yield 401 at resolve time (same case as a rotated secret)."""
     issued = issue_anon_session_token()
     payload, _, sig = issued["token"].partition(".")
     # Flip one character in the signature. sig is base64url so each char is
@@ -59,19 +59,19 @@ def test_tampered_signature_rejected():
     tampered = f"{payload}.{bad_char}{sig[1:]}"
     with pytest.raises(HTTPException) as exc:
         resolve_anon_identity(_ANON_USER, tampered)
-    assert exc.value.status_code == 400
+    assert exc.value.status_code == 401
 
 
 def test_tampered_payload_rejected():
     """Tampering with the payload (so the signature no longer matches) must
-    yield 400 — prevents id-forgery by editing the payload directly."""
+    yield 401 — prevents id-forgery by editing the payload directly."""
     issued = issue_anon_session_token()
     payload, _, sig = issued["token"].partition(".")
     bad_char = "A" if payload[0] != "A" else "B"
     tampered = f"{bad_char}{payload[1:]}.{sig}"
     with pytest.raises(HTTPException) as exc:
         resolve_anon_identity(_ANON_USER, tampered)
-    assert exc.value.status_code == 400
+    assert exc.value.status_code == 401
 
 
 def test_malformed_token_rejected():

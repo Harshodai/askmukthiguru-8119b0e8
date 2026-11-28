@@ -134,3 +134,70 @@ def test_feedback_returns_503_not_fake_success(monkeypatch, tmp_path, fail, supa
 
 async def _noop(*_a, **_k):
     return None
+
+
+def test_feedback_insert_failure_writes_no_jsonl_row(monkeypatch, tmp_path):
+    c, rows, _ = _client(monkeypatch, tmp_path, user={"id": "u-1"}, fail=True)
+    calls: list[dict] = []
+
+    async def _rec(**kw):
+        calls.append(kw)
+
+    monkeypatch.setattr(feedback_api.jsonl_store, "record_feedback", _rec)
+    monkeypatch.setattr("app.core.refiner.mine_failed_session", _noop, raising=False)
+    assert c.post("/api/feedback/", json=_FEEDBACK).status_code == 503
+    assert calls == [] and rows == []
+    ok, _, _ = _client(monkeypatch, tmp_path, user={"id": "u-1"})
+    monkeypatch.setattr(feedback_api.jsonl_store, "record_feedback", _rec)
+    assert ok.post("/api/feedback/", json=_FEEDBACK).status_code == 200
+    assert len(calls) == 1
+
+
+def test_feedback_survives_jsonl_failure_after_insert(monkeypatch, tmp_path):
+    c, rows, _ = _client(monkeypatch, tmp_path, user={"id": "u-1"})
+
+    async def _boom(**_k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(feedback_api.jsonl_store, "record_feedback", _boom)
+    monkeypatch.setattr("app.core.refiner.mine_failed_session", _noop, raising=False)
+    assert c.post("/api/feedback/", json=_FEEDBACK).status_code == 200
+    assert len(rows) == 1
+
+
+def test_rate_writes_only_existing_columns_and_maps_rating(monkeypatch, tmp_path):
+    c, rows, _ = _client(monkeypatch, tmp_path, user={"id": "u-1"})
+    r = c.post(
+        "/api/feedback/rate",
+        json={"message_id": "m-1", "feedback_type": "negative", "query_text": "q"},
+    )
+    assert r.status_code == 201, r.text
+    assert r.json() == {"status": "ok", "id": "row-1"}
+    row = rows[0]
+    assert "message_id" not in row and "feedback_type" not in row and "response_summary" not in row
+    assert row["rating"] == -1
+    assert row["metadata_json"] == {
+        "kind": "rating",
+        "message_id": "m-1",
+        "feedback_type": "negative",
+    }
+
+
+@pytest.mark.parametrize("fail,supabase", [(True, True), (False, False)])
+def test_rate_returns_503_not_fake_success(monkeypatch, tmp_path, fail, supabase):
+    c, rows, _ = _client(monkeypatch, tmp_path, user={"id": "u-1"}, fail=fail, supabase=supabase)
+    r = c.post("/api/feedback/rate", json={"message_id": "m-1", "feedback_type": "positive"})
+    assert r.status_code == 503 and rows == []
+
+
+def test_clip_reports_excluded_from_thumbs_kpis():
+    from app import telemetry_db as t
+
+    rows = [
+        {"rating": 1, "metadata_json": {}},
+        {"rating": -1, "metadata_json": {"kind": "clip_report"}},
+        {"rating": -1, "metadata_json": '{"kind": "clip_report"}'},
+    ]
+    snap = t._quality_snapshot([], rows)
+    assert snap["thumbs_down_rate"] == 0.0
+    assert t._is_clip_report(rows[1]) and not t._is_clip_report(rows[0])

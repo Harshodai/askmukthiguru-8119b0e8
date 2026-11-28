@@ -44,6 +44,14 @@
 - **What:** subagents ran their own files; the full run found tests written for the old serial call order and the old single-function gate, and the browser showed a user-facing error the API runs never printed.
 - **Rule:** after parallel agent edits run the whole suite and one real-browser chat before review; check the live UI copy, not only API fields.
 
+### L-STALE-FRONTEND-1 (2026-11-28). A backend change that needs a client change is not safe until the client is published: the frontend on lovable.app is published separately from `main`.
+- **What:** after the anon-secret rotation the live browser failed ("Something went wrong") because the published bundle lacked the re-mint fix (checked by scanning the served JS for the fix's string). The backend now answers a signature mismatch with 401, which the already-deployed client recovers from; the browser test passed after the owner published the frontend.
+- **Rule:** make the server compatible with the clients that are live (here 401, not 400); verify the served bundle, not the repo.
+
+### L-BURST-CACHE-1 (2026-11-28). My first "after" load test reused the same three questions, so exact-cache hits made p95 look like 5 s (it was 36 s the run before).
+- **What:** with 36 distinct questions from 12 simultaneous users: 0 errors, p50 15.5 s, p95 34 s, wall 75 s. The binding limits are the 120/min client-side Haiku limiter (about 6-10 calls per chat) and 5 job workers; more workers are blocked by the HTTP-pool validator `(max_concurrent_chat + queue) x 3 <= 55`.
+- **Rule:** load tests use unique inputs. `OPENROUTER_RPM_LIMIT` raised 120 to 240 (no cost change per chat); re-measure after deploy.
+
 ### L-LIVE-EVAL-1 (2026-11-28). I wrote an ad hoc live runner although `scripts/ops/first_person_live_matrix.py` and `live_smoke_battery.py` exist; the case files have three row shapes.
 - **Rule:** reuse the repo batteries; if a runner is needed, key rows by `turns` or `question`, retry transient network errors, and aggregate `answer_outcome` from the logs by `abstain_reason` and `fp.rejected`.
 

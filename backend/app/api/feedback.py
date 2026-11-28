@@ -38,13 +38,6 @@ async def submit_feedback(
     user_id = user.get("id") if user else None
     feedback_text = feedback_in.feedback_text or feedback_in.comment
 
-    await jsonl_store.record_feedback(
-        session_id=user_id or "anonymous",
-        query=feedback_in.query,
-        response=feedback_in.answer,
-        feedback="positive" if feedback_in.rating > 0 else "negative",
-    )
-
     if feedback_in.rating <= 0:
         from app.core.refiner import mine_failed_session
 
@@ -75,9 +68,21 @@ async def submit_feedback(
             )
 
     try:
-        return await service.create_feedback(feedback_in, user_id=user_id)
+        created = await service.create_feedback(feedback_in, user_id=user_id)
     except FeedbackStoreError as exc:
         raise HTTPException(status_code=503, detail="Feedback could not be saved") from exc
+    # Secondary sink, only after the durable insert so a client retry of a failed
+    # request cannot duplicate the local row. Its failure never fails the response.
+    try:
+        await jsonl_store.record_feedback(
+            session_id=user_id or "anonymous",
+            query=feedback_in.query,
+            response=feedback_in.answer,
+            feedback="positive" if feedback_in.rating > 0 else "negative",
+        )
+    except OSError:
+        logging.getLogger(__name__).warning("feedback_jsonl_failed after supabase insert")
+    return created
 
 
 @router.get("/history", response_model=list[FeedbackResponse])
@@ -148,30 +153,22 @@ async def rate_feedback(
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    user_id = user.get("id")
-    client = _get_supabase_client()
-    if not client:
-        raise HTTPException(status_code=503, detail="Service temporarily unavailable")
-
-    row = {
-        "user_id": user_id,
-        "message_id": body.message_id,
-        "feedback_type": body.feedback_type,
-        "query_text": body.query_text,
-        "response_summary": body.response_summary,
-    }
     try:
-        result = await asyncio.to_thread(
-            lambda: client.table("feedback_events").insert(row).execute()
+        result = await FeedbackService().record_rating(
+            user_id=user.get("id"),
+            message_id=body.message_id,
+            feedback_type=body.feedback_type,
+            query_text=body.query_text,
+            response_summary=body.response_summary,
         )
-        if body.feedback_type == "positive":
-            from app.answer_outcome import record_useful_answer_signal
+    except FeedbackStoreError as exc:
+        raise HTTPException(status_code=503, detail="Feedback could not be saved") from exc
+    if body.feedback_type == "positive":
+        from app.answer_outcome import record_useful_answer_signal
 
-            record_useful_answer_signal("teaching", "helpful")
-        return {"status": "ok", "id": result.data[0]["id"] if result.data else None}
-    except Exception as e:
-        logging.getLogger(__name__).error("Failed to store rate feedback: %s", e)
-        raise HTTPException(status_code=500, detail="Failed to store feedback")
+        record_useful_answer_signal("teaching", "helpful")
+    rid = result.get("id")
+    return {"status": "ok", "id": None if rid == "stored" else rid}
 
 
 class EngagementFeedbackRequest(BaseModel):

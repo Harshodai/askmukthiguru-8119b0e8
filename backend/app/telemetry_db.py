@@ -102,6 +102,11 @@ def _feedback_metadata(row: dict[str, Any]) -> dict[str, Any]:
     return metadata if isinstance(metadata, dict) else {}
 
 
+def _is_clip_report(row: dict[str, Any]) -> bool:
+    """Faculty clip reports are stored as rating -1 rows; they are not seeker thumbs."""
+    return _feedback_metadata(row).get("kind") == "clip_report"
+
+
 def _is_first_person_feedback(row: dict[str, Any]) -> bool:
     """True when a feedback row came from the first-person surface.
 
@@ -130,6 +135,7 @@ def _quality_snapshot(
     ]
     faithfulness_nonzero = [value for value in faithfulness if value > 0.0]
     floor = float(getattr(settings, "faithfulness_floor", 0.6))
+    feedback_rows = [row for row in feedback_rows if not _is_clip_report(row)]
     tag_counts: dict[str, int] = {}
     fp_tag_counts: dict[str, int] = {}
     for row in feedback_rows:
@@ -595,7 +601,11 @@ async def get_kpis(
                 fb_query = fb_query.lte("created_at", safe_to)
             feedback_rows = fb_query.execute().data or []
             if feedback_rows:
-                thumbs = [f for f in feedback_rows if f.get("rating") is not None]
+                thumbs = [
+                    f
+                    for f in feedback_rows
+                    if f.get("rating") is not None and not _is_clip_report(f)
+                ]
                 up = sum(1 for f in thumbs if f["rating"] > 0)
                 thumbs_up_rate = up / len(thumbs) if thumbs else 0.0
             else:
@@ -712,7 +722,7 @@ async def get_timeseries_data(
         elif metric == "cost_usd":
             query = client.table("chat_queries").select("cost_estimate, created_at")
         elif metric == "thumbs_up_rate":
-            query = client.table("feedback_events").select("rating, created_at")
+            query = client.table("feedback_events").select("rating, created_at, metadata_json")
         elif metric == "retrieval_hit_rate":
             # Would need to check if citations exist
             query = client.table("chat_responses").select("citations, created_at")
@@ -777,7 +787,7 @@ async def get_timeseries_data(
                     buckets_data[bucket_index]["count"] += 1
                 elif metric == "thumbs_up_rate":
                     rating = item.get("rating")
-                    if rating is not None:
+                    if rating is not None and not _is_clip_report(item):
                         buckets_data[bucket_index]["ratings"] = buckets_data[bucket_index].get(
                             "ratings", []
                         ) + [rating]

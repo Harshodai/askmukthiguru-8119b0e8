@@ -2300,8 +2300,8 @@ class FirstPersonBridgeStage(Stage):
             # D-PQ9 (owner decision 2026-11-07): a check that could not run (for
             # example a scorer timeout) is a failure, not an absence of teaching.
             answer = (
-                "I couldn't finish checking the teachings for this question just now. "
-                "Please try again in a moment."
+                "I couldn't complete the check on this question. "
+                "Rephrasing it slightly, or asking again in a few minutes, may help."
             )
             method = "first_person_check_unavailable"
         else:

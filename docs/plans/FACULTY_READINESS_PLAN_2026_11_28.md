@@ -49,3 +49,19 @@ Scope: the production backend `https://askmukthiguru-8119b0e8-production.up.rail
 
 ## Sources
 Opened: Databricks, collect user feedback (https://docs.databricks.com/gcp/mlflow3/genai/human-feedback/user-feedback); "Every LLM feature needs a kill switch" (https://dev.to/zeybek/every-llm-feature-needs-a-kill-switch-3mf7); MLflow LLM-judge calibration (https://mlflow.org/articles/llm-judge-calibration/); OpenRouter limits (https://openrouter.ai/docs/api_reference/limits). Search snippets only, not opened: arXiv 2411.06037, 2601.04525, 2605.05482, 2604.08046.
+
+## Artifact filters + length cap (always on since 2026-11-28, owner decision: no flag for behaviour that should simply be on)
+- Inside the content quality gate, clips are rejected with bounded counters in `fp.rejected` (no text): `artifact_asr_restart` (lone lowercase one-word sentence, e.g. "everything. everything."), `artifact_audience_address` ("please be seated", "are you ready", "from today you are/will", "has freed"; applies even to Soul Sync practice clips), `artifact_outcome_promise` ("magic potion", "heal your ... of all", "everything happens. Everything comes."), `artifact_short_question_tail` (ends in a question of 4 words or fewer).
+- `FIRST_PERSON_MAX_CONTEXT_WORDS=150` set on Railway (code default 600): the harness drops the span furthest from the hit until a multi-span window fits; a single span already over 150 words cannot be trimmed and is not served (`too_long`).
+- Expected effect (modelled from a scroll of `first_person_v13_shadow`, not measured live): about 6 percent of servable spans removed by the filters, 4 videos lose all servable spans; the length cap removes the longest spans (162 spans exceed 140 words). Re-run the independent clip grader after deploy.
+- Not shipped (precision risk): spaced-hyphen ASR errors (9.5 percent of spans) and repeated-word and "ends in ?" filters; the spaced hyphen needs a re-ingest with an extended `asr_cleaner` (invariants 2/13).
+- `FIRST_PERSON_BOUNDARY_GUARD_ENABLED` is not set anywhere in this repo, so in prod it is the code default `False`: boundary quality rests on the standalone and relevance gates plus the v13 builder's snapping.
+
+## Post-deploy results (2026-11-28, deployment 5e1cdacb of PR 124; measured)
+- `/api/healthz` 200, `ready: true`, CORS preflight from `https://askmukthiguru.lovable.app` 200 with that origin.
+- Mantra-vs-prayer returns the static abstain (single-turn re-check; the leak was found in a 2-turn session).
+- Rotated anon secret: with the published frontend a stale token re-mints and the answer is served (49 of 50 counter). The published bundle did not contain the fix until the owner published the frontend; the backend now returns 401 for a signature mismatch so older clients recover too.
+- New counters live: of 19 `decide_abstain` outcomes in the first 40 post-deploy turns, 15 were `abstain_not_standalone`, 3 `abstain_question_only_clip`, 1 `abstain_speaker_unverified_or_no`; only 1 `integrity_speaker_unverified`. The "integrity 4-5 per question" seen before was the old bundled counter, not a corpus defect.
+- 12 users, 36 distinct questions: no errors, p50 15.5 s, p95 34 s, wall 75 s; 24 abstained (odd phrasing), 12 served. Same-question burst (cache) p95 5 s: not representative.
+- Independent grader on 34 served clips (before deploy; Sonnet, not a human): 65 percent relevance 2 or higher, 35 percent 0-1, 76 percent with a defect. Artifact filters (default off) address part of it; the rest needs re-ingest or the judge.
+- Crisis phrases in hi/te/ta/kn return the helpline with no clip.

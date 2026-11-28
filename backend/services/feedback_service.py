@@ -94,6 +94,31 @@ class FeedbackService:
             }
         )
 
+    async def record_rating(
+        self,
+        *,
+        user_id: Optional[str],
+        message_id: str,
+        feedback_type: str,
+        query_text: Optional[str],
+        response_summary: Optional[str],
+    ) -> dict:
+        """Persist a thumbs up/down. message_id/feedback_type live in metadata_json:
+        prod feedback_events has no such columns (verified 2026-11-28)."""
+        return await self._insert_event(
+            {
+                "user_id": user_id,
+                "rating": 1 if feedback_type == "positive" else -1,
+                "query_text": query_text,
+                "answer_text": response_summary,
+                "metadata_json": {
+                    "kind": "rating",
+                    "message_id": message_id,
+                    "feedback_type": feedback_type,
+                },
+            }
+        )
+
     async def get_feedback_history(self, limit: int = 100) -> list[dict]:
         client = _get_client()
         if not client:

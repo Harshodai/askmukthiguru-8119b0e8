@@ -338,7 +338,7 @@ def test_clean_docker_sim_qb_constitutional_adherence_traps_07_fail_closed():
             "verified verbatim teaching",
             "rather say so than improvise",
             "couldn't reach my teaching library",
-            "couldn't finish checking",
+            "couldn't complete the check",
         )
     ), f"Unexpected abstain text: {res.final_answer!r}"
 

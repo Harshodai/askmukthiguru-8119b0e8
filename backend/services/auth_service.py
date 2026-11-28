@@ -842,7 +842,7 @@ def issue_anon_session_token() -> dict:
 def verify_anon_session_token(token: str) -> str:
     """Verify a signed anonymous session token and return the ``anon:<id>`` identity.
 
-    Raises HTTPException(400) on any malformation or signature mismatch.
+    Raises HTTPException(400) on a malformed token and HTTPException(401) on a signature mismatch.
     Constant-time compare via hmac.compare_digest (invariant L-K3-1).
     """
     if not token or "." not in token:
@@ -859,7 +859,11 @@ def verify_anon_session_token(token: str) -> str:
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid anonymous session token")
     if not hmac.compare_digest(expected, provided):
-        raise HTTPException(status_code=400, detail="Invalid anonymous session token")
+        # 401, not 400: a well-formed token whose signature no longer verifies (the HMAC secret
+        # was rotated) is an expired credential. Deployed clients already re-mint an anonymous
+        # token once on 401 (2026-11-28: a 400 stranded returning visitors until they cleared
+        # localStorage). Malformed tokens above stay 400.
+        raise HTTPException(status_code=401, detail="Invalid anonymous session token")
     return f"anon:{payload}"
 
 
