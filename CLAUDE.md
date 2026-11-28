@@ -270,6 +270,10 @@ All code, vector ingestion, serving contract updates, and deployments are comple
 - `config/helplines.yaml` (15 entries) AI-web-verified and owner-approved 2026-09-23; not a phone-call verification. On-call/safety reviewer: project owner (Harshodai).
 - #1 priority (2026-09-24): clean data and a stable baseline for first-person verbatim answers before feature work. Spec: `docs/agent/first_person_baseline_prompt.md`; design: `docs/agent/first_person_research_2026-09-24.md`; master prompt: `docs/agent/CLAUDE_CODE_MASTER_PROMPT.md`.
 
+## Pre-invite readiness check (faculty preview)
+
+Run `python3 scripts/ops/faculty_readiness_gate.py [--flush-cache]` once per deploy (about 80 chat turns; never loop it). It runs the config-drift audit, `live_smoke_battery.py`, a no-prose-leak case, crisis phrases in hi/te/ta/kn, a 12-user burst of DISTINCT questions (p95 limit 20 s), a served-clip defect scan and the Railway log counters, and exits 1 on any FAIL. `--flush-cache` purges only response caches (spend, quota, jobs kept; invariant X35). It cannot test Google sign-in, signed-in feedback or the human reviews. Plan and results: `docs/plans/FACULTY_READINESS_PLAN_2026_11_28.md`. Never merge with CI pending: "Wait for CI" is off in Railway, so a red `main` deploys.
+
 ## Compact instructions
 
 When compacting, keep: the current task and files modified, test commands run and their result, pending human-only gates, and the open-work list path. Drop tool-output dumps, file listings and exploration that led nowhere.

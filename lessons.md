@@ -44,6 +44,10 @@
 - **What:** subagents ran their own files; the full run found tests written for the old serial call order and the old single-function gate, and the browser showed a user-facing error the API runs never printed.
 - **Rule:** after parallel agent edits run the whole suite and one real-browser chat before review; check the live UI copy, not only API fields.
 
+### L-MERGE-BEFORE-CI-1 (2026-11-28). PR 125 was merged while CI was pending; main went red on 5 tests that still asserted the old "try again" copy.
+- **What:** the copy-change agent updated some assertions and missed `test_abstain_cause.py` and `test_provider_outage_honest_message_2026_11_20.py`; my local full run only reported them after the merge.
+- **Rule:** grep the whole repo for the old string before changing user-facing copy, and merge only after the full backend suite and CI are green (Railway "Wait for CI" is off, so main deploys). One command now covers the post-deploy side: `scripts/ops/faculty_readiness_gate.py`.
+
 ### L-STALE-FRONTEND-1 (2026-11-28). A backend change that needs a client change is not safe until the client is published: the frontend on lovable.app is published separately from `main`.
 - **What:** after the anon-secret rotation the live browser failed ("Something went wrong") because the published bundle lacked the re-mint fix (checked by scanning the served JS for the fix's string). The backend now answers a signature mismatch with 401, which the already-deployed client recovers from; the browser test passed after the owner published the frontend.
 - **Rule:** make the server compatible with the clients that are live (here 401, not 400); verify the served bundle, not the repo.
