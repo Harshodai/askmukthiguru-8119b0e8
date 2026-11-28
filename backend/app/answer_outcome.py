@@ -316,7 +316,7 @@ def emit_answer_outcome(record: dict[str, Any], *, first_person_only: bool) -> N
             logger.info(
                 "answer_outcome %s",
                 json.dumps(record, default=str, separators=(",", ":")),
-                extra={"fields": record},
+                extra={"mg_fields": record},
             )
         else:
             logger.info("answer_outcome %s", record)

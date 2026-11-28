@@ -60,7 +60,7 @@ def test_log_line_is_still_the_dict_repr_without_a_trace(caplog):
         emit_answer_outcome(record, first_person_only=True)
     (line,) = [r for r in caplog.records if r.getMessage().startswith("answer_outcome")]
     assert line.getMessage() == f"answer_outcome {record}"
-    assert not hasattr(line, "fields")
+    assert not hasattr(line, "mg_fields")
 
 
 def _run_execute(monkeypatch, enabled: bool, inner):
@@ -404,7 +404,7 @@ def test_trace_on_emits_json_message_plus_fields(caplog):
         emit_answer_outcome(record, first_person_only=True)
     (line,) = [r for r in caplog.records if r.getMessage().startswith("answer_outcome")]
     assert json.loads(line.getMessage().split(" ", 1)[1])["fp"]["n_retrieved"] == 2
-    assert line.fields["request_id"] == "t1"
+    assert line.mg_fields["request_id"] == "t1"
 
 
 def test_formatter_merges_fields_at_top_level_without_mangling_ids():
@@ -415,7 +415,7 @@ def test_formatter_merges_fields_at_top_level_without_mangling_ids():
     log = logging.LogRecord(
         "app.answer_outcome", logging.INFO, __file__, 1, "answer_outcome {}", (), None
     )
-    log.fields = record
+    log.mg_fields = record
     out = json.loads(main_module.JSONFormatter(railway_levels=True).format(log))
     assert out["message"] == "answer_outcome"
     assert out["level"] == "info"

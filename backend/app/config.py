@@ -1367,6 +1367,12 @@ class Settings(BaseSettings):
     # Ids, counts, scores and durations only; never seeker, clip or LLM text. Default False:
     # the record and its log line are byte-identical to before; rollback = unset.
     log_turn_trace_enabled: bool = False
+    # Comma list of EXACT logger names set to DEBUG at startup, e.g.
+    # "services.first_person_pipeline,app.pipeline.stages.first_person_bridge". Empty = unchanged.
+    # Only the six audited first-person modules in app.main.DEBUG_LOGGER_ALLOWLIST are honoured;
+    # anything else (including a parent such as "services") is ignored. Those modules never format
+    # exception text or content at DEBUG/INFO (tests/test_debug_logs_no_exception_text_2026_11_28.py).
+    log_debug_loggers: str = ""
     # Gate Swagger/OpenAPI docs. Disabled in production to avoid exposing the full API schema.
     show_swagger: bool = False
     # Explicit opt-in for the X-Test-Key backdoor strategy. NEVER enable in production.

@@ -185,7 +185,7 @@ class JSONFormatter(logging.Formatter):
                 log_obj["request_id"] = cid
         except Exception as _e:
             logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
-        fields = getattr(record, "fields", None)
+        fields = getattr(record, "mg_fields", None)
         if isinstance(fields, dict):
             # Structured record (the per-turn `answer_outcome`): merge its keys at top level so
             # Railway can query `@outcome:abstained`. The message keeps only the event name,
@@ -247,6 +247,52 @@ def install_json_stdout_logging(root: logging.Logger | None = None) -> None:
 if settings.log_json_stdout_enabled:
     install_json_stdout_logging()
 
+
+# Exact logger names LOG_DEBUG_LOGGERS may raise to DEBUG: the first-person modules whose
+# DEBUG/INFO lines are audited never to format exception text or content
+# (tests/test_debug_logs_no_exception_text_2026_11_28.py keeps this set and that test in sync).
+# A parent name such as "services" or "app" would also switch on every unaudited child, so it
+# is rejected, never expanded.
+DEBUG_LOGGER_ALLOWLIST = frozenset(
+    {
+        "services.first_person_pipeline",
+        "services.first_person_legacy",
+        "services.first_person_context_store",
+        "services.first_person_context_harness",
+        "services.first_person_judge",
+        "app.pipeline.stages.first_person_bridge",
+    }
+)
+
+
+def apply_debug_loggers(spec: str) -> tuple[list[str], int]:
+    """Set the named audited loggers to DEBUG (LOG_DEBUG_LOGGERS).
+
+    Returns ``(applied names, ignored count)``. Anything outside ``DEBUG_LOGGER_ALLOWLIST``
+    is ignored. An empty spec changes nothing.
+    """
+    applied: list[str] = []
+    ignored = 0
+    for raw in (spec or "").split(","):
+        name = raw.strip()
+        if not name:
+            continue
+        if name in DEBUG_LOGGER_ALLOWLIST:
+            logging.getLogger(name).setLevel(logging.DEBUG)
+            applied.append(name)
+        else:
+            ignored += 1
+    return applied, ignored
+
+
+if settings.log_debug_loggers:
+    _debug_applied, _debug_ignored = apply_debug_loggers(settings.log_debug_loggers)
+    logging.getLogger(__name__).info(
+        "DEBUG logging enabled for %d audited logger(s) (%s); %d name(s) ignored (not on the allowlist)",
+        len(_debug_applied),
+        ",".join(_debug_applied),
+        _debug_ignored,
+    )
 # sentence-transformers prints a tqdm "Batches" bar on every encode/predict while its
 # logger is at INFO (L-04: 221 non-JSON lines in one graded run).
 logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
