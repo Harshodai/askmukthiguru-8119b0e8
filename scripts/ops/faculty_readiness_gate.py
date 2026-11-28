@@ -62,6 +62,7 @@ class Gate:
     def __init__(self, host: str, origin: str, service: str):
         self.host, self.origin, self.service = host.rstrip("/"), origin, service
         self.rows: list[tuple[str, str, str]] = []
+        self.throttled = 0
 
     def add(self, status: str, name: str, detail: str = "") -> None:
         self.rows.append((status, name, detail))
@@ -92,12 +93,19 @@ class Gate:
 
     def ask(self, tok, h, q, lang="en", history=None):
         t0 = time.time()
-        code, j = self.req(
-            "/api/chat",
-            {"messages": history or [], "user_message": q, "session_id": tok, "language": lang},
-            h,
-        )
-        if code != 200 or "poll_url" not in j:
+        throttled = 0
+        for _ in range(5):  # the per-IP bucket (20/min default) is shared by everyone on one NAT
+            code, j = self.req(
+                "/api/chat",
+                {"messages": history or [], "user_message": q, "session_id": tok, "language": lang},
+                h,
+            )
+            if code != 429:
+                break
+            throttled += 1
+            time.sleep(15)
+        self.throttled += throttled
+        if code not in (200, 202) or "poll_url" not in j:  # 202 = queued job, normal
             return {"http": code, "e2e": time.time() - t0}
         res: dict = {}
         for _ in range(240):
@@ -164,8 +172,9 @@ class Gate:
         except Exception:
             ok = False
         self.add(OK if ok else FAIL, f"CORS preflight from {self.origin}")
-        code, _ = self.req("/api/chat", {"messages": [], "user_message": "hi", "session_id": "a.b"},
-                           {"X-Session-Id": "a.b"})
+        bad = "abc." + "A" * 43  # well-formed base64url signature that cannot verify
+        code, _ = self.req("/api/chat", {"messages": [], "user_message": "hi", "session_id": bad},
+                           {"X-Session-Id": bad})
         self.add(OK if code == 401 else FAIL, "bad-signature anon token -> 401 (clients re-mint)", f"got {code}")
 
     def no_prose_leak(self):
@@ -257,11 +266,13 @@ def main() -> int:
         g.flush_cache()
     g.audit()
     g.basics()
-    if not a.skip_smoke:
-        g.smoke()
     g.no_prose_leak()
     g.crisis()
+    if not a.skip_smoke:
+        g.smoke()
+    time.sleep(60)  # let the per-IP bucket refill before the burst
     g.burst(a.p95_limit)
+    g.add(OK if g.throttled == 0 else WARN, "HTTP 429 (per-IP bucket) retries during the run", str(g.throttled))
     g.logs()
     fails = [r for r in g.rows if r[0] == FAIL]
     print(f"\n{len(g.rows)} checks, {len(fails)} FAIL, {sum(r[0] == WARN for r in g.rows)} WARN")
