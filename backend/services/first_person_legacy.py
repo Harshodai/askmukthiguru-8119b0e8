@@ -139,7 +139,8 @@ class LegacyStoreServingMixin:
                         _ans_box["verdict"] = verdict
                     except Exception as exc:
                         logger.info(
-                            "[FirstPersonPipeline] Speculative answerability error: %s", exc
+                            "[FirstPersonPipeline] Speculative answerability error: %s",
+                            type(exc).__name__,
                         )
                         _ans_box["verdict"] = None
                     finally:
@@ -275,7 +276,10 @@ class LegacyStoreServingMixin:
                             token_sink=_ans_tokens,
                         )
                     except Exception as e:
-                        logger.info("[FirstPersonPipeline] Answerability background error: %s", e)
+                        logger.info(
+                            "[FirstPersonPipeline] Answerability background error: %s",
+                            type(e).__name__,
+                        )
                         _ans_box["verdict"] = None
                     finally:
                         _ans_box["duration_ms"] = (time.monotonic() - ans_start) * 1000.0
@@ -520,7 +524,7 @@ class LegacyStoreServingMixin:
                 except Exception as exc:
                     logger.info(
                         "[FirstPersonPipeline] Answerability join failed; continuing as indeterminate: %s",
-                        exc,
+                        type(exc).__name__,
                     )
                     early_verdict = None
             if (

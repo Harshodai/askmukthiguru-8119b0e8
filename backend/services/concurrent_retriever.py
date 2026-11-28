@@ -1,19 +1,20 @@
 import asyncio
-import hashlib
 import logging
 from collections.abc import Callable, Coroutine
 from typing import Any
+
+from app.log_safe import q_digest
 
 logger = logging.getLogger(__name__)
 
 
 def _query_token(query: str) -> str:
-    """Non-reversible 8-char token derived from query for log correlation.
+    """Keyed 8-char token derived from query for log correlation (no dictionary reversal).
 
     Avoids exposing raw user content in logs while still allowing
     correlation between retrieval failure entries for the same query.
     """
-    return hashlib.sha256(query.encode()).hexdigest()[:8]
+    return q_digest(query)
 
 
 class ConcurrentRetriever:

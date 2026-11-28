@@ -350,8 +350,17 @@ def log_runtime_budget(logger: logging.Logger, settings: Any) -> None:
     try:
         for warning in serving_gate_warnings(settings):
             logger.warning("Serving gate posture: %s", warning)
-        for warning in expansion_posture_warnings(settings):
-            logger.warning("Context expansion posture: %s", warning)
+        # One WARNING for the whole drift (was one per flag, 5 identical lines per boot).
+        # Still a WARNING: the drift is real and the posture is the owner's decision.
+        drifting = [row["env"] for row in expansion_posture(settings) if row["effective"]]
+        if drifting:
+            logger.warning(
+                "Context expansion posture: %d flag(s) on but documented off until measured "
+                "(AGENTS.md serving invariant 3): %s fingerprint=%s; record the owner decision",
+                len(drifting),
+                ",".join(drifting),
+                expansion_posture_fingerprint(settings),
+            )
         table = " ".join(f"{row['name']}={row['value']}" for row in llm_budget_table(settings))
         logger.info("LLM budget table: %s", table)
         cap = capacity_snapshot(settings)

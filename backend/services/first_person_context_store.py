@@ -494,7 +494,7 @@ class FirstPersonContextStore:
                 )
                 created.append(key)
             except Exception as exc:  # already exists / unsupported schema
-                logger.debug("context store: index %s not created: %s", key, exc)
+                logger.debug("context store: index %s not created: %s", key, type(exc).__name__)
         return created
 
     def upsert(
@@ -778,7 +778,7 @@ class FirstPersonContextStore:
                     out.sort(key=lambda item: item[2], reverse=True)
                     return out
             except Exception as exc:  # pragma: no cover - API/version dependent
-                logger.debug("[ContextStore] grouped query unavailable: %s", exc)
+                logger.debug("[ContextStore] grouped query unavailable: %s", type(exc).__name__)
 
         return self._group_in_python(
             query_dense,
@@ -840,7 +840,8 @@ class FirstPersonContextStore:
                 # collection built before `passage_sparse` existed must still answer from
                 # dense alone. Falling through here is what makes that promise true.
                 logger.debug(
-                    "[ContextStore] sparse prefetch unavailable; retrying dense-only: %s", exc
+                    "[ContextStore] sparse prefetch unavailable; retrying dense-only: %s",
+                    type(exc).__name__,
                 )
                 response = self._client.query_points(
                     collection_name=self._collection,
@@ -1078,7 +1079,7 @@ class FirstPersonContextStore:
             logger.debug(
                 "[ContextStore] enrichment re-hydration failed for %s: %s",
                 context.parent.parent_unit_id,
-                exc,
+                type(exc).__name__,
             )
             ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="error").inc()
             return context
@@ -1146,7 +1147,7 @@ class FirstPersonContextStore:
             logger.debug(
                 "[ContextStore] adjacency parent hydration failed for %s: %s",
                 current_span.source_span_id,
-                exc,
+                type(exc).__name__,
             )
             return None
 
@@ -1235,7 +1236,7 @@ class FirstPersonContextStore:
             logger.debug(
                 "[ContextStore] cross-parent predecessor hydration failed for %s: %s",
                 predecessor_id,
-                exc,
+                type(exc).__name__,
             )
             return None
         if not previous_context.spans:
@@ -1446,7 +1447,9 @@ class FirstPersonContextStore:
                 cited_span_ids,
             )
         except (FirstPersonContextStoreError, TypeError, ValueError) as exc:
-            logger.debug("[ContextStore] exact-cache parent hydration failed: %s", exc)
+            logger.debug(
+                "[ContextStore] exact-cache parent hydration failed: %s", type(exc).__name__
+            )
             return None
 
         parent = hydrated.parent
@@ -1671,7 +1674,9 @@ class FirstPersonContextStore:
                 with_vectors=["passage_dense"],
             )
         except Exception as exc:  # pragma: no cover - transport dependent
-            logger.debug("[FirstPersonContextStore] passage_dense read unavailable: %s", exc)
+            logger.debug(
+                "[FirstPersonContextStore] passage_dense read unavailable: %s", type(exc).__name__
+            )
             return {}
         out: dict[str, list[float]] = {}
         for record in records or ():

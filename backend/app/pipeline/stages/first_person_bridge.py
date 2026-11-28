@@ -42,6 +42,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from app.config import settings
+from app.log_safe import q_tag
 from app.orchestrator_utils import _translate_cached
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
@@ -69,6 +70,15 @@ if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
 
 logger = logging.getLogger(__name__)
+
+
+_LOG_CODE_BAD = re.compile(r"[^a-z0-9_]")
+
+
+def _log_code(value: object) -> str:
+    """A bounded reason code for a log line: lowercase [a-z0-9_], at most 48 chars, never free text."""
+    return _LOG_CODE_BAD.sub("", str(value or "").strip().lower())[:48] or "none"
+
 
 # DistressLevel.MODERATE; an int so this module stays import-light.
 _DISTRESS_DECLINE_LEVEL = 2
@@ -312,7 +322,9 @@ def _dispatch_fp_memory(
                     "[FirstPersonBridge] Canonical memory write timed out for verbatim turn"
                 )
             except Exception as exc:
-                logger.warning("[FirstPersonBridge] Canonical memory write failed: %s", exc)
+                logger.warning(
+                    "[FirstPersonBridge] Canonical memory write failed: %s", type(exc).__name__
+                )
 
         _task = asyncio.create_task(_canonical_write(), name="fp_memory:canonical")
         _FP_MEMORY_WRITE_TASKS.add(_task)
@@ -345,7 +357,9 @@ def _dispatch_fp_memory(
                     )
                     logger.info("[FirstPersonBridge] Outbox memory enqueued for verbatim turn")
                 except Exception as exc:
-                    logger.warning("[FirstPersonBridge] Outbox memory enqueue failed: %s", exc)
+                    logger.warning(
+                        "[FirstPersonBridge] Outbox memory enqueue failed: %s", type(exc).__name__
+                    )
 
             _otask = asyncio.create_task(_outbox_write(), name="fp_memory:outbox")
             _FP_MEMORY_WRITE_TASKS.add(_otask)
@@ -518,7 +532,8 @@ async def _translate_glue_only(
             return None
         except Exception as exc:
             logger.warning(
-                "[FirstPersonBridge] Glue translation failed; keeping English glue: %s", exc
+                "[FirstPersonBridge] Glue translation failed; keeping English glue: %s",
+                type(exc).__name__,
             )
             return None
         if isinstance(translated, str) and translated.strip():
@@ -549,7 +564,9 @@ def _distress_compassion_framing(ctx: PipelineContext) -> str:
         try:
             template = serene_mind.get_response(assessment)
         except Exception as exc:  # noqa: BLE001 — fall back to the static copy
-            logger.warning("[FirstPersonBridge] Serene Mind template unavailable: %s", exc)
+            logger.warning(
+                "[FirstPersonBridge] Serene Mind template unavailable: %s", type(exc).__name__
+            )
         else:
             if isinstance(template, str) and template.strip():
                 return template
@@ -856,7 +873,10 @@ async def _resolve_question_parts(container: Any, question: str) -> list[str]:
                 if len(distinct) >= 2:
                     return distinct[:_MULTIPART_MAX_PARTS]
         except Exception as exc:
-            logger.debug("[FirstPersonBridge] LLM query decomposition fell back to regex: %s", exc)
+            logger.debug(
+                "[FirstPersonBridge] LLM query decomposition fell back to regex: %s",
+                type(exc).__name__,
+            )
 
     parts = _question_parts(question)
     if len(parts) >= 2:
@@ -1322,9 +1342,8 @@ class FirstPersonBridgeStage(Stage):
                 followup_resolved = True
                 history_prepended = True
                 logger.info(
-                    "[FirstPersonBridge] Resolved follow-up query (len=%d sha=%s)",
-                    len(retrieval_query),
-                    hashlib.sha256(retrieval_query.encode()).hexdigest()[:12],
+                    "[FirstPersonBridge] Resolved follow-up query (%s)",
+                    q_tag(retrieval_query),
                 )
 
         # Routing metadata for this turn: the kind and the rule that matched, logged as
@@ -1365,7 +1384,9 @@ class FirstPersonBridgeStage(Stage):
             # GraphStage performs its own retrieval embedding, so a failure
             # here only means "no bridge" (kept at DEBUG — the embedding
             # service logs its own errors).
-            logger.debug("[FirstPersonBridge] Query embed unavailable; no bridge: %s", exc)
+            logger.debug(
+                "[FirstPersonBridge] Query embed unavailable; no bridge: %s", type(exc).__name__
+            )
             return await self._decline(ctx, "error", compassion=distress_compassion)
         dense = _dense_vector(original_encoded, settings.embedding_dimension)
         if dense is None:
@@ -1406,8 +1427,8 @@ class FirstPersonBridgeStage(Stage):
                 _, cached_vec = _cached
                 retrieval_dense = _blend_hyde_vec(dense, cached_vec)
                 logger.info(
-                    "[FirstPersonBridge] HyDE cache hit for query hash %s; using deterministic cached vector.",
-                    _q_hash[:8],
+                    "[FirstPersonBridge] HyDE cache hit for query %s; using deterministic cached vector.",
+                    q_tag(_q_norm),
                 )
             else:
                 try:
@@ -1450,7 +1471,8 @@ class FirstPersonBridgeStage(Stage):
                 except Exception as _hyde_exc:
                     # Fail-open: timeout, circuit-open, or any error → original query.
                     logger.debug(
-                        "[FirstPersonBridge] HyDE generation skipped (fail-open): %s", _hyde_exc
+                        "[FirstPersonBridge] HyDE generation skipped (fail-open): %s",
+                        type(_hyde_exc).__name__,
                     )
 
         user_lang = str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en")
@@ -1509,7 +1531,7 @@ class FirstPersonBridgeStage(Stage):
                 ) as _seen_exc:
                     logger.debug(
                         "[FirstPersonBridge] Server seen clips lookup failed (fail-open): %s",
-                        _seen_exc,
+                        type(_seen_exc).__name__,
                     )
             if seen_videos or (user_profile and getattr(user_profile, "topics_of_interest", None)):
                 memory_signals = {
@@ -2094,7 +2116,9 @@ class FirstPersonBridgeStage(Stage):
             try:
                 await record_comprehension_signal(ctx, container, citations)
             except SIGNAL_ERRORS as _cs_exc:
-                logger.debug("[FirstPersonBridge] comprehension signal skipped: %s", _cs_exc)
+                logger.debug(
+                    "[FirstPersonBridge] comprehension signal skipped: %s", type(_cs_exc).__name__
+                )
         if (
             getattr(settings, "first_person_server_seen_clips_enabled", False)
             and _signals_consented
@@ -2135,7 +2159,7 @@ class FirstPersonBridgeStage(Stage):
             ) as _rec_exc:
                 logger.debug(
                     "[FirstPersonBridge] Server seen clips recording failed: %s",
-                    _rec_exc,
+                    type(_rec_exc).__name__,
                 )
         return PipelineResult(
             final_answer=answer,
@@ -2335,10 +2359,17 @@ class FirstPersonBridgeStage(Stage):
                 latency_ms=0.0,
             ),
         )
+        # `reason` is the pipeline's abstain reason (a closed vocabulary); the old
+        # constant `llm_fallback_disabled` hid which gate said no. `fallback=disabled`
+        # keeps that fact for anyone who grepped it.
         logger.info(
-            "FIRST_PERSON_BRIDGE_ABSTAIN trace_id=%s status=%s reason=llm_fallback_disabled",
+            "FIRST_PERSON_BRIDGE_ABSTAIN trace_id=%s status=%s reason=%s cause=%s "
+            "answerability=%s fallback=disabled",
             getattr(ctx, "trace_id", "unknown"),
             status or "unknown",
+            _log_code(reason),
+            cause,
+            _log_code(answerability),
         )
         return PipelineResult(
             final_answer=answer,

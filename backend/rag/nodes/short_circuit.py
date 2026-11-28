@@ -10,6 +10,7 @@ from typing import Optional
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from app.log_safe import q_tag
 from app.tracing import trace_rag_node
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
@@ -197,11 +198,10 @@ async def rewrite_query(state: GraphState, config: Optional[RunnableConfig] = No
         rewritten = await asyncio.wait_for(rewrite_call, timeout=t_out)
     except Exception as exc:
         logger.warning(
-            "CRAG: rewrite failed after <=%.0fs (%s: %s); reusing the original query %r",
+            "CRAG: rewrite failed after <=%.0fs (%s); reusing the original query (%s)",
             t_out,
             type(exc).__name__,
-            exc,
-            original[:80],
+            q_tag(original),
         )
         rewritten = original
     try:
@@ -209,13 +209,13 @@ async def rewrite_query(state: GraphState, config: Optional[RunnableConfig] = No
     except ValidationError as exc:
         reasons = "; ".join(e["msg"] for e in exc.errors())
         logger.warning(
-            "CRAG: rewrite rejected (%s); reusing the original query %r",
+            "CRAG: rewrite rejected (%s); reusing the original query (%s)",
             reasons,
-            original[:80],
+            q_tag(original),
         )
         rewritten = original
     else:
-        logger.info(f"CRAG rewrite #{rewrite_count}: {original[:50]}... -> {rewritten[:50]}...")
+        logger.info(f"CRAG rewrite #{rewrite_count}: {q_tag(original)} -> {q_tag(rewritten)}")
 
     return {
         "rewritten_query": rewritten,

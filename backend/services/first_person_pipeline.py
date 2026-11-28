@@ -724,7 +724,7 @@ def record_injection_screen(lane: str, action: str) -> None:
 
         INJECTION_SCREEN_TOTAL.labels(lane=lane, action=action).inc()
     except (ImportError, ValueError) as exc:
-        logger.debug("injection screen metric not recorded: %s", exc)
+        logger.debug("injection screen metric not recorded: %s", type(exc).__name__)
 
 
 def apply_injection_screen(clips: list[dict[str, Any]], *, lane: str) -> list[dict[str, Any]]:
@@ -1240,7 +1240,9 @@ def _estimate_fp_tokens(*texts: Any) -> int:
 
         return sum(estimate_tokens(t if isinstance(t, str) else str(t or "")) for t in texts)
     except Exception as e:  # noqa: BLE001 - metrics must not break serving
-        logger.warning("[FirstPersonPipeline] Token estimate failed; counting 0: %s", e)
+        logger.warning(
+            "[FirstPersonPipeline] Token estimate failed; counting 0: %s", type(e).__name__
+        )
         return 0
 
 
@@ -1336,7 +1338,7 @@ async def _relevance_select_jev_async(
                 headers=headers,
             )
             if resp.status_code != 200:
-                logger.info("Jev clip selection HTTP %d: %s", resp.status_code, resp.text[:100])
+                logger.info("Jev clip selection HTTP %d", resp.status_code)
                 return _RELEVANCE_INDETERMINATE
             data = resp.json()
             answers = data.get("answers", {})
@@ -1677,15 +1679,18 @@ async def _relevance_select_scored_async(
                     elapsed,
                 )
     except ProviderRefusalError as e:  # noqa: BLE001 - CA-4: fail closed, distinct line
+        # The refusal text is model output: log the type only.
         _gate_failure_log(
-            "[FirstPersonPipeline] Relevance check refused by provider (%s); abstaining", e
+            "[FirstPersonPipeline] Relevance check refused by provider (%s); abstaining",
+            type(e).__name__,
         )
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt))
         return _RELEVANCE_INDETERMINATE
     except Exception as e:  # noqa: BLE001 - fail closed
         _gate_failure_log(
-            "[FirstPersonPipeline] Relevance check indeterminate (timeout/error): %s", e
+            "[FirstPersonPipeline] Relevance check indeterminate (timeout/error): %s",
+            type(e).__name__,
         )
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt))
@@ -1726,19 +1731,19 @@ async def _relevance_select_scored_async(
                     scores.append(v)
         except (ValueError, KeyError, TypeError, AttributeError) as json_err:
             _gate_failure_log(
-                "[FirstPersonPipeline] Relevance check unparseable JSON output %r (err=%s); abstaining",
-                str(raw)[:120],
-                json_err,
+                "[FirstPersonPipeline] Relevance check unparseable JSON output (len=%d, err=%s); abstaining",
+                len(str(raw)),
+                type(json_err).__name__,
             )
             return _RELEVANCE_INDETERMINATE
     else:
         try:
             scores = [int(tok) for tok in str(raw).strip().replace(" ", "").split(",")]
         except ValueError:
-            # The reply is a model answer to a scoring prompt (never seeker words); cap and flatten it.
+            # Model output: never logged, only its length.
             _gate_failure_log(
-                "[FirstPersonPipeline] Relevance check unparseable output %r; abstaining",
-                str(raw)[:60],
+                "[FirstPersonPipeline] Relevance check unparseable output (len=%d); abstaining",
+                len(str(raw)),
             )
             return _RELEVANCE_INDETERMINATE
     if len(scores) != len(clips) or any(not 0 <= v <= 3 for v in scores):
@@ -1886,7 +1891,7 @@ def _llm_rerank_clips(
         return reranked
 
     except Exception as e:
-        logger.debug("[LLM rerank] fallback (timeout/error): %s", e)
+        logger.debug("[LLM rerank] fallback (timeout/error): %s", type(e).__name__)
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt))
         return clips  # fallback: cosine order
@@ -2180,7 +2185,7 @@ async def _joint_sufficiency_verdict(
     try:
         raw = await _bounded(_call(), _relevance_timeout_s())
     except Exception as e:  # noqa: BLE001 - fail closed (CancelledError is BaseException)
-        logger.info("[FirstPersonPipeline] Joint sufficiency indeterminate: %s", e)
+        logger.info("[FirstPersonPipeline] Joint sufficiency indeterminate: %s", type(e).__name__)
         token_sink.append(_estimate_fp_tokens(_JOINT_SUFFICIENCY_SYSTEM_PROMPT, user_prompt))
         return "INDETERMINATE"
     token_sink.append(_estimate_fp_tokens(_JOINT_SUFFICIENCY_SYSTEM_PROMPT, user_prompt, raw))
@@ -2277,7 +2282,7 @@ async def _async_answerability_check(
             else:
                 _gate_failure_log(
                     "[FirstPersonPipeline] Answerability check indeterminate (timeout/error): %s",
-                    e,
+                    type(e).__name__,
                 )
             if token_sink is not None:
                 token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query))
@@ -2359,7 +2364,8 @@ async def _answerability_check_async(
             logger.info("[FirstPersonPipeline] Answerability check refused by provider")
         else:
             logger.info(
-                "[FirstPersonPipeline] Answerability check indeterminate (timeout/error): %s", e
+                "[FirstPersonPipeline] Answerability check indeterminate (timeout/error): %s",
+                type(e).__name__,
             )
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query))
@@ -2658,7 +2664,7 @@ def _build_related_clip(clip: dict[str, Any], score: float) -> Optional[dict[str
         logger.warning(
             "[FirstPersonPipeline] Related clip dropped (damaged point %s): %s",
             clip.get("point_id"),
-            exc,
+            type(exc).__name__,
         )
         return None
     verified = cit.get("speaker_verified") is True
@@ -2804,7 +2810,8 @@ def _decompose_query_facets(
                     return lines[:3]
         except Exception as e:
             logger.debug(
-                "[_decompose_query_facets] LLM decomposition failed: %s; falling back to regex", e
+                "[_decompose_query_facets] LLM decomposition failed: %s; falling back to regex",
+                type(e).__name__,
             )
 
     parts = [p.strip() for p in _COMPOUND_SPLIT_RE.split(clean_q) if p.strip()]
@@ -3112,7 +3119,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     logger.debug(
                         "[FirstPersonPipeline] enrichment window failed for parent %s: %s",
                         _parent_id(ctx) or "unknown",
-                        exc,
+                        type(exc).__name__,
                     )
                     widened = ctx
                 out.append(widened if widened is not None else ctx)
@@ -3169,7 +3176,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 # ratchet): a missing compiled.json, a numpy import failure, or a shape
                 # mismatch. An unexpected programming error is NOT swallowed here.
                 logger.debug(
-                    "[FirstPersonPipeline] OKF concept expansion failed: %s; no concepts", exc
+                    "[FirstPersonPipeline] OKF concept expansion failed: %s; no concepts",
+                    type(exc).__name__,
                 )
                 okf_terms = []
 
@@ -3194,7 +3202,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     logger.debug(
                         "[FirstPersonPipeline] OKF concept retrieval failed: %s; "
                         "keeping primary contexts",
-                        exc,
+                        type(exc).__name__,
                     )
                     okf_contexts = []
 
@@ -3230,7 +3238,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             except Exception as exc:
                 logger.debug(
                     "[FirstPersonPipeline] expand_query_concepts failed: %s; no graph concepts",
-                    exc,
+                    type(exc).__name__,
                 )
                 concepts = []
 
@@ -3249,7 +3257,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 except Exception as exc:
                     logger.debug(
                         "[FirstPersonPipeline] graph-expanded retrieval failed: %s; keeping primary contexts",
-                        exc,
+                        type(exc).__name__,
                     )
                     extra_contexts = []
 
@@ -3299,7 +3307,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 except Exception as exc:
                     logger.debug(
                         "[FirstPersonPipeline] expand_teaching_units failed: %s; no TU expansion",
-                        exc,
+                        type(exc).__name__,
                     )
                     tu_neighbors = []
 
@@ -3316,7 +3324,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     except Exception as exc:
                         logger.debug(
                             "[FirstPersonPipeline] TU graph retrieval failed: %s",
-                            exc,
+                            type(exc).__name__,
                         )
                         tu_contexts = []
 
@@ -3425,7 +3433,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             # (exception ratchet): a bad record shape or a missing module.
             logger.warning(
                 "[FirstPersonPipeline] cross-video diversity failed: %s; keeping retrieval order",
-                exc,
+                type(exc).__name__,
             )
             return list(contexts)
 
@@ -4377,7 +4385,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     except Exception as _exc:
                         logger.debug(
                             "[FirstPersonPipeline] Best-effort Redis cache eviction failed: %s",
-                            _exc,
+                            type(_exc).__name__,
                         )
                     return None
                 if not isinstance(data.get("citations"), list):
@@ -4501,7 +4509,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     except Exception as exc:
                         logger.warning(
                             "[FirstPersonPipeline] Fresh fp-context citation hydration failed: %s",
-                            exc,
+                            type(exc).__name__,
                         )
                         return None
                     if not isinstance(fresh_spans, list) or len(fresh_spans) != len(citations):
@@ -5336,8 +5344,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     )
                     if expanded_anchors:
                         logger.info(
-                            "[FirstPersonPipeline] Try 2 adaptive expansion generated anchors on empty initial pool: %s",
-                            expanded_anchors,
+                            "[FirstPersonPipeline] Try 2 adaptive expansion generated anchors on empty initial pool: n_anchors=%d",
+                            len(expanded_anchors),
                         )
                         try2_concepts: list[str] = []
                         for anchor in expanded_anchors:
@@ -5380,7 +5388,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 except Exception as try2_exc:
                     logger.warning(
                         "[FirstPersonPipeline] Try 2 adaptive expansion encountered error (non-fatal): %s",
-                        try2_exc,
+                        type(try2_exc).__name__,
                     )
 
             if contexts:
@@ -5556,7 +5564,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         except Exception as exc:
                             logger.info(
                                 "[FirstPersonPipeline] Antecedent predecessor lookup refused: %s",
-                                exc,
+                                type(exc).__name__,
                             )
                             return None, _local_tokens
                         if not isinstance(candidate_edge, ValidatedCrossParentEdge):
@@ -5636,7 +5644,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             logger.debug(
                                 "[FirstPersonPipeline] Original-query confidence read failed; "
                                 "keeping retrieval score: %s",
-                                exc,
+                                type(exc).__name__,
                             )
                             dense_by_span = {}
                         confidence = _original_query_confidence(
@@ -5824,7 +5832,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             logger.warning(
                                 "[FirstPersonPipeline] Harness candidate[%d] prepare raised: %s; skipping",
                                 raw_idx,
-                                exc,
+                                type(exc).__name__,
                             )
                             continue
                         if prep is not None:
@@ -6020,7 +6028,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             logger.warning(
                                 "[FirstPersonPipeline] Harness parallel ctx[%d] raised: %s; skipping",
                                 idx,
-                                _outcome,
+                                type(_outcome).__name__,
                             )
                         elif isinstance(_outcome, BaseException):
                             raise _outcome
@@ -6082,9 +6090,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             if _editorial_res.status == "abstained" and _harness_res is not None:
                                 logger.info(
                                     "[FirstPersonPipeline] Editorial set abstained "
-                                    "(intent=%s facets=%s); falling back to best harness result.",
+                                    "(intent=%s n_facets=%d); falling back to best harness result.",
                                     _active_facets.primary_intent,
-                                    _active_facets.candidate_facets,
+                                    len(_active_facets.candidate_facets),
                                 )
                             else:
                                 self._log_and_count(
@@ -6182,7 +6190,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         except Exception as _exc:
                             logger.warning(
                                 "[FirstPersonPipeline] Harness sequential ctx raised: %s; skipping",
-                                _exc,
+                                type(_exc).__name__,
                             )
                             continue
                         if _seq_res is not None:
@@ -6293,8 +6301,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         )
                         if expanded_anchors:
                             logger.info(
-                                "[FirstPersonPipeline] Try 2 adaptive expansion generated anchors: %s",
-                                expanded_anchors,
+                                "[FirstPersonPipeline] Try 2 adaptive expansion generated anchors: n_anchors=%d",
+                                len(expanded_anchors),
                             )
                             # Extract clean concept terms for Qdrant payload filtering
                             try2_concepts: list[str] = []
@@ -6349,7 +6357,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 ) as _t2_emb_exc:
                                     logger.debug(
                                         "[FirstPersonPipeline] Try 2 anchor re-embedding failed (falling back): %s",
-                                        _t2_emb_exc,
+                                        type(_t2_emb_exc).__name__,
                                     )
 
                             def _retrieve_try2_contexts() -> list[ParentContext]:
@@ -6429,7 +6437,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                             logger.warning(
                                                 "[FirstPersonPipeline] Try 2 ctx[%d] raised: %s; skipping",
                                                 idx,
-                                                _outcome,
+                                                type(_outcome).__name__,
                                             )
                                         elif isinstance(_outcome, BaseException):
                                             raise _outcome
@@ -6499,12 +6507,12 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                         except Exception as _t2_err:
                                             logger.debug(
                                                 "[FirstPersonPipeline] Try 2 sequential error: %s",
-                                                _t2_err,
+                                                type(_t2_err).__name__,
                                             )
                     except Exception as try2_exc:
                         logger.warning(
                             "[FirstPersonPipeline] Try 2 adaptive feedback loop encountered error (non-fatal): %s",
-                            try2_exc,
+                            type(try2_exc).__name__,
                         )
 
                 if _joint_reasons:
@@ -6683,10 +6691,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             if not teacher_id or teacher_id.strip().lower() in ("both", "all", ""):
                 teacher_id = in_gurus[0]
             logger.info(
-                "[FirstPersonPipeline] Comparative inquiry detected (in-domain: %s, external: %s); scoping retrieval to %s",
-                in_gurus,
-                ext_auths,
-                teacher_id,
+                "[FirstPersonPipeline] Comparative inquiry detected (n_in_domain=%d, n_external=%d); scoping retrieval to registered teacher",
+                len(in_gurus),
+                len(ext_auths),
             )
         else:
             unreg_teacher = requested_unregistered_teacher_or_tradition(
@@ -6698,8 +6705,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             )
             if unreg_teacher:
                 logger.info(
-                    "[FirstPersonPipeline] Abstaining on external teacher/tradition inquiry (%s)",
-                    unreg_teacher,
+                    "[FirstPersonPipeline] Abstaining on external teacher/tradition inquiry (external_named=true)"
                 )
                 latency = (time.monotonic() - start_time) * 1000.0
                 self._log_and_count("abstained", latency, 0.0, 0, 0, "no_verified_clips", 0)

@@ -26,6 +26,12 @@ _SEEKER_NAMES = {
     "question",
     "english_query",
     "last_user",
+    # 2026-11-28 trace-logging audit: strings derived from the question.
+    "expanded_anchors",
+    "anchors",
+    "in_gurus",
+    "ext_auths",
+    "unreg_teacher",
 }
 #: Offenders found on 2026-10-25 after fixing first_person_bridge and refiner (len() and hash uses excluded).
 KNOWN_OFFENDER_BUDGET = 0  # SEC-003: 26 -> 19 (T1-09) -> 0

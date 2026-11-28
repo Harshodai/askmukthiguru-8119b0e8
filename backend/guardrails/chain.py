@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from app.config import settings
+from app.log_safe import q_tag
 from app.metrics import GUARDRAILS_PROVIDER_DEGRADED
 from guardrails.base import BaseGuardrailHandler
 from guardrails.disabled_handler import DisabledGuardrailHandler
@@ -130,7 +131,7 @@ class GuardrailsChain:
         result = await self._head.check_input(message, **kwargs)
         if result.get("blocked"):
             self._audit_logger.info(
-                f"Input blocked: {result.get('reason')} - message: {message[:100]}"
+                f"Input blocked: {result.get('reason')} - message: {q_tag(message)}"
             )
         return result
 
@@ -142,7 +143,7 @@ class GuardrailsChain:
         result = await self._head.check_output(answer, **kwargs)
         if result.get("blocked"):
             self._audit_logger.info(
-                f"Output blocked: {result.get('reason')} - answer: {answer[:100]}"
+                f"Output blocked: {result.get('reason')} - answer: {q_tag(answer)}"
             )
         return result
 

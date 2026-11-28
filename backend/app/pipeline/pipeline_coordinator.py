@@ -36,6 +36,7 @@ from typing import Any
 from app.config import settings
 from app.context import queue_timing_var
 from app.dependencies import ServiceContainer
+from app.log_safe import q_digest
 from app.metrics import SEARCH_LATENCY_MS, observe_slo_latency
 from app.orchestrator_utils import cache_language_key
 from app.pipeline.result import PipelineResult
@@ -53,8 +54,8 @@ logger = logging.getLogger(__name__)
 
 
 def _query_token(query: str) -> str:
-    """Non-reversible 8-char token for log correlation — never logs raw user content."""
-    return hashlib.sha256(query.encode()).hexdigest()[:8]
+    """Keyed 8-char token for log correlation: no dictionary reversal, never raw user content."""
+    return q_digest(query)
 
 
 def _resolve_effective_preferred_lang(user_msg: str, preferred_lang: str) -> str:

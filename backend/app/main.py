@@ -147,7 +147,22 @@ _INFLIGHT = 0  # simple int — GIL protects single reads/writes in CPython
 _DRAIN_TIMEOUT_S = 45
 
 
+# Railway documents these level values for single-line JSON logs (docs.railway.com/guides/logs).
+_RAILWAY_LEVELS = {
+    logging.DEBUG: "debug",
+    logging.INFO: "info",
+    logging.WARNING: "warn",
+    logging.ERROR: "error",
+    logging.CRITICAL: "error",
+}
+
+
 class JSONFormatter(logging.Formatter):
+    def __init__(self, *args: Any, railway_levels: bool = False, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # False keeps the historical "INFO"/"WARNING" names byte-identical.
+        self._railway_levels = railway_levels
+
     def format(self, record: logging.LogRecord) -> str:
         msg = record.getMessage()
         if hasattr(PIIScanner, "redact"):
@@ -156,7 +171,9 @@ class JSONFormatter(logging.Formatter):
             msg = PIIScanner().redact(msg)
         log_obj = {
             "timestamp": self.formatTime(record, self.datefmt),
-            "level": record.levelname,
+            "level": _RAILWAY_LEVELS.get(record.levelno, "info")
+            if self._railway_levels
+            else record.levelname,
             "logger": record.name,
             "message": msg,
         }
@@ -191,6 +208,31 @@ class PIIScrubber(logging.Filter):
 handler = logging.StreamHandler()
 handler.setFormatter(JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S%z"))
 logging.basicConfig(level=logging.INFO, handlers=[handler])
+
+
+def install_json_stdout_logging(root: logging.Logger | None = None) -> None:
+    """Swap the plain bootstrap handler for the JSON formatter on stdout.
+
+    start_railway.py runs ``basicConfig`` (plain, stderr) before this module is
+    imported, so the ``basicConfig`` above is a no-op there and Railway labels every
+    line "error" (stderr) with no parseable fields. Only handlers tagged
+    ``_mg_bootstrap`` (or this module's own default ``handler``) are removed; a blanket
+    ``force=True`` would also close pytest's capture handler. Idempotent.
+    """
+    root = root or logging.getLogger()
+    if any(getattr(h, "_mg_json_stdout", False) for h in root.handlers):
+        return
+    for existing in list(root.handlers):
+        if getattr(existing, "_mg_bootstrap", False) or existing is handler:
+            root.removeHandler(existing)
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setFormatter(JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S%z", railway_levels=True))
+    stdout_handler._mg_json_stdout = True  # type: ignore[attr-defined]
+    root.addHandler(stdout_handler)
+
+
+if settings.log_json_stdout_enabled:
+    install_json_stdout_logging()
 # sentence-transformers prints a tqdm "Batches" bar on every encode/predict while its
 # logger is at INFO (L-04: 221 non-JSON lines in one graded run).
 logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
@@ -206,6 +248,14 @@ def route_uvicorn_access_through_json() -> None:
     access = logging.getLogger("uvicorn.access")
     access.handlers.clear()
     access.propagate = True
+    if settings.log_json_stdout_enabled:
+        # uvicorn's default LOGGING_CONFIG gives `uvicorn` (and so `uvicorn.error`) its own
+        # stderr handler with propagate=False: startup lines and "Exception in ASGI
+        # application" tracebacks would bypass the JSON root handler entirely.
+        for name in ("uvicorn", "uvicorn.error"):
+            lg = logging.getLogger(name)
+            lg.handlers.clear()
+            lg.propagate = True
 
 
 route_uvicorn_access_through_json()

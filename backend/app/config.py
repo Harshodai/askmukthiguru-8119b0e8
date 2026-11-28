@@ -1355,6 +1355,13 @@ class Settings(BaseSettings):
     # default: a deployed target sets ENVIRONMENT=production (Railway) or
     # staging, so "production-hardened" branches can tell where they are.
     environment: str = "local"
+    # Logging bootstrap (docs/operations/observability-log-events-2026-11-28.md).
+    # start_railway.py installs a plain stderr handler before app.main runs, so
+    # app.main's JSON handler never attaches and Railway labels every line "error".
+    # True: replace ONLY that bootstrap handler with the JSON formatter on stdout, map
+    # level to Railway's debug/info/warn/error, and route uvicorn loggers through root.
+    # Default False keeps today's output byte-identical; rollback = unset.
+    log_json_stdout_enabled: bool = False
     # Gate Swagger/OpenAPI docs. Disabled in production to avoid exposing the full API schema.
     show_swagger: bool = False
     # Explicit opt-in for the X-Test-Key backdoor strategy. NEVER enable in production.
