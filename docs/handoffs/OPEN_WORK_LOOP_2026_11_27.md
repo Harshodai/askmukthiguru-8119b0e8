@@ -23,7 +23,7 @@ What shipped (all default-preserving; see ADR 0006 `docs/adr/0006-railway-cost-a
 |---|---|---|
 | O1 | DNS: `api.askmukthiguru.com` returns NXDOMAIN though it is configured on the Railway service | add the record at the DNS provider; users cannot reach the app at that name until then |
 | O2 | Rotate the HuggingFace token exposed in a reviewer session | huggingface.co/settings/tokens, then `HF_TOKEN` on Railway backend + celery-worker and local `backend/.env` |
-| O3 | Delete Railway `first_person_v10` (4,224 pts, Railway-only; you said delete) | needs the Qdrant admin key; snapshot first. Prerequisite done: celery no longer points at v10 |
+| O3 | ~~Delete Railway `first_person_v10`~~ DONE 2026-11-28 | deleted by a guarded script (admin key read from the qdrant service variables); 4,224 payloads backed up to `~/mukthiguru_attribution_data/backups_2026-11-28/`; v12/v13 intact |
 | O4 | Staged Railway change: add `META_APP_SECRET` to the backend (staged 2026-11-22, value hidden) | NOT applied: without it the WhatsApp webhook rejects every request with 403 in production (fail-closed), so WhatsApp is simply not live. Applying only the secret does nothing useful; also needs `META_APP_ID`, `META_ACCESS_TOKEN`, `META_PHONE_NUMBER_ID` (`docs/whatsapp/META_COEXISTENCE_ONBOARDING_GUIDE.md`) |
 | O5 | Make the repo private | the nightly Supabase backup then works; CI minutes will cost money: trim CI first |
 | O6 | `FIRST_PERSON_REQUIRE_SPEAKER_VERIFIED`: live false vs repo true | decide |
@@ -33,6 +33,7 @@ What shipped (all default-preserving; see ADR 0006 `docs/adr/0006-railway-cost-a
 | O10 | Human gates: distress/native-speaker/clinician reviews, 299-pair gold labels, faculty invitations, speaker + rights sign-offs, helpline calls | `CLAUDE.md` "Human Operational Next Steps" |
 | O11 | Supabase: apply migrations `20261126000100`, `20261126120000`, `20261128053858` to the real project; flip `editorial_persistence_enabled`, `seeker_comprehension_recovery_enabled` | not done by an agent |
 | O12 | Celery `CREATE_CONTAINER` failures (deployment `a0d03c30-a3bc-4686-a8e8-a0fced23f188`) | last 3 celery deployments succeeded (2026-11-28); ticket optional |
+| O13 | Turn on "Wait for CI" for the backend (Railway dashboard, service Source settings) | the backend now auto-deploys from `main` (pin removed 2026-11-28; first live proof is the next merge touching backend files); "Wait for CI" is off, so a red commit on `main` can deploy. The readiness gate only stops a build that fails to boot |
 
 ## Open: engineering, not blocked on the owner
 1. **Tokenizer swap stays OFF** until `scripts/ops/verify_fast_tokenizer_in_image.sh` shows 0 skipped on transformers 5.x (needs more than 3 GB free Docker VM memory). Then trial `ONNX_TOKENIZER_BACKEND=tokenizers`.
