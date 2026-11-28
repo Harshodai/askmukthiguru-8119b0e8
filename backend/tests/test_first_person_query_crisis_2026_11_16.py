@@ -146,3 +146,21 @@ def test_assessment_exception_fails_closed_to_helplines():
     _assert_helpline(resp, pipe, c)
     assert "boom" not in resp.text
     shown.assert_called_once_with(trace_id="", level="CHECK_FAILED", region=None)
+
+
+# --- first_person_llm_provider misconfigured (2026-11-28): crisis first, then 503 ---------
+
+
+def test_crisis_with_unavailable_provider_still_gets_helplines(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_llm_provider", "vllm")
+    c = _container("NONE")  # no `vllm` attribute: the selected provider is unavailable
+    resp, pipe = _post(c, "I want to end my life")
+    _assert_helpline(resp, pipe, c)
+
+
+def test_benign_query_with_unavailable_provider_is_an_honest_503(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_llm_provider", "vllm")
+    c = _container("NONE")
+    resp, pipe = _post(c, BENIGN)
+    assert resp.status_code == 503
+    pipe.execute.assert_not_called()

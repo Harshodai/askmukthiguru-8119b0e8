@@ -234,8 +234,10 @@ def capability_probe() -> tuple[bool, dict]:
     raw_token_counts = []
     try:
         if hasattr(svc, "_onnx_tokenizer") and svc._onnx_tokenizer is not None:
+            # max_length=8192 is the model_max_length AutoTokenizer used to default
+            # to; FastTokenizer (the default ONNX tokenizer) requires it explicitly.
             enc = svc._onnx_tokenizer(
-                test_texts, padding=True, truncation=True, return_tensors="np"
+                test_texts, padding=True, truncation=True, max_length=8192, return_tensors="np"
             )
             raw_token_counts = [int(m.sum()) for m in enc["attention_mask"]]
     except Exception as exc:

@@ -195,9 +195,11 @@ describe('useMetrics', () => {
     });
 
     const second = renderHook(() => useMetrics());
-    await waitFor(() => expect(second.result.current.loading).toBe(false));
-    // Bob should not receive Alice's cached metrics (should trigger network fetch)
+    // `loading` is already false on mount (the in-memory cache from the previous user is
+    // non-null), so waiting for it proves nothing and raced the async session lookup on slow
+    // CI runners (flaked 2026-11-28: "expected 5 to be 20"). Wait for Bob's own fetch result.
+    await waitFor(() => expect(second.result.current.metrics?.totalConversations).toBe(20));
+    // Bob must not keep Alice's cached metrics: it triggered a second network fetch.
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(second.result.current.metrics?.totalConversations).toBe(20);
   });
 });

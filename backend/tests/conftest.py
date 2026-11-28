@@ -525,6 +525,20 @@ def _neutral_clip_length_window(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _reset_public_response_caches():
+    """/api/health and /api/capabilities reuse a rendered body for a few seconds (scaling audit
+    2026-11-27). Reset both before every test so one test's result never answers the next."""
+    health = sys.modules.get("app.api.health")
+    if health is not None:
+        health._public_health_cache.update(until=0.0, body=None, status=200)
+        health._public_health_lock = None
+    capabilities = sys.modules.get("app.api.capabilities")
+    if capabilities is not None:
+        capabilities._manifest_cache.update(until=0.0, body=None, etag=None)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _flush_test_redis():
     """Clear the suite's Redis database between tests.
 

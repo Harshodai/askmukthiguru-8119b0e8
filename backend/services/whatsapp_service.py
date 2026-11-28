@@ -236,11 +236,14 @@ async def verify_link_challenge(
         raise ValueError("User ID is required")
 
     def _redeem():
-        return supabase.rpc("redeem_whatsapp_link", {
-            "p_token_hash": hash_token(token),
-            "p_user_id": user_id,
-            "p_tenant_id": tenant_id,
-        }).execute()
+        return supabase.rpc(
+            "redeem_whatsapp_link",
+            {
+                "p_token_hash": hash_token(token),
+                "p_user_id": user_id,
+                "p_tenant_id": tenant_id,
+            },
+        ).execute()
 
     result = await asyncio.to_thread(_redeem)
     rows = getattr(result, "data", None)
@@ -292,11 +295,19 @@ async def has_whatsapp_memory_consent(supabase: Any, session_id: str, user_id: s
     if supabase is None or not session_id.startswith("wa_"):
         return False
     try:
+
         def _query():
-            return (supabase.table("whatsapp_account_links")
-                    .select("id").eq("id", session_id[3:]).eq("user_id", user_id)
-                    .eq("status", "active").eq("memory_write_consent", True)
-                    .limit(1).execute())
+            return (
+                supabase.table("whatsapp_account_links")
+                .select("id")
+                .eq("id", session_id[3:])
+                .eq("user_id", user_id)
+                .eq("status", "active")
+                .eq("memory_write_consent", True)
+                .limit(1)
+                .execute()
+            )
+
         result = await asyncio.to_thread(_query)
         return bool(getattr(result, "data", None))
     except (HTTPError, APIError, ValueError, OSError):
@@ -398,7 +409,14 @@ async def optout_account_by_phone(supabase: Any, phone: str) -> bool:
     def _optout():
         return (
             supabase.table("whatsapp_account_links")
-            .update({"status": "opted_out", "sync_history_consent": False, "memory_write_consent": False, "updated_at": now})
+            .update(
+                {
+                    "status": "opted_out",
+                    "sync_history_consent": False,
+                    "memory_write_consent": False,
+                    "updated_at": now,
+                }
+            )
             .eq("phone_number_hash", p_hash)
             .eq("status", "active")
             .execute()

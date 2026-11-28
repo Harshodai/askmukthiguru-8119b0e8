@@ -99,5 +99,13 @@ def _register_default_providers() -> None:
     except ImportError as exc:
         logger.warning(f"Could not register NIM provider: {exc}")
 
+    # Opt-in self-hosted provider: not registered at all unless a base URL is configured.
+    from app.config import settings
+
+    if settings.vllm_base_url.strip():
+        from services.vllm_service import VllmService
+
+        _registry.register("vllm", VllmService)
+
 
 _register_default_providers()

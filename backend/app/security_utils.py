@@ -270,10 +270,19 @@ class TTLRateLimiter:
         self.max_requests = max_requests
         self._store: dict[str, deque] = {}
         self._lock = threading.Lock()
+        self._last_prune = 0.0
+
+    # Distinct keys (one per client IP/user) otherwise accumulate for the life of the process:
+    # nothing called clear_expired(). Above this many keys, is_allowed() sweeps idle ones, at
+    # most once per ttl, so a scan from many addresses cannot grow memory without bound.
+    _PRUNE_ABOVE_KEYS = 10_000
 
     def is_allowed(self, key: str, now: Optional[float] = None) -> bool:
         with self._lock:
             now = now or time.time()
+            if len(self._store) > self._PRUNE_ABOVE_KEYS and now - self._last_prune > self.ttl:
+                self._last_prune = now
+                self._prune_expired_locked(now)
             ts = self._store.get(key)
             if ts is None:
                 self._store[key] = deque([now], maxlen=self.max_requests + 1)
@@ -286,16 +295,18 @@ class TTLRateLimiter:
             ts.append(now)
             return True
 
+    def _prune_expired_locked(self, now: float) -> None:
+        cutoff = now - self.ttl
+        for key in list(self._store.keys()):
+            q = self._store[key]
+            while q and q[0] < cutoff:
+                q.popleft()
+            if not q:
+                del self._store[key]
+
     def clear_expired(self, now: Optional[float] = None) -> None:
         with self._lock:
-            now = now or time.time()
-            cutoff = now - self.ttl
-            for key in list(self._store.keys()):
-                q = self._store[key]
-                while q and q[0] < cutoff:
-                    q.popleft()
-                if not q:
-                    del self._store[key]
+            self._prune_expired_locked(now or time.time())
 
     def reset(self) -> None:
         """Clear all tracked request timestamps (test isolation hook)."""

@@ -3328,39 +3328,6 @@ export type Database = {
         }
         Relationships: []
       }
-      user_brain_keys_archive_20261119: {
-        Row: {
-          created_at: string | null
-          kdf: Json | null
-          rotated_at: string | null
-          updated_at: string | null
-          user_id: string | null
-          version: number | null
-          wrap_mode: string | null
-          wrapped_dek: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          kdf?: Json | null
-          rotated_at?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-          version?: number | null
-          wrap_mode?: string | null
-          wrapped_dek?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          kdf?: Json | null
-          rotated_at?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-          version?: number | null
-          wrap_mode?: string | null
-          wrapped_dek?: string | null
-        }
-        Relationships: []
-      }
       user_brain_nodes: {
         Row: {
           access_count: number

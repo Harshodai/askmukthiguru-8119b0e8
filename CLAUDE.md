@@ -204,6 +204,7 @@ Backups stay local-cron per policy (`infrastructure/cron/mukthiguru-backup`: 02:
 
 ## Gotchas
 
+- **Before running tests or fixing a red test, read `docs/agent/KNOWN_TEST_FAILURES_AND_RUNNING_TESTS.md`**: how to run the suite (single `-q`, host venv, not in a memory-starved Docker VM), expected skips, and the known failing/flaky tests with evidence (`test_c20` timing flake, `test_flashrank_rerank`, `.claude/` worktree path filter, types.ts archive table, stale guru-literal baseline). Add a row there when you find a new one.
 - Backend on the host needs overrides: `QDRANT_URL=http://localhost:6333`, `NEO4J_URI=bolt://localhost:7687`, `REDIS_URL=redis://:...@localhost:6379/0`, reachable `SUPABASE_URL` (a wrong one is silent apart from `Telemetry Sink insert failed`; see `telemetry_sink_writes_total{outcome="error"}`).
 - Which LLM service class is live depends on `LLM_PROVIDER`; `OpenRouterService`, `SarvamCloudService` share no code (Ollama was removed 2026-11-16 by owner decision), so patch the provider actually in use. Live OpenRouter models: generation `deepseek/deepseek-chat`, fallback `meta-llama/llama-3.3-70b-instruct`, fast `meta-llama/llama-3.1-8b-instruct`.
 - Railway is scaled down and stays stopped until Harsha says otherwise; verify locally. When it resumes: deploy health gate is `/api/healthz` (`.railway/railway.ts`; `/api/health` is the deep check and needs the internal token, NEW-RW-7), `FORWARDED_ALLOW_IPS=10.0.0.0/8`, `PYTHON_MEMORY_LIMIT_MB=0` (archive `railway-deployment.md`).
@@ -258,6 +259,8 @@ All code, vector ingestion, serving contract updates, and deployments are comple
 
 ## Open work (read before answering "what's pending?")
 
+- **Read first after compaction:** `docs/handoffs/OPEN_WORK_LOOP_2026_11_27.md` is the live task table (agent ids, worktrees, owner actions, next step per row). Update it every pass.
+- Railway cost and deploy review (2026-11-27): `docs/operations/railway-cost-and-deploy-review-2026-11-27.md`. Memory is 98% of the bill; the live backend ran a Nov 24 build 146 commits behind `main` with `FIRST_PERSON_LLM_FALLBACK_ENABLED=true` (set false 2026-11-27, which also deployed `main`). Run `python3 scripts/ops/railway_live_audit.py` (read only) before and after any Railway change.
 - Latest state (2026-11-26): `docs/handoffs/HANDOFF_2026_11_26_PR_QUEUE_AND_HARDENING.md` and `docs/architecture/2026-11-26-verified-audit-findings.md` §7-9. CI now runs ruff (CI-pinned 0.15.13), Bandit, the full pytest suite and the pre-commit guards on every PR; the exception ceiling is 759 (raise only with owner approval); CI and the frontend image use Node 24.
 
 - Single open-work list (status source; edit it when an item closes or appears, never start another plan file): `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md`, start at "Ruthless order of work" and "Start here". The SessionStart hook `scripts/guards/open_work_reminder.sh` prints its age and warns at 3+ days stale.

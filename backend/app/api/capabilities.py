@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import shutil
+import time
 from typing import Any
 
-from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse, Response
 from starlette import status as http_status
 
 import app.dependencies as app_dependencies
@@ -82,14 +85,49 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
     }
 
 
+# Rendered /api/capabilities body, reused for settings.capabilities_cache_ttl_s. The
+# manifest holds booleans and state strings only (no secrets, no per-caller data), and the
+# endpoint is public and polled by every page load and by bots, so one render serves all.
+_manifest_cache: dict[str, Any] = {"until": 0.0, "body": None, "etag": None}
+
+
+def _rendered_manifest(container: Any, ttl: float) -> tuple[bytes, str]:
+    now = time.monotonic()
+    if ttl > 0 and _manifest_cache["body"] is not None and now < _manifest_cache["until"]:
+        return _manifest_cache["body"], _manifest_cache["etag"]
+    body = json.dumps(
+        {"ready": True, "capabilities": build_capability_manifest(container)},
+        separators=(",", ":"),
+    ).encode("utf-8")
+    etag = '"' + hashlib.sha256(body).hexdigest()[:32] + '"'
+    if ttl > 0:
+        _manifest_cache.update(until=now + ttl, body=body, etag=etag)
+    return body, etag
+
+
 @router.get("/capabilities")
 async def capabilities_endpoint(
+    request: Request,
     container: ServiceContainer = Depends(get_container_async),
-) -> JSONResponse:
-    """Expose current safe capability state for UI, operational checks, and release evidence."""
+) -> Response:
+    """Expose current safe capability state for UI, operational checks, and release evidence.
+
+    Cacheable: the body is rendered at most once per ``capabilities_cache_ttl_s`` and carries
+    ``Cache-Control: public, max-age`` plus an ``ETag`` (``If-None-Match`` -> 304), so
+    repeated polls cost no manifest work and almost no bytes. The not-ready 503 is never cached.
+    """
     if not app_dependencies.startup_complete:
         return JSONResponse(
             {"ready": False, "capabilities": {}},
             status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            headers={"Cache-Control": "no-store"},
         )
-    return JSONResponse({"ready": True, "capabilities": build_capability_manifest(container)})
+    ttl = float(settings.capabilities_cache_ttl_s)
+    body, etag = _rendered_manifest(container, ttl)
+    headers = {
+        "ETag": etag,
+        "Cache-Control": f"public, max-age={int(ttl)}" if ttl > 0 else "no-cache",
+    }
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=http_status.HTTP_304_NOT_MODIFIED, headers=headers)
+    return Response(content=body, media_type="application/json", headers=headers)

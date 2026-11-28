@@ -10,10 +10,9 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
-import os
 import time
 from dataclasses import asdict
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import BackgroundTasks, HTTPException, Request
 
@@ -743,16 +742,32 @@ def _stream_done_metadata(result) -> dict:
     return fields
 
 
+_TURN_REDIS: Any = None
+
+
+def _turn_counter_redis() -> Any:
+    """One pooled client for the per-turn counter (it used to build, connect, AUTH and close
+    a fresh client on every non-incognito chat: a TCP handshake plus AUTH/SELECT per turn)."""
+    global _TURN_REDIS
+    if _TURN_REDIS is None:
+        import redis.asyncio as aredis
+
+        _TURN_REDIS = aredis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
+    return _TURN_REDIS
+
+
 async def _increment_turn_counter(user_id: str) -> None:
     """Increment the Redis turn counter for batched layered memory processing."""
     import json
     import time
 
     try:
-        import redis.asyncio as aredis
-
-        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-        r = aredis.from_url(redis_url, decode_responses=True)
+        r = _turn_counter_redis()
         key = f"turn_counter:{user_id}"
         data = await r.get(key)
         if data:
@@ -762,6 +777,5 @@ async def _increment_turn_counter(user_id: str) -> None:
         else:
             parsed = {"count": 1, "last_ts": time.time()}
         await r.set(key, json.dumps(parsed), ex=7200)
-        await r.aclose()
     except Exception:
         logger.debug("Redis frequency counter write failed (non-critical)", exc_info=True)

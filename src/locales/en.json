@@ -1000,7 +1000,8 @@
     "consentLabel": "I agree that AskMukthiGuru may keep this email to contact me about launch updates.",
     "notice": "Used only for launch updates. Kept for up to 12 months, then deleted. You can withdraw and erase it at any time.",
     "privacyLink": "Privacy",
-    "unsubscribeLink": "Unsubscribe and erase my email"
+    "unsubscribeLink": "Unsubscribe and erase my email",
+    "title": "Launch updates"
   },
   "unsubscribe": {
     "pageTitle": "Unsubscribe from launch updates — AskMukthiGuru",
@@ -2819,5 +2820,17 @@
   "safety": {
     "getHelpNow": "Get help now",
     "getHelpNowBody": "If you are in danger or thinking of harming yourself, call one of these lines now. Mukthi Guru is not a crisis service."
+  },
+  "launch": {
+    "eyebrow": "A moment for your inner life",
+    "intro": "Spiritual reflection, recorded teachings, and a little room to breathe. Begin with a guide. Let your own inquiry lead.",
+    "primary": "Read the spiritual guidance guide",
+    "secondary": "Try a 3-minute practice",
+    "boundary": "For reflection and personal practice. Not a replacement for a teacher, therapy, or professional care.",
+    "guides": "Begin here",
+    "guidanceTitle": "Spiritual guidance, with sources",
+    "guidanceBody": "Explore what an AI spiritual guide can—and cannot—offer. Read about recorded teaching excerpts, reflection, and honest limits.",
+    "practiceTitle": "Three minutes, one gentle pause",
+    "practiceBody": "Read the Serene Mind guide, then choose a comfortable breathing practice. No need to force a feeling or rush a result."
   }
 }

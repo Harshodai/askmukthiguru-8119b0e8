@@ -540,7 +540,8 @@ class CanonicalMemoryVectorIndex:
         """Upsert a batch of points (used by rebuild and repair)."""
         if not points:
             return
-        self._client.upsert(
+        await asyncio.to_thread(
+            self._client.upsert,
             collection_name=self._collection,
             points=points,
         )

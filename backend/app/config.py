@@ -242,6 +242,12 @@ class Settings(BaseSettings):
     # 2026-11-17: ON by default to bridge situational seeker vocabulary into EKAM spiritual terminology.
     first_person_hyde_enabled: bool = True
     first_person_hyde_timeout_s: float = 2.5
+    # Startup retrieval canary (app/fp_startup_canary.py): right after the app reports ready, a
+    # separate task runs the first-person retrieval path once (real embed, context-store
+    # retrieval, candidate expansion, graph sizing; no LLM call) so lazy initialisation is paid
+    # at boot, not by the first seeker. Failure or timeout logs and never affects readiness.
+    startup_retrieval_canary_enabled: bool = True
+    startup_retrieval_canary_timeout_s: float = 60.0
     # Quarantine clips whose verbatim text has no sentence end or opens on orphan
     # punctuation (ingest.verbatim.boundaries). OFF: on 2026-09-28 it would have
     # removed 59% of first_person_v2 and 68% of v5. Enable only with a
@@ -612,6 +618,23 @@ class Settings(BaseSettings):
     # empty = the provider's default generation model. 2026-10-11: the default model rated
     # same-theme clips 3/3, so precision was poor.
     first_person_relevance_model: str = ""
+    # Opt-in OpenRouter provider pinning for the first-person gate calls ONLY (relevance
+    # scorer, joint sufficiency, answerability, evidence/comparative judge). One model id is
+    # served by OpenRouter endpoints at different precisions (fp4 to bf16), so an unpinned
+    # score can change with the routed endpoint. Defaults (empty / false / None) add nothing
+    # to the request and nothing to the exact-cache fingerprint. Field names follow
+    # openrouter.ai/docs/guides/routing/provider-selection (read 2026-11-28):
+    # only, quantizations, require_parameters, zdr, allow_fallbacks. Lists accept JSON or
+    # comma-separated text. One pin set covers every gate call, including the 8B answerability
+    # call: a pin with no matching endpoint makes that call fail, and the turn abstains.
+    first_person_scorer_provider_only: Annotated[list[str], NoDecode] = []
+    first_person_scorer_quantizations: Annotated[list[str], NoDecode] = []
+    first_person_scorer_require_parameters: bool = False
+    first_person_scorer_zdr: bool = False
+    first_person_scorer_allow_fallbacks: Optional[bool] = None
+    # Pins may only TIGHTEN the global provider policy (see validate_scorer_pins_tighten_policy).
+    # A malformed pin value is a deliberate boot-time ValidationError: a failed boot fails the
+    # Railway deploy and the previous container keeps serving. Do not soften it into a fallback.
     # Timeout in seconds for the first-person LLM relevance scorer. 25s accommodates reasoning models and provider latency jitter.
     first_person_relevance_timeout_s: float = 25.0
     # Attempts per context for the relevance scorer (1 = no retry). 2 (2026-11-10): a
@@ -840,6 +863,25 @@ class Settings(BaseSettings):
     nim_classify_model: str = "meta/llama-3.1-8b-instruct"
     nim_rpm_limit: int = 30
 
+    # --- Self-hosted vLLM (opt-in, OpenAI-compatible; services/vllm_service.py) ---
+    # Registered ONLY when vllm_base_url is non-empty (e.g. http://vllm.internal:8000/v1).
+    # Model ids are whatever vLLM serves (--served-model-name); generation/fast reuse the
+    # openrouter_* model settings and the first-person scorer sends first_person_relevance_model.
+    vllm_base_url: str = ""
+    vllm_api_key: str = ""
+    vllm_timeout_s: float = Field(default=30.0, gt=0)
+    vllm_rpm_limit: int = Field(default=600, ge=1)
+    # Declared cost per call (vLLM reports no usage.cost). 0.0 = free: the shared OpenRouter
+    # spend ledger is never touched. >0 reserves and settles at that amount on that ledger.
+    vllm_fixed_cost_per_call_usd: float = Field(default=0.0, ge=0)
+    # Which provider object the first-person path (relevance scorer, answerability gate, HyDE,
+    # judge) calls. "openrouter" = today's resolution (container.openrouter, then nim, then the
+    # container's canonical LLM). "vllm" is strict: if VLLM_BASE_URL is unset the first-person
+    # call raises (HTTP 503 on the route, after the crisis check). "nim" is NOT a strict
+    # no-fallback choice: NimService falls back to Sarvam/OpenRouter internally. The nim/vllm
+    # object is built only when selected here. Changing it re-keys the exact cache.
+    first_person_llm_provider: Literal["openrouter", "nim", "vllm"] = "openrouter"
+
     # --- Qdrant ---
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "spiritual_wisdom_contextual"
@@ -1020,6 +1062,22 @@ class Settings(BaseSettings):
     # flip in production without a full re-index — see
     # scripts/validate_onnx_embedding.py.
     embedding_backend: str = "flagembedding"
+    # OFF by default. When true (embedding_backend="onnx_int8"), the INT8 encoder
+    # loads from a host-built, memory-mapped prepacked copy of the model
+    # (services/onnx_prepacked.py) so initializer memory is file-backed page
+    # cache shared across worker processes instead of ~840 MB private heap per
+    # process. Embeddings were bit-identical when measured. Costs ~830 MB of
+    # disk and a one-off ~1 GB build at first start. See
+    # docs/operations/model-memory-sharing-research-2026-11-27.md.
+    onnx_mmap_prepacked_enabled: bool = False
+    # Where the prepacked artifact is built. Empty = <hf_home>/onnx_prepacked.
+    onnx_prepacked_cache_dir: str = ""
+    # Hard cap on the one-off build child. The lifespan startup budget is 180 s,
+    # so the default leaves headroom; the child is killed and the load raises.
+    onnx_prepacked_build_timeout_s: float = Field(default=120.0, gt=0)
+    # Re-hash the 832 MB data file on every load (reads it all once, ~1-3 s,
+    # estimated not measured). False still checks sizes and the graph hash.
+    onnx_prepacked_verify_data_hash: bool = True
     embed_torch_threads: int = Field(default=1, ge=1)
     hf_revision: Optional[str] = None
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
@@ -1034,7 +1092,31 @@ class Settings(BaseSettings):
     # "flagembedding" — fall back to sentence-transformers CrossEncoder (original).
     # Rollback: set RERANKER_BACKEND=flagembedding in .env and restart.
     reranker_backend: str = "onnx_int8"
+    # Tokenizer for the ONNX encoder + reranker. "transformers" (default) keeps
+    # AutoTokenizer exactly as before. "tokenizers" is OPT-IN: it uses the raw
+    # `tokenizers` library via services/fast_tokenizer.py and never imports
+    # transformers (~320-350 MB less RSS while torch is still imported, about
+    # 860 MB for the tokenizer alone; same token ids on the cases tested). It stays
+    # off until scripts/ops/verify_fast_tokenizer_in_image.sh shows 0 skipped
+    # against the transformers version that serves (5.x). With "tokenizers",
+    # a missing/unsupported tokenizer file raises FastTokenizerLoadError and the
+    # torch CrossEncoder fallbacks (embedding_service._ensure_reranker,
+    # reranker_service._load_fallback) re-raise it instead of swapping models.
+    onnx_tokenizer_backend: Literal["tokenizers", "transformers"] = "transformers"
     reranker_onnx_model: str = "temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8"
+    # Shared model server (opt-in, default OFF). Empty `model_server_url` keeps
+    # the in-process BGE-M3 + reranker sessions exactly as before. When set,
+    # this process does not load the BGE-M3 encoder or the reranker; it calls
+    # the model-server service (SERVICE_TYPE=model-server) over its private
+    # network instead, so WEB_CONCURRENCY > 1 does not duplicate those ~2 GB
+    # per worker. Other local models (LettuceDetect, the intent model,
+    # FlashRank) still load in each API process. There
+    # is no silent in-process fallback: an unreachable server raises. The token
+    # is the same shared secret on both sides; the server refuses to start
+    # without it. See docs/operations/shared-model-server.md.
+    model_server_url: str = ""
+    model_server_token: Optional[str] = None
+    model_server_timeout_s: float = Field(default=30.0, gt=0)
     # Railway image-size reduction (W6, 2026-09-19): bake only the INT8 ONNX
     # models, skip the PyTorch fallback reranker entirely.
     quantized_only: bool = False
@@ -1169,6 +1251,12 @@ class Settings(BaseSettings):
     # Must be ≥1; zero or negative is rejected at startup by Pydantic validation.
     # Set to 12 (raised 2026-10-04 with Redis-backed cross-process RPM limiter).
     max_concurrent_chat: int = Field(default=12, ge=1)
+    # Per-client-IP token bucket on /api/chat* (app/middleware/rate_limit.py). Defaults keep the
+    # historical 20-burst / 20-per-minute. The key is the peer IP, so every seeker behind one
+    # NAT (a venue, campus or event Wi-Fi) shares ONE bucket: raise these for a known crowd;
+    # per-user abuse is still bounded by the per-session anon quota and the cost caps.
+    chat_token_bucket_capacity: int = Field(default=20, ge=1)
+    chat_token_bucket_refill_per_minute: float = Field(default=20.0, gt=0)
 
     # Concurrent native (ONNX/torch) model-inference slots per process.
     #
@@ -1245,6 +1333,20 @@ class Settings(BaseSettings):
     # the user's passphrase, but the default Mode-A wrap still needs this.
     brain_kek: Optional[str] = None
     allowed_hosts: str = "localhost,127.0.0.1"  # Trusted hosts for Origin/Referer validation
+    # Seconds a public (token-less) /api/health result is reused, one deep probe shared by all
+    # callers. The deep probe pings Qdrant, Redis, Memgraph and the LLM provider and runs an
+    # embedding on the shared pool, and the public body is only ready/status. 0 disables.
+    # Internal-token callers (METRICS_SCRAPE_TOKEN) always get a fresh probe.
+    health_public_cache_ttl_s: float = Field(default=10.0, ge=0.0, le=300.0)
+    # Seconds a browser/CDN may reuse GET /api/capabilities (Cache-Control max-age); the
+    # in-process manifest is recomputed at most this often too. 0 disables caching.
+    capabilities_cache_ttl_s: float = Field(default=60.0, ge=0.0, le=3600.0)
+    # Telemetry consumer idle wait (XREAD BLOCK, ms). Longer = fewer idle Redis round trips;
+    # data still flows the instant it arrives. Must stay below the 10 s client socket timeout.
+    telemetry_worker_block_ms: int = Field(default=8000, ge=1000, le=9000)
+    # Seconds a "this user is not an admin" lookup is reused (an "is admin" result keeps the fixed
+    # 90 s). Default equals the old behaviour; 600 cuts Supabase round trips for signed-in seekers.
+    admin_role_negative_cache_ttl_s: int = Field(default=90, ge=0, le=3600)
 
     # --- Auth & Rate Limiting ---
     # Default to PRODUCTION (secure-by-default). Override with IS_PRODUCTION=false for local dev only.
@@ -1300,6 +1402,23 @@ class Settings(BaseSettings):
             except (ValueError, json.JSONDecodeError):
                 return [h.strip() for h in v.split(",") if h.strip()]
         return v
+
+    @field_validator(
+        "first_person_scorer_provider_only", "first_person_scorer_quantizations", mode="before"
+    )
+    @classmethod
+    def _parse_scorer_pin_lists(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (ValueError, json.JSONDecodeError):
+                return [h.strip() for h in v.split(",") if h.strip()]
+        return v
+
+    @field_validator("first_person_scorer_allow_fallbacks", mode="before")
+    @classmethod
+    def _empty_allow_fallbacks_is_unset(cls, v: Any) -> Any:
+        return None if isinstance(v, str) and not v.strip() else v
 
     @field_validator("first_person_mode", mode="before")
     @classmethod
@@ -1904,6 +2023,50 @@ class Settings(BaseSettings):
     graphrag_total_timeout: float = Field(
         default=10.0, gt=0.0, le=60.0, description="Aggregate GraphRAG deadline in seconds"
     )
+
+    @model_validator(mode="after")
+    def validate_scorer_pins_tighten_policy(self):
+        """A first-person gate pin may only tighten the global OpenRouter provider policy.
+
+        Fails at boot (never silently ignored): allow_fallbacks=true cannot override
+        OPENROUTER_ALLOW_PROVIDER_FALLBACKS=false, and ``only`` must be a subset of a
+        non-empty OPENROUTER_ALLOWED_PROVIDERS.
+        """
+        if (
+            self.first_person_scorer_allow_fallbacks is True
+            and not self.openrouter_allow_provider_fallbacks
+        ):
+            raise ValueError(
+                "FIRST_PERSON_SCORER_ALLOW_FALLBACKS=true would loosen "
+                "OPENROUTER_ALLOW_PROVIDER_FALLBACKS=false; a scorer pin may only tighten the policy"
+            )
+        allowed = {
+            p.strip().lower() for p in self.openrouter_allowed_providers.split(",") if p.strip()
+        }
+        outside = [
+            p
+            for p in self.first_person_scorer_provider_only
+            if allowed and p.strip().lower() not in allowed
+        ]
+        if outside:
+            raise ValueError(
+                f"FIRST_PERSON_SCORER_PROVIDER_ONLY {outside} is not a subset of "
+                f"OPENROUTER_ALLOWED_PROVIDERS={sorted(allowed)}; a scorer pin may only tighten the policy"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_model_server_compat(self):
+        """ColBERT needs token-level vectors, which the model server does not serve."""
+        if self.model_server_url and self.enable_colbert:
+            raise ValueError(
+                "ENABLE_COLBERT=true is not supported with MODEL_SERVER_URL set: the shared "
+                "model server does not serve ColBERT vectors, so every ColBERT rerank would "
+                "fail. Unset ENABLE_COLBERT or unset MODEL_SERVER_URL."
+            )
+        if self.model_server_url and not self.model_server_token:
+            raise ValueError("MODEL_SERVER_URL is set but MODEL_SERVER_TOKEN is empty")
+        return self
 
     @model_validator(mode="after")
     def validate_graphrag_token_budget(self):

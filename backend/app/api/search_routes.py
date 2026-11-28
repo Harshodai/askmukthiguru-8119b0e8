@@ -271,6 +271,7 @@ async def inspect_source(
 
 
 @router.post("/web-discourse")
+@limiter.limit(settings.chat_rate_limit)
 async def web_discourse_search(
     request: Request,
     body: WebSearchRequest,

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -355,46 +355,39 @@ async def test_account_linking_lifecycle():
     assert token
     assert challenge["phone_number_masked"] == "+9198*** **210"
 
-    # 2. Verify challenge
-    challenge_row = {
-        "id": "challenge_uuid_1",
-        "challenge_token_hash": hash_token(token),
-        "phone_number_hash": challenge["phone_number_hash"],
-        "phone_number_masked": challenge["phone_number_masked"],
-        "phone_number_raw": phone,
-        "consumed_at": None,
-        "expires_at": (datetime.now(UTC) + timedelta(minutes=10)).isoformat(),
+    # 2. Verify challenge: single use, expiry and consumption are decided atomically by the
+    #    redeem_whatsapp_link RPC (2026-11-28 "Paused email, resumed WhatsApp"); the service only
+    #    sends the hashed token and checks the one row it gets back.
+    linked_row = {
+        "user_id": user_id,
+        "phone_number_masked": "+9198*** **210",
+        "status": "active",
+        "sync_history_consent": False,
+        "memory_write_consent": False,
+        "linked_at": datetime.now(UTC).isoformat(),
     }
-    fake_db.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
-        data=[challenge_row]
-    )
-    fake_db.table.return_value.upsert.return_value.execute.return_value = MagicMock(
-        data=[
-            {
-                "user_id": user_id,
-                "phone_number_masked": "+9198*** **210",
-                "status": "active",
-                "sync_history_consent": False,
-                "memory_write_consent": False,
-                "linked_at": datetime.now(UTC).isoformat(),
-            }
-        ]
-    )
+    fake_db.rpc.return_value.execute.return_value = MagicMock(data=[linked_row])
 
     linked = await verify_link_challenge(fake_db, token, user_id)
     assert linked["user_id"] == user_id
     assert linked["sync_history_consent"] is False
     assert linked["memory_write_consent"] is False
+    fake_db.rpc.assert_called_once_with(
+        "redeem_whatsapp_link",
+        {"p_token_hash": hash_token(token), "p_user_id": user_id, "p_tenant_id": "oneness"},
+    )
 
-    # 3. Attempt replay (should fail)
-    challenge_row["consumed_at"] = datetime.now(UTC).isoformat()
-    with pytest.raises(ValueError, match="already been used"):
+    # 3. Replayed, expired or unknown token: the RPC returns no row. One message for all three,
+    #    so the response does not tell an attacker which case it hit.
+    fake_db.rpc.return_value.execute.return_value = MagicMock(data=[])
+    with pytest.raises(ValueError, match="Unable to confirm account linking"):
         await verify_link_challenge(fake_db, token, user_id)
 
-    # 4. Attempt expired token (should fail)
-    challenge_row["consumed_at"] = None
-    challenge_row["expires_at"] = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
-    with pytest.raises(ValueError, match="expired"):
+    # 4. A row bound to a different user must never be accepted.
+    fake_db.rpc.return_value.execute.return_value = MagicMock(
+        data=[{**linked_row, "user_id": "someone_else"}]
+    )
+    with pytest.raises(ValueError, match="Unable to confirm account linking"):
         await verify_link_challenge(fake_db, token, user_id)
 
     # 5. Consent decoupling update

@@ -22,6 +22,7 @@ mapping lives in Postgres (user_brain_nodes); this index only answers
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from qdrant_client.http.models import (
@@ -124,7 +125,9 @@ class VaultIndex:
                 raise
 
     async def upsert(self, user_id: str, item_id: str, vector: list[float], kind: str) -> None:
-        self._client.upsert(
+        # Sync Qdrant client: off the event loop (it shares the single worker with chat).
+        await asyncio.to_thread(
+            self._client.upsert,
             collection_name=self._collection,
             points=[
                 PointStruct(id=item_id, vector=vector, payload={"user_id": user_id, "kind": kind})
@@ -132,7 +135,8 @@ class VaultIndex:
         )
 
     async def search(self, user_id: str, vector: list[float], *, limit: int) -> list[str]:
-        results = self._client.query_points(
+        results = await asyncio.to_thread(
+            self._client.query_points,
             collection_name=self._collection,
             query=vector,
             query_filter=Filter(
@@ -146,7 +150,8 @@ class VaultIndex:
     async def delete_item(self, user_id: str, item_id: str) -> None:
         """Delete one point, scoped to its owner (a client-guessed id from
         another user's vault cannot be deleted even if it collided)."""
-        self._client.delete(
+        await asyncio.to_thread(
+            self._client.delete,
             collection_name=self._collection,
             points_selector=Filter(
                 must=[
@@ -158,7 +163,8 @@ class VaultIndex:
 
     async def delete_all(self, user_id: str) -> None:
         """Crypto-shred support: delete every point owned by this user."""
-        self._client.delete(
+        await asyncio.to_thread(
+            self._client.delete,
             collection_name=self._collection,
             points_selector=Filter(
                 must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]

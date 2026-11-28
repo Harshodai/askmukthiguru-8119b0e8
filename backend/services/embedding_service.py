@@ -48,7 +48,9 @@ from services.circuit_breaker import (
     CircuitOpenException,
     DefaultCircuitBreaker,
 )
+from services.fast_tokenizer import FastTokenizerLoadError
 from services.native_inference_gate import native_inference
+from services.onnx_prepacked import PrepackError
 
 logger = logging.getLogger(__name__)
 
@@ -360,7 +362,6 @@ class EmbeddingService:
 
         import onnxruntime as ort
         from huggingface_hub import snapshot_download
-        from transformers import AutoTokenizer
 
         onnx_model_id = self._ONNX_CANDIDATE
         hf_home = os.environ.get("HF_HOME") or os.path.join(
@@ -401,6 +402,18 @@ class EmbeddingService:
             if not os.path.exists(model_file):
                 raise FileNotFoundError(
                     f"ONNX model file not found at {model_file} for '{onnx_model_id}'"
+                )
+
+            if settings.onnx_mmap_prepacked_enabled:
+                from services.onnx_prepacked import ensure_prepacked_model
+
+                model_file = str(
+                    ensure_prepacked_model(
+                        Path(model_file),
+                        Path(settings.onnx_prepacked_cache_dir or Path(hf_home) / "onnx_prepacked"),
+                        settings.onnx_prepacked_build_timeout_s,
+                        settings.onnx_prepacked_verify_data_hash,
+                    )
                 )
 
             # Bound thread count: default (0=all cores) oversubscribes when
@@ -469,23 +482,41 @@ class EmbeddingService:
                 Path(hf_home) / "sentence_transformers" / "models--BAAI--bge-m3",
                 Path(hf_home) / "models--BAAI--bge-m3",
             ]
-            tok_path = "BAAI/bge-m3"
-            local_only = False
-            for cand in candidate_dirs:
-                # Only a directory that actually holds a tokenizer counts: with
-                # local_files_only, a model-only dir would fail the load outright.
-                if (cand / "tokenizer_config.json").is_file():
-                    tok_path = str(cand)
-                    local_only = True
-                    break
-            # A pinned snapshot found on disk is loaded with local_files_only, so an
-            # offline container never reaches out to the Hub (Mac Docker 2026-10-06).
-            self._onnx_tokenizer = AutoTokenizer.from_pretrained(
-                tok_path,
-                revision=None if local_only else self._ONNX_TOKENIZER_REVISION,
-                local_files_only=local_only,
-                model_max_length=8192,
-            )
+            if settings.onnx_tokenizer_backend == "tokenizers":
+                # Torch-free path: raw `tokenizers`, local tokenizer.json only
+                # (no Hub fallback, no transformers import). See fast_tokenizer.py.
+                from services.fast_tokenizer import FastTokenizer
+
+                tok_dir = next(
+                    (c for c in candidate_dirs if (c / "tokenizer.json").is_file()), None
+                )
+                if tok_dir is None:
+                    raise FastTokenizerLoadError(
+                        "tokenizer.json not found in any of "
+                        f"{[str(c) for c in candidate_dirs]}; set "
+                        "ONNX_TOKENIZER_BACKEND=transformers to use AutoTokenizer instead."
+                    )
+                self._onnx_tokenizer = FastTokenizer(tok_dir)
+            else:
+                from transformers import AutoTokenizer
+
+                tok_path = "BAAI/bge-m3"
+                local_only = False
+                for cand in candidate_dirs:
+                    # Only a directory that actually holds a tokenizer counts: with
+                    # local_files_only, a model-only dir would fail the load outright.
+                    if (cand / "tokenizer_config.json").is_file():
+                        tok_path = str(cand)
+                        local_only = True
+                        break
+                # A pinned snapshot found on disk is loaded with local_files_only, so an
+                # offline container never reaches out to the Hub (Mac Docker 2026-10-06).
+                self._onnx_tokenizer = AutoTokenizer.from_pretrained(
+                    tok_path,
+                    revision=None if local_only else self._ONNX_TOKENIZER_REVISION,
+                    local_files_only=local_only,
+                    model_max_length=8192,
+                )
             self._encoder = session
             logger.info(
                 f"Loaded ONNX INT8 encoder: {onnx_model_id} "
@@ -529,6 +560,14 @@ class EmbeddingService:
                 try:
                     try:
                         self._load_encoder(model_name, device)
+                    except (FastTokenizerLoadError, PrepackError):
+                        # FastTokenizerLoadError: tokenizer artifact/config error;
+                        # clearing the model cache cannot fix it (snapshot_download
+                        # already refilled any missing file). PrepackError: a failed
+                        # prepack build says nothing about the HF cache, and the wipe
+                        # below would delete the pinned BGE-M3 tokenizer snapshot the
+                        # ONNX path needs. Surface both; no silent retry.
+                        raise
                     except Exception as first_err:
                         # A corrupted/truncated HF cache (e.g. an earlier OOM-kill
                         # mid-download) throws the same kind of error as a real
@@ -738,6 +777,10 @@ class EmbeddingService:
                     self._reranker_outputs_probs = True
                     logger.info("Loaded ONNX INT8 reranker: %s", settings.reranker_onnx_model)
                     return
+                except FastTokenizerLoadError:
+                    # Fast-tokenizer backend selected and its files are unusable:
+                    # raise instead of swapping to the torch CrossEncoder.
+                    raise
                 except Exception as e:
                     logger.warning(
                         "ONNX reranker load failed (%s); falling back to PyTorch CrossEncoder",
@@ -1860,5 +1903,11 @@ def get_embedding_service() -> EmbeddingService:
     if _EMBEDDING_SERVICE_SINGLETON is None:
         with _EMBEDDING_SERVICE_LOCK:
             if _EMBEDDING_SERVICE_SINGLETON is None:
-                _EMBEDDING_SERVICE_SINGLETON = EmbeddingService()
+                if settings.model_server_url:
+                    # Opt-in shared model server: no model is loaded in this process.
+                    from services.model_server.client import RemoteEmbeddingService
+
+                    _EMBEDDING_SERVICE_SINGLETON = RemoteEmbeddingService()
+                else:
+                    _EMBEDDING_SERVICE_SINGLETON = EmbeddingService()
     return _EMBEDDING_SERVICE_SINGLETON

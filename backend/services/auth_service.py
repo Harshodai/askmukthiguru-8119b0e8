@@ -517,7 +517,11 @@ class SupabaseAuthStrategy(AuthStrategy):
         """
         now = time.time()
         cached = self._admin_cache.get(user_id)
-        if cached and (now - cached[1]) < self._CACHE_TTL:
+        # A "not admin" answer may live longer than an "is admin" one: a stale negative can only
+        # delay a new grant, never keep a revoked admin. Every cache miss costs a Supabase client
+        # build, a session call and a REST query for a signed-in seeker.
+        ttl = self._CACHE_TTL if cached and cached[0] else settings.admin_role_negative_cache_ttl_s
+        if cached and (now - cached[1]) < ttl:
             return cached[0]
 
         try:

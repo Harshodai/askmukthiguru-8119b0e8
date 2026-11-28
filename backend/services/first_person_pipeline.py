@@ -988,6 +988,51 @@ def _judge_rubric_fingerprint() -> dict[str, str]:
     return {} if rubric == "v1" else {"judge_rubric": rubric}
 
 
+def scorer_provider_kwargs() -> dict[str, Any]:
+    """``{"provider_overrides": {...}}`` for first-person gate calls, ``{}`` when no pin is set.
+
+    Opt-in (``first_person_scorer_*`` settings). Empty means NO new keyword reaches the
+    provider, so unset requests are byte-identical to before.
+    """
+    pins: dict[str, Any] = {}
+    only = [str(x).strip() for x in getattr(settings, "first_person_scorer_provider_only", [])]
+    if only := [x for x in only if x]:
+        pins["only"] = only
+    quants = [str(x).strip() for x in getattr(settings, "first_person_scorer_quantizations", [])]
+    if quants := [x for x in quants if x]:
+        pins["quantizations"] = quants
+    if getattr(settings, "first_person_scorer_require_parameters", False):
+        pins["require_parameters"] = True
+    if getattr(settings, "first_person_scorer_zdr", False):
+        pins["zdr"] = True
+    allow_fallbacks = getattr(settings, "first_person_scorer_allow_fallbacks", None)
+    if allow_fallbacks is not None:
+        pins["allow_fallbacks"] = bool(allow_fallbacks)
+    return {"provider_overrides": pins} if pins else {}
+
+
+def _gate_failure_log(msg: str, *args: Any, model: str = "") -> None:
+    """Log a gate-call failure: INFO as before, WARNING when provider pins are active.
+
+    With a pin set, a call that fails or returns an unusable reply may mean no OpenRouter
+    endpoint matches the pin (the turn then abstains as indeterminate), so it must be visible.
+    Logs the model id and the pin summary only; never prompt text.
+    """
+    pins = scorer_provider_kwargs().get("provider_overrides")
+    if not pins:
+        logger.info(msg, *args)
+        return
+    logger.warning(
+        msg + " [first_person_scorer pins active: model=%s pins=%s; if no endpoint matches "
+        "them every pinned gate call fails and the turn abstains]",
+        *args,
+        model
+        or str(getattr(settings, "first_person_relevance_model", "") or "")
+        or "<provider-default>",
+        json.dumps(pins, sort_keys=True),
+    )
+
+
 def _relevance_timeout_s() -> float:
     return float(getattr(settings, "first_person_relevance_timeout_s", 25.0))
 
@@ -1540,7 +1585,7 @@ async def _relevance_select_scored_async(
         import asyncio
         import inspect
 
-        gen_kwargs: dict[str, Any] = {"temperature": 0.0}
+        gen_kwargs: dict[str, Any] = {"temperature": 0.0, **scorer_provider_kwargs()}
         scorer_model = str(getattr(settings, "first_person_relevance_model", "") or "").strip()
         if scorer_model:
             # 1024, not 24/256: Haiku 5.5 reasons internally (provider caps reasoning at max_tokens/4) and an
@@ -1632,12 +1677,16 @@ async def _relevance_select_scored_async(
                     elapsed,
                 )
     except ProviderRefusalError as e:  # noqa: BLE001 - CA-4: fail closed, distinct line
-        logger.info("[FirstPersonPipeline] Relevance check refused by provider (%s); abstaining", e)
+        _gate_failure_log(
+            "[FirstPersonPipeline] Relevance check refused by provider (%s); abstaining", e
+        )
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt))
         return _RELEVANCE_INDETERMINATE
     except Exception as e:  # noqa: BLE001 - fail closed
-        logger.info("[FirstPersonPipeline] Relevance check indeterminate (timeout/error): %s", e)
+        _gate_failure_log(
+            "[FirstPersonPipeline] Relevance check indeterminate (timeout/error): %s", e
+        )
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt))
         # Provider errors, refusals, budget denials, and timeouts remain
@@ -1676,7 +1725,7 @@ async def _relevance_select_scored_async(
                         raise ValueError(f"non-integer score {v!r}")
                     scores.append(v)
         except (ValueError, KeyError, TypeError, AttributeError) as json_err:
-            logger.info(
+            _gate_failure_log(
                 "[FirstPersonPipeline] Relevance check unparseable JSON output %r (err=%s); abstaining",
                 str(raw)[:120],
                 json_err,
@@ -1687,13 +1736,15 @@ async def _relevance_select_scored_async(
             scores = [int(tok) for tok in str(raw).strip().replace(" ", "").split(",")]
         except ValueError:
             # The reply is a model answer to a scoring prompt (never seeker words); cap and flatten it.
-            logger.info(
+            _gate_failure_log(
                 "[FirstPersonPipeline] Relevance check unparseable output %r; abstaining",
                 str(raw)[:60],
             )
             return _RELEVANCE_INDETERMINATE
     if len(scores) != len(clips) or any(not 0 <= v <= 3 for v in scores):
-        logger.info("[FirstPersonPipeline] Relevance check malformed scores %s; abstaining", scores)
+        _gate_failure_log(
+            "[FirstPersonPipeline] Relevance check malformed scores %s; abstaining", scores
+        )
         return _RELEVANCE_INDETERMINATE
     if scores_out is not None:
         scores_out[:] = scores
@@ -2105,7 +2156,11 @@ async def _joint_sufficiency_verdict(
     if resolved_question and resolved_question != question:
         user_prompt += f"Earlier user turn it follows: {neutralise(resolved_question)}\n"
     user_prompt += f"Clip:\n{neutralise(clip_text)}"
-    gen_kwargs: dict[str, Any] = {"temperature": 0.0, "max_tokens": 16}
+    gen_kwargs: dict[str, Any] = {
+        "temperature": 0.0,
+        "max_tokens": 16,
+        **scorer_provider_kwargs(),
+    }
     model = str(getattr(settings, "first_person_relevance_model", "") or "").strip()
     if model:
         gen_kwargs.update(model=model, max_tokens=2048)
@@ -2211,15 +2266,16 @@ async def _async_answerability_check(
                 user_prompt=neutralise(query) + suffix,
                 temperature=0.0,
                 max_tokens=16,
+                **scorer_provider_kwargs(),
             )
             if inspect.isawaitable(res):
                 res = await res
             raw = str(res)
         except Exception as e:
             if isinstance(e, ProviderRefusalError):
-                logger.info("[FirstPersonPipeline] Answerability check refused by provider")
+                _gate_failure_log("[FirstPersonPipeline] Answerability check refused by provider")
             else:
-                logger.info(
+                _gate_failure_log(
                     "[FirstPersonPipeline] Answerability check indeterminate (timeout/error): %s",
                     e,
                 )
@@ -2237,7 +2293,7 @@ async def _async_answerability_check(
         if token == "no":
             return False
         retry = attempt == 0 and (time.monotonic() - started) < deadline_s
-        logger.info(
+        _gate_failure_log(
             "[FirstPersonPipeline] Answerability check unparseable output (len=%d, retries=%d); %s",
             len(raw),
             attempt,
@@ -4037,6 +4093,24 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 **(
                     {"joint_sufficiency": _JOINT_SUFFICIENCY_PROMPT_VERSION}
                     if getattr(settings, "first_person_joint_sufficiency_enabled", False)
+                    else {}
+                ),
+                # Added only when a gate pin is set (it can change a score), so the key
+                # stays byte-identical with every pin unset.
+                **(
+                    {
+                        "scorer_routing": json.dumps(
+                            scorer_provider_kwargs()["provider_overrides"], sort_keys=True
+                        )
+                    }
+                    if scorer_provider_kwargs()
+                    else {}
+                ),
+                # Added only off the default, so the key is unchanged on "openrouter": a
+                # different backend can score the same model id differently.
+                **(
+                    {"llm_provider": str(settings.first_person_llm_provider)}
+                    if getattr(settings, "first_person_llm_provider", "openrouter") != "openrouter"
                     else {}
                 ),
                 "serve_weak_match": str(bool(settings.first_person_serve_weak_match)),
