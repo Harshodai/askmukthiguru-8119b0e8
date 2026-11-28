@@ -258,7 +258,8 @@ class LocalAuthStrategy(AuthStrategy):
                     "tenant_id": get_settings().default_tenant_id,
                 }
         except Exception as e:
-            logger.debug(f"Local auth attempt failed: {e}")
+            # type name only: exception text from token decoding can echo token fragments
+            logger.debug("Local auth attempt failed: %s", type(e).__name__)
         return None
 
 

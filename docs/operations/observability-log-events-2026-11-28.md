@@ -167,3 +167,7 @@ owner decision (`docs/architecture/llm-observability-design.md`, phase 2).
 - A global cap on distinct auth-failure keys does not exist: the rate limit is per
   `(reason, kid, iss_host)` with a 256-key map, so an attacker who varies `kid` on every
   request defeats it. The map stays bounded; the log volume does not.
+
+## Optional: keyed user/session id tags (`LOG_PSEUDONYM_KEY`)
+`app.sanitization.pseudonymize_identity` tags the user or anonymous-session id in the pipeline coordinator log lines. By default it is an unkeyed sha256 (first 12 hex chars): stable, but an attacker with a list of candidate ids could confirm one by hashing it. Set `LOG_PSEUDONYM_KEY` to a long random value to make the tag an HMAC-SHA256: still stable across restarts and replicas (so you can follow one user), not recoverable by hashing candidates without the key. Unset = original behaviour. Question tags (`q_tag`) are different on purpose: a random per-process key, so they only correlate within one process. `LocalAuthStrategy` DEBUG lines log the exception type only.
+

@@ -1362,6 +1362,11 @@ class Settings(BaseSettings):
     # level to Railway's debug/info/warn/error, and route uvicorn loggers through root.
     # Default False keeps today's output byte-identical; rollback = unset.
     log_json_stdout_enabled: bool = False
+    # Optional server-side key for the user/session id tags in coordinator log lines
+    # (app.sanitization.pseudonymize_identity). Empty (default) keeps the unkeyed sha256 tag
+    # exactly as today; set a long random value to make the tag an HMAC (not recoverable by
+    # hashing candidate ids) while staying stable across restarts and replicas.
+    log_pseudonym_key: str = ""
     # Per-turn trace on the existing `answer_outcome` line: ids, timings (ingress, queue,
     # dispatch, stages), the first-person gate counters and per-call LLM duration/status.
     # Ids, counts, scores and durations only; never seeker, clip or LLM text. Default False:
