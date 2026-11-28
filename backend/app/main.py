@@ -923,12 +923,6 @@ def check_startup_posture(s: Any) -> list[str]:
             "ENVIRONMENT is not production or staging on a production boot — set "
             "ENVIRONMENT=production (Railway) or staging."
         )
-    if not getattr(s, "faculty_access_code", None) and not getattr(
-        s, "faculty_gate_disabled", False
-    ):
-        problems.append(
-            "preview gate is neither FACULTY_ACCESS_CODE nor FACULTY_GATE_DISABLED=true."
-        )
     # NEW-AI-3 (AI-013): an empty scorer model silently uses the provider's default
     # generation model, which is not the measured relevance scorer. Named in
     # production, or startup stops.
@@ -1310,7 +1304,6 @@ if settings.is_production:
         "X-Session-Id",
         "X-Correlation-Id",
         "Idempotency-Key",
-        "X-Faculty-Code",
         # Sent by the SPA (src/lib/secondBrainApi.ts, src/admin/lib/api.ts). A header
         # missing here fails the browser preflight, which the UI reports as "failed (—)".
         "X-Brain-Unlock",
@@ -1326,30 +1319,16 @@ else:
         "X-Correlation-Id",
         "Idempotency-Key",
         "X-Test-Key",
-        "X-Faculty-Code",
         "X-Brain-Unlock",
         "X-CSRF-Token",
     ]
-
-# Faculty preview gate (off unless FACULTY_ACCESS_CODE is set). Added BEFORE
-# CORSMiddleware so CORS wraps it: a 401 still carries CORS headers and the
-# browser can read it, instead of surfacing as an opaque network error.
-from app.middleware.faculty_gate import FacultyGateMiddleware
-
-if getattr(settings, "faculty_access_code", None):
-    app.add_middleware(FacultyGateMiddleware, access_code=settings.faculty_access_code)
 
 # RP-A4 (2026-10-13): one boot line stating the effective serving posture, so
 # the deploy log — not tribal knowledge — proves which gate and policy served.
 # Review 2026-10-14: bridge_enabled + route_enabled distinguish live
 # first-person serving from the pre-bridge path on the same line.
 logger.info(
-    "Serving posture: faculty_gate=%s first_person(route=%s bridge=%s collection=%s fallback=%s weak_match=%s min_score=%s model=%s)",
-    (
-        "on"
-        if getattr(settings, "faculty_access_code", None)
-        else ("OPT-OUT" if getattr(settings, "faculty_gate_disabled", False) else "OFF")
-    ),
+    "Serving posture: first_person(route=%s bridge=%s collection=%s fallback=%s weak_match=%s min_score=%s model=%s)",
     getattr(settings, "first_person_route_enabled", "?"),
     getattr(settings, "first_person_chat_bridge_enabled", "?"),
     getattr(settings, "first_person_collection", "?"),

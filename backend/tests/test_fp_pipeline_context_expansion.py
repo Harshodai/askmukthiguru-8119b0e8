@@ -236,7 +236,8 @@ def test_enrichment_replaces_each_narrow_context_with_its_wider_window(
 
     merged = _expand(narrow, store)
 
-    assert store.enrich_calls == ["p1", "p2"]
+    # scrolls run concurrently now: call order is not defined, the merged order is (asserted above)
+    assert sorted(store.enrich_calls) == ["p1", "p2"]
     assert _context_ids(merged) == ["p1", "p2"]
     assert all(len(ctx.spans) == 2 for ctx in merged)
     assert all(out is not orig for out, orig in zip(merged, narrow))
@@ -257,7 +258,8 @@ def test_enrichment_contract_error_keeps_the_original_context(
 
     assert _context_ids(merged) == ["p1", "p2"]
     assert all(out is orig for out, orig in zip(merged, primary))
-    assert store.enrich_calls == ["p1", "p2"]
+    # scrolls run concurrently now: call order is not defined, the merged order is (asserted above)
+    assert sorted(store.enrich_calls) == ["p1", "p2"]
 
 
 # ----------------------------------------------------- 4. graph expansion on
@@ -307,7 +309,8 @@ def test_graph_expansion_enriches_only_when_the_window_flag_is_also_on(
 
     assert _context_ids(merged) == ["p1", "p2"]
     # Both the primary and the appended context get one enrichment call each.
-    assert store.enrich_calls == ["p1", "p2"]
+    # scrolls run concurrently now: call order is not defined, the merged order is (asserted above)
+    assert sorted(store.enrich_calls) == ["p1", "p2"]
 
 
 # --------------------------------------------------- 5. graph returns nothing

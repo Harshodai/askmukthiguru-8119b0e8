@@ -70,8 +70,6 @@ services:
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - ANON_SESSION_HMAC_SECRET=${ANON_SESSION_HMAC_SECRET:?set ANON_SESSION_HMAC_SECRET (required in production)}
       - BRAIN_KEK=${BRAIN_KEK:?set BRAIN_KEK (required in production)}
-      # Empty is allowed only with FACULTY_GATE_DISABLED=true; otherwise settings fail closed.
-      - FACULTY_ACCESS_CODE=${FACULTY_ACCESS_CODE:-}
       - LLM_PROVIDER=${LLM_PROVIDER:-openrouter}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - SARVAM_API_KEY=${SARVAM_API_KEY:-}

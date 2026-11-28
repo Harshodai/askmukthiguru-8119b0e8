@@ -19,7 +19,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import os
 import random
 import statistics
 import sys
@@ -64,7 +63,7 @@ def require_local(url: str) -> None:
 
 def safe_poll_path(poll_url: object) -> str:
     """poll_url must be a host-relative path: an absolute or scheme-relative URL would send the
-    session token and X-Faculty-Code to whatever host the server named."""
+    session token to whatever host the server named."""
     if not isinstance(poll_url, str) or not poll_url.startswith("/") or poll_url.startswith("//"):
         raise ValueError(f"refusing non-relative poll_url {poll_url!r}")
     return poll_url
@@ -101,8 +100,6 @@ async def one_message(
     c: httpx.AsyncClient, st: Stats, a: argparse.Namespace, u: int, n: int, token: str, xff: str
 ) -> None:
     hdr = {"X-Forwarded-For": xff}
-    if a.faculty_code:
-        hdr["X-Faculty-Code"] = a.faculty_code
     body = {"messages": [], "user_message": question(u, n), "session_id": token, "language": "en"}
     t0 = time.monotonic()
     r = None
@@ -173,8 +170,6 @@ async def user_loop(c, st, a, u, t_start, stop_at) -> None:
         if a.same_ip
         else f"10.{u // 250}.{u % 250}.{random.randint(1, 250)}"
     }
-    if a.faculty_code:
-        hdr["X-Faculty-Code"] = a.faculty_code
     s = await c.post("/api/auth/anon-session", headers=hdr)
     s.raise_for_status()
     token = s.json()["token"]
@@ -292,7 +287,6 @@ def main() -> None:
         action="store_true",
         help="all users share one client IP (per-IP rate-limit test)",
     )
-    ap.add_argument("--faculty-code", default=os.environ.get("LOAD_TEST_FACULTY_CODE", ""))
     ap.add_argument(
         "--pid", type=int, default=0, help="backend PID to sample CPU/RSS (host process)"
     )

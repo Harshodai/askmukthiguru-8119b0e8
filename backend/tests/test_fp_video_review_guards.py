@@ -82,7 +82,7 @@ def test_request_model_rejects_any_machine_field():
 def test_serve_time_hooks_are_present():
     from services import first_person_context_store, first_person_pipeline, first_person_store
 
-    gate = inspect.getsource(first_person_pipeline._passes_integrity_gate)
+    gate = inspect.getsource(first_person_pipeline._integrity_failure_reason)
     assert "video_is_blocked(vid_str)" in gate
     assert "video_is_blocked" in inspect.getsource(
         first_person_context_store.FirstPersonContextStore.points_servable
@@ -101,9 +101,9 @@ def test_serve_time_hooks_are_present():
 
 
 def test_integrity_gate_checks_the_admin_block_before_the_slow_availability_probe():
-    from services.first_person_pipeline import _passes_integrity_gate
+    from services.first_person_pipeline import _integrity_failure_reason
 
-    src = inspect.getsource(_passes_integrity_gate)
+    src = inspect.getsource(_integrity_failure_reason)
     assert src.index("video_is_blocked(") < src.index("is_youtube_video_available(")
 
 

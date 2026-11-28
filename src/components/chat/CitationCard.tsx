@@ -9,6 +9,7 @@ import { resolveAttributionLabel } from '@/lib/chat/types';
 import { isUnreviewedTranscript } from '@/lib/transcriptStatus';
 import { useYouTubeEmbedError } from '@/hooks/useYouTubeEmbedError';
 import { BACKEND_URL } from '@/lib/backendUrl';
+import { getAccessToken } from '@/lib/chat/auth';
 
 /** Neutral fallback shown only when the citation carries no real speaker —
  *  never a stand-in for an actual teacher's name. */
@@ -159,6 +160,7 @@ export const DiscourseVideoModal: React.FC<{
   const [reportCategory, setReportCategory] = useState<'wrong teacher' | 'wrong topic' | 'cut mid-thought' | 'other'>('wrong teacher');
   const [reportDetails, setReportDetails] = useState('');
   const [reportStatus, setReportStatus] = useState<'idle' | 'submitting' | 'submitted' | 'error'>('idle');
+  const [reportErrorKey, setReportErrorKey] = useState<'chat.clipReport.failed' | 'chat.clipReport.signInRequired'>('chat.clipReport.failed');
 
   const isDirectVideo = Boolean(
     citation?.url?.includes('/api/media/videos/') ||
@@ -243,23 +245,33 @@ export const DiscourseVideoModal: React.FC<{
     if (reportStatus === 'submitting') return;
     setReportStatus('submitting');
     try {
+      // The endpoint is signed-in only: without a bearer it answers 401 for everyone.
+      const token = await getAccessToken();
+      if (!token) {
+        setReportErrorKey('chat.clipReport.signInRequired');
+        setReportStatus('error');
+        return;
+      }
       const pointId = citation.pointId || citation.sourceSpanId || citation.videoId || videoId || 'unknown';
       const res = await fetch(`${BACKEND_URL}/api/feedback/clip-report`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           served_point_id: pointId,
           question: citation.title || 'Discourse clip playback',
           reason: reportDetails ? `${reportCategory}: ${reportDetails}` : reportCategory,
           reason_category: reportCategory,
+          video_id: citation.videoId?.slice(0, 64),
         }),
       });
       if (res.ok) {
         setReportStatus('submitted');
       } else {
+        setReportErrorKey(res.status === 401 || res.status === 403 ? 'chat.clipReport.signInRequired' : 'chat.clipReport.failed');
         setReportStatus('error');
       }
     } catch {
+      setReportErrorKey('chat.clipReport.failed');
       setReportStatus('error');
     }
   };
@@ -409,7 +421,7 @@ export const DiscourseVideoModal: React.FC<{
                   />
                   {reportStatus === 'error' && (
                     <p className="text-[11px] text-destructive-ink flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" /> Could not submit report. Please try again.
+                      <AlertCircle className="h-3 w-3" /> {t(reportErrorKey)}
                     </p>
                   )}
                   <div className="flex justify-end gap-2 pt-1">

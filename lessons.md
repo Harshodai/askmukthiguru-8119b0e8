@@ -1,6 +1,52 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 28, 2026 (evening) — Faculty-readiness live eval: what the logs and the eval exposed
+
+### L-GENERAL-LANE-LEAK-1 (2026-11-28). A closed leak reopened through a second decision point: the intent router set `general_knowledge_mode` from the Jev route and ignored `FIRST_PERSON_LLM_FALLBACK_ENABLED=false`.
+- **What:** live, a 2-turn session answered "difference between a mantra and a prayer" with LLM prose (`route_decision=general_knowledge_unverified`). A-34 (2026-11-15) had closed only the `OffTopicStage` paths; `rag/nodes/intent.py` and two bridge hand-offs still sent "difference/compare" questions to the generating graph.
+- **Rule:** with fallback off, every route that can author prose must consult the one flag; fixed at the router and both bridge sites, tests `test_fp_only_no_generated_comparison_2026_11_28.py`. When closing a leak, grep for every writer of the routing state, not just the path that was reported. Two older tests asserted the leak under fallback off and were pinned to fallback on (owner to confirm).
+
+### L-ENRICH-SERIAL-1 (2026-11-28). The slow tail (17-24 s) was a serial Qdrant enrichment loop (up to N x 1.5 s), not serial LLM calls; my own first reading of the logs was wrong.
+- **What:** I summed `llm_calls[].duration_ms` and concluded the scorer calls were serial. The code already fans out four at a time under a semaphore; the 12 "verify" calls were waves. `_expand_context_candidates._widen` scrolled parents one by one with a 1.5 s deadline each (15 live warnings).
+- **Rule:** before claiming "serial", find per-call start timestamps or read the fan-out code; a sum of durations is not wall time. `_widen` now runs concurrently (modelled gain, not yet measured live).
+
+### L-GATE-OBS-1 (2026-11-28). One counter called `integrity` hid about 13 distinct checks, so 4-5 rejections per question could not be explained.
+- **What:** local replay of all 2,999 servable spans found 0 hash mismatches and about 3 percent static failures (speaker-withheld 472 are filtered at retrieval on Railway), yet live logs showed 4-5 integrity hits per question. Suspect (unproven): the YouTube oEmbed availability check treating 4xx from a datacenter IP as unavailable and caching it for 24 h.
+- **Rule:** a rejection counter needs a reason code. `integrity_<reason>` counters and the failing gate names now ship in `fp.rejected` and the warn line. Next step: redeploy, rerun the live eval, read the reasons; do not change gate thresholds without the measured shadow experiment in the plan.
+
+### L-SECRET-ECHO-1 (2026-11-28). A `grep -E` over `railway variables --kv` printed `ANON_SESSION_HMAC_SECRET` into the transcript.
+- **What:** my allowlist regex matched `ANON[A-Z_]*=` and the secret shared the prefix. It had to be rotated on the backend and the celery worker (same value on both).
+- **Rule:** list variable NAMES first, print values only for an explicit allowlist of non-secret names, and never match by prefix. Secrets for tools (e.g. the i18n sync key) go straight into an env var for one command, never echoed.
+
+### L-FACULTY-GATE-1 (2026-11-28). A shared access code plus a bypass flag becomes dead code with a boot guard; stale invitation facts misled readers.
+- **What:** `FACULTY_GATE_DISABLED=true` in prod made the code gate a no-op while a startup guard still demanded one of the two; the packet claimed a 63.1 percent serve rate and a domain with no DNS.
+- **Rule:** when the product decision changes (faculty sign in with Google, frontend stays on lovable.app), delete the gate, its guards, tests and docs together. Packet numbers come from the latest live run (16 of 29 frozen on-topic served on 2026-11-28; 24-31 percent over the wider set).
+
+### L-KG-DEDUPE-1 (2026-11-28). The personal graph made one node per memory row and deduped by id only, so repeated memories became repeated identical nodes around "You".
+- **What:** `build_personal_knowledge_graph` keyed nodes by id; notebook items by query text; `created_at` was never stored so the recent-first sort fell back to degree.
+- **Rule:** merge by (type, normalised label) server-side with `merged_count`, redirect edges, cap by limit; client dedupes again as a safety net.
+
+### L-I18N-NEUTRAL-1 (2026-11-28). The i18n validator rejects a language-neutral string (`x{{count}}`) as "still English".
+- **Rule:** badge copy needs a real word (`{{count}} merged`). The OpenRouter key for `npm run i18n:sync` is read from Railway into the environment for that one command.
+
+### L-ANON-ROTATE-1 (2026-11-28). Rotating the anon-session HMAC would have stranded every returning visitor: the backend answers a bad signature with 400, the client only re-mints on 401.
+- **What:** found by a pre-merge gap pass, not by a test. Chat, job polling and the stream path all kept the stale token from localStorage; polling spun for 120 s.
+- **Rule:** before rotating any client-held credential, trace what the client does on the failure status. Fixed: `isAnonTokenRejected` re-mints once and retries (`src/lib/chat/anonRejected.ts`, test `anonRejectedRetry.test.ts`); a poll 400 is now terminal. Ship the frontend fix with or before the backend deploy that activates the new secret.
+
+### L-FEEDBACK-SILENT-1 (2026-11-28). Faculty feedback failed silently four ways: redirect to an http URL, no auth header on clip reports, fake "thanks" on failure, clip reports on an ephemeral disk file.
+- **Rule:** the capture path of a preview is part of the product; probe it end to end with a signed-in user, never trust a "thanks". Failure now surfaces as 503 and a translated error; clip reports persist to `feedback_events`. Open: `/api/feedback/rate` writes columns missing from the prod snapshot; clip reports count as thumbs-down in the KPI.
+
+### L-JUDGE-CACHE-1 (2026-11-28). The judge's one retry was a byte-identical request, so OpenRouter's response cache replayed the first (unparseable) reply: 30 ms, cost 0, same failure, then "try again in a moment".
+- **Rule:** a retry must differ from the first call or bypass the cache (`X-OpenRouter-Cache-Clear` on the retry only); log a bounded reason for every indeterminate (`fp.judge_indeterminate_reason`). Inferred from timing and cost, not confirmed by the cache-status header; confirm after deploy.
+
+### L-GAP-PASS-1 (2026-11-28). Agent-reported "tests pass" hid 4 failures that only the full suite and a real browser showed.
+- **What:** subagents ran their own files; the full run found tests written for the old serial call order and the old single-function gate, and the browser showed a user-facing error the API runs never printed.
+- **Rule:** after parallel agent edits run the whole suite and one real-browser chat before review; check the live UI copy, not only API fields.
+
+### L-LIVE-EVAL-1 (2026-11-28). I wrote an ad hoc live runner although `scripts/ops/first_person_live_matrix.py` and `live_smoke_battery.py` exist; the case files have three row shapes.
+- **Rule:** reuse the repo batteries; if a runner is needed, key rows by `turns` or `question`, retry transient network errors, and aggregate `answer_outcome` from the logs by `abstain_reason` and `fp.rejected`.
+
 ## Nov 28, 2026 — Railway cost/deploy review follow-through: logging, readiness, cold start, review discipline
 
 ### L-LOG-BOOTSTRAP-1 (2026-11-28). The first `logging.basicConfig` wins: on Railway the JSON formatter never installed, so every line is stderr and labelled `error`.
@@ -1425,63 +1471,6 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **What:** A planned 2,150-token calibrated scoring rubric assumed Anthropic prompt caching. `OpenRouterService` already sends `cache_control: {"type":"ephemeral"}`, but the configured scorer in `.env` is `deepseek/deepseek-chat` — a non-Anthropic endpoint — so the directive buys nothing, and a 2,150-token rubric on a per-candidate scorer would add prompt tokens on every call with zero cache benefit.
 - **Rule:** A prompt-restructuring proposal justified by prompt caching must first prove the target model honours the cache directive. If it does not, ship the same calibration signal in a compact rubric; do not restructure prompts to fit a cache that is not there.
 - **Pin:** `backend/services/first_person_pipeline.py` (`_RELEVANCE_RUBRIC_CORE`), `backend/tests/test_openrouter.py`.
-
-
-## Nov 9, 2026 — Multi-Video Synthesis Engine, Meditation Invitation Cues & Elevated Benchmark Pass Bar
-
-### L-MEDITATION-INVITATION-ACTIONABLE-GUIDANCE-1. Guided practice and meditation invitations are actionable spiritual guidance, not unshowable event defects.
-- **What:** Authentic spiritual teachings often culminate in an invitation into practice (e.g. *"Let us move into meditation now"* in `on05`). Previously, `EVENT_MARKER_RE` classified this phrase as an `event_bound` finding with `FindingSeverity.REVIEW`, causing evaluation judges and content assessment to penalize the clip as `not_showable` due to supposed "event-bound wording". This forced the system to withhold or strip meditation invitations, depriving seekers of the opportunity to immediately transition into practice and jump to the timestamped video/audio player.
-- **Rule:** Practice and meditation invitations (`PRACTICE_INVITATION_RE`) must be classified distinctly as `AssessmentKind.PRACTICE_INVITATION` with `FindingSeverity.NOTICE`. They must never be classified as `EVENT_BOUND` or treated as unshowable defects. The verbatim quote is fully preserved, enabling seekers to read the teaching and practice alongside the teacher.
-- **Pin:** `backend/domain/first_person_decision.py`, `backend/services/first_person_content_assessment.py`, `scripts/ops/grade_served_answers.py`.
-
-### L-COMPOUND-MULTI-FACET-DIRECT-SERVING-1. Compound multi-facet queries with complete facet coverage must serve direct answers with authoritative editorial sets.
-- **What:** In `_execute_compound` (`first_person_pipeline.py`), compound multi-part questions were hardcoded to return `status = "weak_match"` and `is_direct_answer = False`, while downstream `FirstPersonBridgeStage` suppressed weak matches on compound queries. As a consequence, even when every component facet was matched with high relevance ($\ge 3$) by verified teacher clips, the compound query was suppressed or demoted.
-- **Rule:** When all decomposed facets of a multi-part query are matched by verified clips clearing the relevance minimum (`len(successful_parts) == len(facets)`), the pipeline must stamp `status = "success"`, `is_direct_answer = True`, and attach an authoritative `editorial_set = {"status": "supported", ...}`. When only a subset of facets is matched, it honestly returns `status = "weak_match"` and `editorial_set["status"] = "partial"`.
-- **Pin:** `backend/services/first_person_pipeline.py`, `backend/app/config.py`, `backend/tests/test_first_person_payload_contract.py`.
-
-### L-MULTI-VIDEO-TEACHING-SYNTHESIS-JOIN-1. Multi-video synthesis requires dual serving modalities, pedagogical ontology sequencing, and click-free audio cross-fading.
-- **What:** In complex spiritual queries where a single video clip lacks complete depth (e.g. concept explanation in one discourse followed by guided meditation in another, inspired by master composite edits like Sadhguru's composite videos and Netflix's Dynamic Sizzles), naive concatenation results in audio clicks, jarring narrative jumps, and disjointed pacing.
-- **Rule:** Multi-video synthesis in `services/video_composition.py` must support dual serving modalities: Modality A (YouTube reference cards with timestamped video links and audio strips) vs Modality B (programmatic FFmpeg filter graph generation with 50ms triangular audio cross-fades `acrossfade=d=0.05:c1=tri:c2=tri`, video standardization to 1080p @ 30fps with aspect-ratio preserving padding, and static/animated diagram overlays during practice segments). Clips must be sequenced via spiritual ontology flow (Obstacle $\rightarrow$ Shift/Insight $\rightarrow$ Practice Invitation $\rightarrow$ Reflection/State) and validated by `FirstPersonVideoJudge`.
-- **Pin:** `backend/services/video_composition.py`, `backend/tests/test_video_composition.py`.
-
-### L-QUESTION-BANK-UNIFIED-BENCHMARK-EVAL-1. Unify the 421-query benchmark question bank across doctrine, multi-hop, safety, and guardrail splits.
-- **What:** Previously, graded evaluation was partitioned into isolated fragments (`frozen116`, `unanswerable86`, `benchmark`), while the comprehensive 421 questions in `backend/benchmarks/question_bank.py` across 36 categories (such as `complex_multi_hop`, `doctrine_soul_sync`, `doctrine_four_secrets`, `guardrails_input`, `ruthless_safety_boundaries`) were disconnected from the standard execution framework.
-- **Rule:** `scripts/ops/graded_capture.py` and `scripts/ops/grade_served_answers.py` must support `--include-question-bank` and `--question-bank-only`, loading all 421 questions into standardized evaluation splits with category-level breakdown reporting. The approved pass bar in `grading_pass_bar.json` is elevated to `min_served_share >= 0.45` and `min_showable_rate >= 0.95`, with 100% byte-identical script parity maintained between `scripts/ops/` and `backend/scripts/ops/` (Invariant X1).
-- **Pin:** `evals/first_person/grading_pass_bar.json`, `scripts/ops/graded_capture.py`, `backend/scripts/ops/graded_capture.py`, `scripts/ops/grade_served_answers.py`, `backend/scripts/ops/grade_served_answers.py`.
-
-
-## Nov 8, 2026 — Root-Cause Remediation: LLM Judge Authoritative Editorial Hand-off, Resilient Coverage & Statistical Safety Notice
-
-### L-LLM-JUDGE-AUTHORITATIVE-COVERAGE-1. LLM semantic judge verdicts must stamp authoritative editorial sets to prevent heuristic second-guessing.
-- **What:** In the first-person serving lane, `FirstPersonJudge` evaluates candidate relevance and answerability (`answers: bool`, `relevance: 0-3`). Previously, after the judge verified a candidate as a direct answer (`answers=True, rel=3`), downstream serving in `FirstPersonBridgeStage` passed the served text to heuristic `coverage_for_served_text`. When a seeker asked queries like *"how do I find inner peace?"* or *"why did you build Ekam?"*, the heuristic query planner inferred mandatory `practice` or `cause` facets and searched for hardcoded lexical keywords (`_FACET_KEYWORDS`). Because the spiritual teaching used conceptual explanation rather than the exact keyword stems, coverage returned `INSUFFICIENT`, overriding the LLM judge's verdict and causing false abstentions.
-- **Rule:** When `FirstPersonJudge` marks a candidate as directly answering (`answers == True` and `rel >= min_score`), the pipeline must stamp an authoritative `editorial_set = {"status": "supported", ...}` into `FirstPersonPipelineResult`. In `CoverageDecision.from_editorial_set`, this marks `authoritative = True` and guarantees `allow_direct = True`, preventing downstream heuristic regex matching from second-guessing an authoritative semantic judgment.
-
-### L-NON-EMPTY-INFERRED-FACET-DOWNGRADE-1. Inferred missing facets on non-empty text must downgrade to related, never abstain.
-- **What:** When non-authoritative (heuristic) coverage evaluated non-empty clip text that lacked keywords for an inferred facet (e.g. planner inferred `practice` from *"how do I..."*), returning `CoverageVerdict.INSUFFICIENT` forced an outright `ABSTAIN`. This violated the contract that missing inferred facets should only distinguish direct from related answers, not completely suppress a relevant clip.
-- **Rule:** In `first_person_coverage.py::coverage_for_served_text`, `CoverageVerdict.INSUFFICIENT` is reserved strictly for empty or whitespace text (`not text.strip()`). When text is non-empty but lacks matches for inferred facets, the verdict must evaluate to `CoverageVerdict.PARTIAL` with `authoritative = False` and `allow_related = True`. This allows `resolve_serve_posture` to serve the clip as `RELATED` (with `status="weak_match"` and `is_direct=False`) rather than falsely abstaining.
-
-### L-STATISTICAL-SELF-HARM-NOTICE-SCOPE-1. Educational demographic statistics must be scoped as safety notices, not outright exclusions.
-- **What:** `_self_harm_for_context` in `first_person_content_assessment.py` used a single broad regex that treated demographic or educational mortality statistics (e.g. *"Did you know self-harm is the leading cause of death in a certain age group? Why? Because we live as strangers under the same roof."* in `q019`) identically to acute crisis ideation, assigning `FindingSeverity.EXCLUDE`. This caused the pipeline to abstain from serving a poignant teaching on human connection, defeating the intended safety design of serving the clip with an attached support helpline notice.
-- **Rule:** Educational and statistical mentions of self-harm must be separated via `_STATISTICAL_SELF_HARM_RE` and mapped to `FindingSeverity.NOTICE` rather than `EXCLUDE`. This allows the verbatim teaching clip to be served safely while appending the crisis helpline notice to `route_metadata["safety_notices"]`, preserving both seeker safety and teaching availability.
-
-### L-GRADED-RUN-CREDENTIAL-INTEGRITY-1. Graded evaluation claims must be grounded in executed grading runs, never assumed.
-- **What:** The automated two-stage LLM grader `grade_served_answers.py` calls OpenRouter (`https://openrouter.ai/api/v1/chat/completions`) using `OPENROUTER_API_KEY`. When the key is invalid or expired (returning `401 Unauthorized: User not found`), automated grading cannot score served rows. Claiming a graded run is "good to go" without a valid grading execution or when external credentials block execution is a hallucination.
-- **Rule:** Never declare a graded evaluation passed unless `grade_served_answers.py` executes successfully to completion, writes `grades.json`, and verifies all 5 gates (`showable_rate >= 0.85`, `harmful == 0`, `core_abstain_rate >= 0.95`, `p95_latency <= 10s`, `served_share >= 0.30`). When credentials fail or are missing, report the exact blocking error transparently.
-
-
-## Nov 8, 2026 — Root-Cause Remediation: Compound Weak Match Suppression, Structural Transcript Integrity & Ayurvedic Safety Notices
-
-### L-COMPOUND-WEAK-MATCH-ABSTAIN-1. Verbatim retrieval on multi-part compound queries must abstain on weak matches.
-- **What:** In `retrieval_only` mode (Invariant X24), LLMs may not author connective or synthesizing text. When compound questions (`cmp01`, `cmp02`, `cmp04`) matched only weakly, the pipeline served a single clip that addressed one concept while leaving the others unanswered. This led to `harmful: True` ratings (e.g. `cmp02` was rated harmful for absolutist shaming on letting go without addressing relationship damage; `cmp04` promised anxiety cure without medical care).
-- **Rule:** Multi-part compound questions must only be served when they have direct complete answers (`status == "success"` and `is_direct == True`). When only a weak match exists, `serve_weak` must enforce `and not is_compound`, cleanly falling back to general RAG or honest abstention.
-
-### L-UNPUNCTUATED-ASR-TRANSCRIPT-GATING-1. Punctuation-blind ASR transcripts require multi-layer grammatical and structural density gating.
-- **What:** In `q051`, an unpunctuated 50-word transcript slipped past sentence-boundary checks because it contained zero periods or sentence terminators. It opened with a lowercase comparative fragment (`"more disharmony to happen in your life"`), asserted an alarming medical claim (`"you're getting diseased"`), and ended on a severed transitive verb (`"it is not allowing"`), resulting in a `harmful: True` verdict.
-- **Rule:** Standalone detectors must check punctuation density (>25 words with zero sentence terminators `.` / `!` / `?` / `।` / `॥`), trailing transitive verbs (`allowing`, `giving`, `making`, `letting`), comparative fragments (`more <noun> to`), and severed lowercase openers, preventing unpunctuated ASR slices from ever reaching seekers.
-
-### L-AYURVEDIC-HEALTH-SAFETY-DISCLAIMER-1. Spiritual-physiology teachings require automated platform medical notices.
-- **What:** In `q064` and `q074`, high-relevance direct answers discussing how emotional stress leaves the body agitated and causes ill health were graded `unsure` by judges solely due to lack of a healthcare disclaimer.
-- **Rule:** Widen `_AYURVEDIC_HEALTH_FRAMING_RE` to match general spiritual-physiology terms (`causes ill health`, `body agitated`, `inner disturbance leaves your body`) and automatically append `MEDICAL_CLAIM_NOTICE`. This converts valid spiritual teachings to showable without violating Invariant X24.
 
 
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with

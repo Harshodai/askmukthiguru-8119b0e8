@@ -17,7 +17,7 @@ from app.core.feedback_store import FeedbackStore
 from app.core.limiter import limiter
 from schemas.feedback import FeedbackCreate, FeedbackResponse
 from services.auth_service import get_current_user_from_supabase, require_aal2
-from services.feedback_service import FeedbackService
+from services.feedback_service import FeedbackService, FeedbackStoreError
 
 router = APIRouter(prefix="/feedback", tags=["Feedback"])
 jsonl_store = FeedbackStore()
@@ -74,7 +74,10 @@ async def submit_feedback(
                 query_text=feedback_in.query,
             )
 
-    return await service.create_feedback(feedback_in, user_id=user_id)
+    try:
+        return await service.create_feedback(feedback_in, user_id=user_id)
+    except FeedbackStoreError as exc:
+        raise HTTPException(status_code=503, detail="Feedback could not be saved") from exc
 
 
 @router.get("/history", response_model=list[FeedbackResponse])
@@ -299,6 +302,7 @@ class ClipReportRequest(BaseModel):
         max_length=64,
     )
     reporter: Optional[str] = Field(None, max_length=255)
+    video_id: Optional[str] = Field(None, max_length=64)
 
 
 def _validate_clip_point_id(value: str) -> str:
@@ -401,7 +405,24 @@ async def report_clip(
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     record = _build_clip_record(body, user.get("id"))
-    await asyncio.to_thread(_append_clip_report, record, _resolve_clip_reports_path())
+    # Primary sink: Supabase feedback_events (durable across redeploys). A failed
+    # insert surfaces as 503 so the reviewer sees the report did not land.
+    try:
+        await FeedbackService().record_clip_report(
+            user_id=user.get("id"),
+            served_point_id=record["served_point_id"],
+            reason=record["reason"],
+            reason_category=record.get("reason_category"),
+            video_id=(body.video_id or "").strip() or None,
+        )
+    except FeedbackStoreError as exc:
+        raise HTTPException(status_code=503, detail="Clip report could not be saved") from exc
+    # Secondary sink: local JSONL. The report is already durable, so a file
+    # failure must not turn a saved report into an error response.
+    try:
+        await asyncio.to_thread(_append_clip_report, record, _resolve_clip_reports_path())
+    except HTTPException:
+        logging.getLogger(__name__).warning("clip_report_jsonl_failed after supabase insert")
     return {"status": "ok", "served_point_id": record["served_point_id"]}
 
 

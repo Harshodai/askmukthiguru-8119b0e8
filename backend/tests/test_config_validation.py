@@ -172,7 +172,6 @@ def test_production_test_auth_restriction():
             enable_test_auth=True,
             anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
             brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
-            faculty_access_code="test-faculty-code",  # RP-A4: isolate the test-auth subject
         )
 
     s_dev = Settings(is_production=False, enable_test_auth=True)
@@ -184,7 +183,6 @@ def test_production_test_auth_restriction():
         enable_test_auth=False,
         anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
         brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
-        faculty_access_code="test-faculty-code",  # RP-A4: isolate the test-auth subject
     )
     assert s_prod.enable_test_auth is False
 
@@ -230,7 +228,6 @@ def test_allowed_hosts_and_forwarded_ips_normalization():
             allowed_hosts="*",
             anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
             brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
-            faculty_access_code="test-faculty-code",  # RP-A4: isolate the hosts subject
         )
 
     with pytest.raises(
@@ -243,7 +240,6 @@ def test_allowed_hosts_and_forwarded_ips_normalization():
             forwarded_allow_ips="*",
             anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
             brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
-            faculty_access_code="test-faculty-code",  # RP-A4: isolate the hosts subject
         )
 
 
@@ -260,7 +256,6 @@ def test_brain_kek_required_in_production(monkeypatch: pytest.MonkeyPatch):
             enable_test_auth=False,
             anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
             brain_kek=None,
-            faculty_access_code="test-faculty-code",  # RP-A4: isolate the brain_kek subject
         )
 
     s_prod = Settings(
@@ -269,7 +264,6 @@ def test_brain_kek_required_in_production(monkeypatch: pytest.MonkeyPatch):
         enable_test_auth=False,
         anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
         brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
-        faculty_access_code="test-faculty-code",  # RP-A4: isolate the brain_kek subject
     )
     assert s_prod.brain_kek is not None
 
@@ -331,44 +325,24 @@ def test_first_person_only_posture_is_the_default():
     assert Settings.model_fields["first_person_relevance_min_score"].default == 3
 
 
-def test_production_refuses_missing_faculty_code():
-    """RP-A4: an unset FACULTY_ACCESS_CODE must stop startup, not open the preview."""
-    with pytest.raises(ValueError, match="faculty_access_code is required in production"):
-        Settings(**_prod_kwargs())
-
-
-def test_production_accepts_faculty_code():
-    s = Settings(**_prod_kwargs(faculty_access_code="preview-secret"))
-    assert s.faculty_access_code == "preview-secret"
-
-
-def test_production_accepts_recorded_gate_opt_out():
-    """RP-A4: an intentionally ungated launch is an explicit flag, not a missing var."""
-    s = Settings(**_prod_kwargs(faculty_gate_disabled=True))
-    assert s.faculty_gate_disabled is True
-
-    s_dev = Settings()
-    assert s_dev.faculty_gate_disabled is False
-
-
 def test_production_refuses_default_environment_name():
     """DS-7: IS_PRODUCTION=true with the default ENVIRONMENT=local refuses
     to start — production guards must know where they run."""
     with pytest.raises(ValidationError, match="must be production or staging"):
-        Settings(**_prod_kwargs(environment="local", faculty_gate_disabled=True))
+        Settings(**_prod_kwargs(environment="local"))
 
 
 def test_production_refuses_test_and_blank_environment():
     """DS-7: 'test'/blank must not satisfy production guards (review 2026-10-14)."""
     for bad in ("test", "TEST", "", "  "):
         with pytest.raises(ValidationError, match="must be production or staging"):
-            Settings(**_prod_kwargs(environment=bad, faculty_gate_disabled=True))
+            Settings(**_prod_kwargs(environment=bad))
 
 
 def test_production_accepts_named_environment():
-    s = Settings(**_prod_kwargs(environment="production", faculty_access_code="test-faculty-code"))
+    s = Settings(**_prod_kwargs(environment="production"))
     assert s.environment == "production"
-    s = Settings(**_prod_kwargs(environment="staging", faculty_access_code="test-faculty-code"))
+    s = Settings(**_prod_kwargs(environment="staging"))
     assert s.environment == "staging"
 
 
@@ -443,7 +417,6 @@ def test_uncapped_spend_refused_in_production_unless_recorded():
         openrouter_api_key="k",
         enable_test_auth=False,
         brain_kek="k" * 44,
-        faculty_access_code="x",
     )
     for kw in ({"openrouter_budget_guard_enabled": False},):
         with pytest.raises(ValueError, match="spend cap"):

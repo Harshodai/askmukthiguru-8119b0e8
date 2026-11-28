@@ -75,33 +75,47 @@ export function EngagementCard({ messageId, messageContent, queryText, disabled,
   const [showRefine, setShowRefine] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<'signIn' | 'failed' | null>(null);
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((x) => x !== tag) : [...prev, tag]));
   };
 
-  const submit = (choice: EngagementChoice, tags: string[], commentText: string) => {
+  const submit = async (choice: EngagementChoice, tags: string[], commentText: string) => {
+    if (sending) return;
     // Incognito promises nothing from the session is saved — skip both the
     // local feedback store and the backend POST (which would otherwise ship
     // the query/answer pair off-device). Still show the "thanks" state so
     // the control doesn't look broken.
     if (!isIncognitoMode()) {
+      setSending(true);
+      setSendError(null);
+      try {
+        await submitFeedbackToBackend({
+          query: queryText ?? '',
+          answer: messageContent,
+          rating: choice === 'yes' ? 1 : -1,
+          feedback_text: commentText.trim() || tags.join(', ') || undefined,
+          metadata_json: {
+            ...(qualityMetadata ?? {}),
+            feedback_tags: tags,
+            feedback_choice: choice,
+          },
+        });
+      } catch (err) {
+        // Never show "thanks" for feedback the server did not store.
+        const status = (err as { status?: number } | null)?.status;
+        setSendError(status === 401 || status === 403 ? 'signIn' : 'failed');
+        setSending(false);
+        return;
+      }
+      setSending(false);
       saveFeedback(messageId, {
         vote: choice === 'yes' ? 'up' : 'down',
         tags,
         comment: commentText.trim() || undefined,
         timestamp: new Date(),
-      });
-      void submitFeedbackToBackend({
-        query: queryText ?? '',
-        answer: messageContent,
-        rating: choice === 'yes' ? 1 : -1,
-        feedback_text: commentText.trim() || tags.join(', ') || undefined,
-        metadata_json: {
-          ...(qualityMetadata ?? {}),
-          feedback_tags: tags,
-          feedback_choice: choice,
-        },
       });
     }
     setShowRefine(false);
@@ -114,7 +128,7 @@ export function EngagementCard({ messageId, messageContent, queryText, disabled,
     // submit() twice — a second feedback POST + saveFeedback for one click.
     if (submitted) return;
     if (choice === 'yes') {
-      submit(choice, [], '');
+      void submit(choice, [], '');
     } else {
       setShowRefine(true);
     }
@@ -148,7 +162,7 @@ export function EngagementCard({ messageId, messageContent, queryText, disabled,
               <button
                 type="button"
                 data-testid="engagement-yes"
-                disabled={disabled}
+                disabled={disabled || sending}
                 onClick={() => handleChoice('yes')}
                 className="inline-flex items-center gap-1 rounded-full border border-border/60 min-h-[44px] sm:min-h-[32px] px-3 hover:border-ojas/40 hover:text-ojas active:scale-[0.98] transition-all duration-200 ease-out disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -167,6 +181,12 @@ export function EngagementCard({ messageId, messageContent, queryText, disabled,
           )}
         </AnimatePresence>
       </div>
+
+      {sendError && (
+        <p role="alert" data-testid="engagement-error" className="mt-1 text-destructive-ink">
+          {t(sendError === 'signIn' ? 'chat.engagement.signInToSend' : 'chat.engagement.sendFailed')}
+        </p>
+      )}
 
       <AnimatePresence>
         {showRefine && (
@@ -215,7 +235,8 @@ export function EngagementCard({ messageId, messageContent, queryText, disabled,
             />
             <button
               type="button"
-              onClick={() => submit('not_quite', selectedTags, comment)}
+              onClick={() => void submit('not_quite', selectedTags, comment)}
+              disabled={sending}
               className="min-h-[44px] sm:min-h-[32px] px-3 py-1.5 flex items-center text-[11px] font-medium text-ojas-ink dark:text-ojas hover:text-ojas-light active:scale-[0.98] transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-md"
             >
               {t('chat.submitFeedback')}

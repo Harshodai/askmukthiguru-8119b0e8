@@ -20,7 +20,21 @@ interface FacultyReviewGateProps extends FacultyAnswerContext {
 }
 
 /**
- * Mounts FacultyLabelPanel only for an explicitly provisioned faculty reviewer.
+ * Reviewer claim, or an admin (same `has_role` RPC the admin guard uses; the
+ * RLS policy accepts the same two predicates). Errors mean "not allowed".
+ */
+type ReviewUser = (NonNullable<Parameters<typeof hasFacultyReviewerRole>[0]> & { id?: string }) | null | undefined;
+
+async function canReview(user: ReviewUser): Promise<boolean> {
+  if (!user) return false;
+  if (hasFacultyReviewerRole(user)) return true;
+  if (!user.id) return false;
+  const { data, error } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+  return !error && data === true;
+}
+
+/**
+ * Mounts FacultyLabelPanel only for a faculty reviewer or an admin.
  * A flag, ordinary sign-in, or user-editable metadata is never sufficient.
  */
 export function FacultyReviewGate({ crisis, ...ctx }: FacultyReviewGateProps) {
@@ -32,8 +46,9 @@ export function FacultyReviewGate({ crisis, ...ctx }: FacultyReviewGateProps) {
     let cancelled = false;
     void supabase.auth
       .getUser()
-      .then(({ data }) => {
-        if (!cancelled) setIsReviewer(hasFacultyReviewerRole(data?.user));
+      .then(({ data }) => canReview(data?.user))
+      .then((ok) => {
+        if (!cancelled) setIsReviewer(ok);
       })
       .catch(() => {
         if (!cancelled) setIsReviewer(false);

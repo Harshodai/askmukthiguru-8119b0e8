@@ -30,6 +30,7 @@ import re
 import threading
 import time
 import unicodedata
+from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -410,11 +411,28 @@ def _passes_integrity_gate(
     boundary_guard_enabled: Optional[bool] = None,
     check_availability: bool = True,
 ) -> bool:
+    """True when ``_integrity_failure_reason`` finds nothing wrong (see there)."""
+    return (
+        _integrity_failure_reason(
+            clip,
+            boundary_guard_enabled=boundary_guard_enabled,
+            check_availability=check_availability,
+        )
+        is None
+    )
+
+
+def _integrity_failure_reason(
+    clip: dict[str, Any],
+    boundary_guard_enabled: Optional[bool] = None,
+    check_availability: bool = True,
+) -> Optional[str]:
     """Serve-time gate: hash match, allowlisted speaker, no extraction artifact,
     no spiritual/miracle promises (H4), YouTube video availability (FI-16),
     and no dangling trailing conjunction.
 
-    All are required. A failing clip is never served.
+    All are required. A failing clip is never served. Returns None when the clip
+    passes, else a bounded reason code (never clip or question text).
     """
     verbatim_text = clip.get("verbatim_text") or ""
     transcript_hash = clip.get("transcript_hash") or ""
@@ -423,7 +441,7 @@ def _passes_integrity_gate(
     vid_str = str(clip.get("video_id") or "")
 
     if clip.get("provenance_kind") == "curated_okf":
-        return False
+        return "curated_okf"
     if (
         clip.get("first_person_eligible") is not True
         or clip.get("rights_cleared") is not True
@@ -434,7 +452,19 @@ def _passes_integrity_gate(
             domain_rights_status=clip.get("domain_rights_status"),
         )
     ):
-        return False
+        # Most specific cause first; "not_eligible" alone means the speaker was
+        # not verified (first_person_eligible folds speaker_verified in).
+        if clip.get("rights_cleared") is not True:
+            return "rights_not_cleared"
+        if clip.get("is_verbatim") is not True:
+            return "not_verbatim"
+        if not source_is_authoritatively_licensed(
+            source_url=clip.get("source_url"),
+            video_id=clip.get("video_id"),
+            domain_rights_status=clip.get("domain_rights_status"),
+        ):
+            return "not_licensed"
+        return "speaker_unverified" if clip.get("speaker_verified") is not True else "not_eligible"
 
     # Hard Stop H4: Blocked promise point IDs or video IDs
     if point_id_str in BLOCKED_PROMISE_POINT_IDS or vid_str in BLOCKED_PROMISE_POINT_IDS:
@@ -442,7 +472,7 @@ def _passes_integrity_gate(
             "[FirstPersonPipeline] Clip %s rejected by integrity gate: in BLOCKED_PROMISE_POINT_IDS (H4)",
             point_id_str or vid_str,
         )
-        return False
+        return "blocked_promise"
 
     # Owner decision (admin video-approval page): a video the owner rejected, or whose
     # speaker the owner marked "rejected", is never served. Tighten-only; no decision
@@ -453,7 +483,7 @@ def _passes_integrity_gate(
             point_id_str or vid_str,
             vid_str,
         )
-        return False
+        return "admin_video_blocked"
 
     # Hard Stop H4: Spiritual / Miracle outcome promises
     if _OUTCOME_PROMISE_CLIP_RE.search(verbatim_text):
@@ -461,7 +491,7 @@ def _passes_integrity_gate(
             "[FirstPersonPipeline] Clip %s rejected by integrity gate: outcome promise detected (H4)",
             point_id_str or vid_str,
         )
-        return False
+        return "outcome_promise"
 
     # Failure Injection FI-16: YouTube video availability check
     if check_availability and vid_str:
@@ -471,20 +501,20 @@ def _passes_integrity_gate(
                 point_id_str or vid_str,
                 vid_str,
             )
-            return False
+            return "youtube_unavailable"
 
     if hashlib.sha256(verbatim_text.encode("utf-8")).hexdigest() != transcript_hash:
-        return False
+        return "hash_mismatch"
     if speaker not in _ALLOWED_SPEAKERS:
-        return False
+        return "speaker_not_allowed"
     if find_artifact(verbatim_text) is not None:
-        return False
+        return "extraction_artifact"
     if _DANGLING_CONJUNCTION_RE.search(verbatim_text):
         logger.warning(
             "[FirstPersonPipeline] Clip %s rejected by integrity gate: trailing conjunction",
             clip.get("clip_id") or clip.get("id"),
         )
-        return False
+        return "dangling_conjunction"
     guard_active = (
         boundary_guard_enabled
         if boundary_guard_enabled is not None
@@ -502,7 +532,7 @@ def _passes_integrity_gate(
             point_id_str,
             ",".join(verdict_codes),
         )
-        return False
+        return "persisted_boundary"
     if guard_active:
         # Judged on verbatim_text only. display_text is NOT evidence of a whole
         # sentence: its punctuation restorer ends every clip with a period, so
@@ -516,7 +546,7 @@ def _passes_integrity_gate(
                 clip.get("point_id") or clip.get("id"),
                 ",".join(sorted(defects)),
             )
-            return False
+            return "boundary_defect"
         if (
             tokens
             and tokens[0][0].islower()
@@ -526,8 +556,8 @@ def _passes_integrity_gate(
                 "[FirstPersonPipeline] Clip %s rejected by integrity gate: severed preposition opener",
                 clip.get("point_id") or clip.get("id"),
             )
-            return False
-    return True
+            return "severed_preposition"
+    return None
 
 
 # ponytail: content quality gate — rejects clips that pass hash/speaker checks
@@ -3092,8 +3122,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             timeout_s = float(
                 getattr(settings, "first_person_enrichment_window_timeout_s", 1.5) or 1.5
             )
-            out: list[Any] = []
-            for ctx in items:
+
+            def _one(ctx: Any) -> Any:
                 try:
                     widened = _call_with_deadline(
                         lambda c=ctx: ctx_store.enrich_to_parent_window(c),
@@ -3123,8 +3153,17 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         type(exc).__name__,
                     )
                     widened = ctx
-                out.append(widened if widened is not None else ctx)
-            return out
+                return widened if widened is not None else ctx
+
+            # Each context is an independent Qdrant scroll with its own deadline, so run them
+            # side by side: the wall is max(scrolls) <= timeout_s, not N x timeout_s (the serial
+            # loop cost up to 1.5 s per parent). map() keeps the original order.
+            if len(items) <= 1:
+                return [_one(c) for c in items]
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=len(items), thread_name_prefix="fp-enrich-join"
+            ) as pool:
+                return list(pool.map(_one, items))
 
         # Never re-hydrate an unbounded list: the primary pass is capped at max_clips,
         # the same ceiling the retrieval itself used.
@@ -5612,6 +5651,14 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
 
                     if decision.decision not in _allowed_decisions:
                         fp_reject(f"decide_{decision.decision}")
+                        # Why the harness declined (bounded code, no text).
+                        _why_decline = getattr(decision, "abstain_reason", None)
+                        if _why_decline:
+                            from services.first_person_context_harness import (
+                                _bounded_abstain_reason,
+                            )
+
+                            fp_reject(f"abstain_{_bounded_abstain_reason(str(_why_decline))}")
                         return None, _local_tokens
 
                     t_asm_start = time.monotonic()
@@ -5674,6 +5721,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             is_distress=is_distress,
                         )
                     _span_failed_gate = False
+                    _failed_gates: list[str] = []
                     is_multi_span = len(served_spans) > 1
                     for span in served_spans:
                         c_span = cite_by_id.get(span.source_span_id)
@@ -5699,6 +5747,16 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             else self._boundary_guard_enabled,
                         ):
                             fp_reject("integrity")
+                            # Which integrity check failed (bounded code, no text).
+                            _why = await _io_thread(
+                                _integrity_failure_reason,
+                                cit_dict,
+                                boundary_guard_enabled=False
+                                if is_multi_span
+                                else self._boundary_guard_enabled,
+                            )
+                            fp_reject(f"integrity_{_why or 'unknown'}")
+                            _failed_gates.append(f"integrity_{_why or 'unknown'}")
                             _span_failed_gate = True
                             break
                         # Single-span decisions must pass standalone content quality individually.
@@ -5714,11 +5772,13 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             cit_dict, gate_enabled=self._content_quality_gate_enabled
                         ):
                             fp_reject("content_quality")
+                            _failed_gates.append("content_quality")
                             _span_failed_gate = True
                             break
                         point_id = str(cit_dict.get("point_id") or "")
                         if _harness_allow is not None and point_id not in _harness_allow:
                             fp_reject("allowlist")
+                            _failed_gates.append("allowlist")
                             _span_failed_gate = True
                             break
                         if _harness_blocked is not None:
@@ -5727,14 +5787,17 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                     "[FirstPersonPipeline] Context harness span lacks point_id while quality blocklist is configured; failing closed",
                                 )
                                 fp_reject("blocklist")
+                                _failed_gates.append("blocklist")
                                 _span_failed_gate = True
                                 break
                             if point_id in _harness_blocked:
                                 fp_reject("blocklist")
+                                _failed_gates.append("blocklist")
                                 _span_failed_gate = True
                                 break
                         elif _harness_blocklist_configured:
                             fp_reject("blocklist")
+                            _failed_gates.append("blocklist")
                             _span_failed_gate = True
                             break
                         citations.append(cit_dict)
@@ -5787,6 +5850,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
                         )
                         fp_reject("content_quality")
+                        _failed_gates.append("content_quality")
                         _span_failed_gate = True
                     if (
                         not _span_failed_gate
@@ -5805,6 +5869,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 ",".join(sorted(_asm_defects)),
                             )
                             fp_reject("boundary")
+                            _failed_gates.append("boundary")
                             _span_failed_gate = True
                     if _span_failed_gate:
                         FIRST_PERSON_QUARANTINED_TOTAL.inc()
@@ -5813,8 +5878,10 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             is True
                         )
                         logger.warning(
-                            "[FirstPersonPipeline] Context harness span failed a serve-time gate for parent %s; %s",
+                            "[FirstPersonPipeline] Context harness span failed a serve-time gate for parent %s (gates=%s); %s",
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                            ",".join(f"{g}:{n}" for g, n in sorted(Counter(_failed_gates).items()))
+                            or "unknown",
                             "terminal mode: abstaining, no legacy fall-through"
                             if _terminal
                             else "falling back to legacy",
@@ -6039,6 +6106,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     _judge_sem = asyncio.Semaphore(_HARNESS_JUDGE_CONCURRENCY)
                     _judge_retries: list[int] = []
                     _fpj.JUDGE_RETRY_LOG.set(_judge_retries)
+                    _judge_fail_reasons: list[str] = []
+                    _fpj.JUDGE_FAIL_LOG.set(_judge_fail_reasons)
 
                     async def _bounded_ctx(_p: dict[str, Any]) -> Any:
                         async with _judge_sem:
@@ -6090,6 +6159,16 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         ),
                         judge_retried=len(_judge_retries),
                     )
+                    if _judge_fail_reasons:
+                        # Logging only: the most common bounded reason a judge was indeterminate.
+                        _reason_counts: dict[str, int] = {}
+                        for _r in _judge_fail_reasons:
+                            _reason_counts[_r] = _reason_counts.get(_r, 0) + 1
+                        fp_note(
+                            judge_indeterminate_reason=max(
+                                sorted(_reason_counts), key=_reason_counts.__getitem__
+                            )
+                        )
                     if _comparative_on:
                         _cmp_abstain = await self._comparative_narrow(
                             _ctx_results,

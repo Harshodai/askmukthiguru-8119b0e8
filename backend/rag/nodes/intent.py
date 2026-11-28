@@ -1216,11 +1216,25 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
         ),
     }
     if jev_result:
-        res["domain_route"] = jev_domain_route
         res["router_latency_ms"] = jev_result.get("latency_ms")
+        _jev_general = jev_domain_route in {"general", "live_research"}
+        from services.fp_fail_closed import fail_closed_active, record_fail_closed
+
+        if _jev_general and fail_closed_active() and not state.get("general_knowledge_mode"):
+            # First-person-only posture (invariant 21, 2026-11-28): the router may
+            # not open the generating general lane. A comparison such as "mantra vs
+            # prayer" handed off by the bridge was answered with model prose
+            # (route general_knowledge_unverified). Keep it on the teaching lane;
+            # generate_answer then returns the static abstain. An upstream stage's
+            # explicit general decision (state flag already set) is left alone.
+            record_fail_closed("jev_general_route")
+            jev_domain_route = "teaching"
+            jev_result = {**jev_result, "needs_web_search": False}
+            _jev_general = False
+        res["domain_route"] = jev_domain_route
         # Explicit domain decision can bypass the teaching-only corpus even
         # when the legacy graph intent is FACTUAL for compatibility.
-        res["general_knowledge_mode"] = jev_domain_route in {"general", "live_research"}
+        res["general_knowledge_mode"] = _jev_general
     if jev_result and jev_result.get("needs_web_search"):
         res["needs_web_search"] = True
     return res

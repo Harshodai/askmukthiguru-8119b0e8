@@ -19,8 +19,6 @@ def _cfg(**overrides):
     base = dict(
         is_production=False,
         environment="local",
-        faculty_access_code=None,
-        faculty_gate_disabled=False,
     )
     base.update(overrides)
     return SimpleNamespace(**base)
@@ -31,13 +29,8 @@ def test_dev_posture_has_no_problems():
 
 
 def test_production_unnamed_environment_is_blocking():
-    problems = check_startup_posture(_cfg(is_production=True, faculty_gate_disabled=True))
+    problems = check_startup_posture(_cfg(is_production=True))
     assert any("ENVIRONMENT" in p for p in problems)
-
-
-def test_production_silent_preview_gate_is_blocking():
-    problems = check_startup_posture(_cfg(is_production=True, environment="production"))
-    assert any("preview gate" in p for p in problems)
 
 
 def test_production_named_and_gated_is_clean():
@@ -46,18 +39,10 @@ def test_production_named_and_gated_is_clean():
             _cfg(
                 is_production=True,
                 environment="production",
-                faculty_gate_disabled=True,
             )
         )
         == []
     )
-
-
-def test_both_problems_reported_together():
-    problems = check_startup_posture(_cfg(is_production=True))
-    assert len(problems) == 2
-    assert any("ENVIRONMENT" in p for p in problems)
-    assert any("preview gate" in p for p in problems)
 
 
 @pytest.mark.asyncio
@@ -90,7 +75,6 @@ def _fp_cfg(**overrides):
     values = dict(
         is_production=True,
         environment="production",
-        faculty_gate_disabled=True,
         first_person_route_enabled=True,
         first_person_relevance_gate_enabled=True,
         first_person_relevance_model="anthropic/claude-haiku-5.5",

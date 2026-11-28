@@ -147,3 +147,18 @@ describe('T1-18 (UX-005): Stream contract tests', () => {
     expect(thrownError?.message).toContain('Stream timed out waiting for server response');
   });
 });
+
+describe('streamed request body', () => {
+  it('contains no system-role message (backend owns the system prompt)', async () => {
+    fetchWithRetryMock.mockClear();
+    fetchWithRetryMock.mockResolvedValue(sseResponse('data: {"token":"x"}\n\n'));
+    try {
+      for await (const _ of sendMessageStreaming([{ role: 'user', content: 'hi' }], 'hi')) void _;
+    } catch {
+      // stream-completion errors are irrelevant here; only the request body matters
+    }
+    const body = JSON.parse(fetchWithRetryMock.mock.calls[0][1].body as string);
+    expect(body.messages.some((m: { role: string }) => m.role === 'system')).toBe(false);
+    expect(JSON.stringify(body)).not.toContain('You are the guru');
+  });
+});

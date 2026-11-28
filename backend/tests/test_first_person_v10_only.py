@@ -417,7 +417,6 @@ def test_production_env_preflight_flags_must_agree():
         "LLM_PROVIDER": "openrouter",
         "OPENROUTER_API_KEY": "k",
         "BRAIN_KEK": "k",
-        "FACULTY_ACCESS_CODE": "c",
     }
     both = {
         "FIRST_PERSON_CONTEXT_HARNESS_ENABLED": "true",

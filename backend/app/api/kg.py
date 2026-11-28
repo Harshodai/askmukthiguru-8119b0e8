@@ -354,6 +354,10 @@ class KGNode(BaseModel):
     content_preview: str | None = None
     # Provenance of a Memory / NotebookItem node; None means "source unavailable".
     source_ref: dict[str, str] | None = None
+    # Additive: how many duplicate records were merged into this node, and the
+    # newest record time (ISO string) used for recent-first ordering.
+    merged_count: int = 1
+    created_at: str | None = None
 
 
 class KGEdge(BaseModel):
@@ -476,6 +480,8 @@ async def kg_personal_subgraph(
                 state_category=n.get("state_category"),
                 content_preview=(str(n.get("content") or "")[:320] if n.get("content") else None),
                 source_ref=_node_source_ref(n),
+                merged_count=int(n.get("merged_count") or 1),
+                created_at=(str(n["created_at"]) if n.get("created_at") else None),
             )
         )
 

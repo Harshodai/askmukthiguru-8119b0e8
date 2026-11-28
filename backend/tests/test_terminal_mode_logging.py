@@ -190,3 +190,19 @@ async def test_context_evaluation_no_direct_answer_non_terminal_mode(
         "Context harness evaluated 1 contexts with no direct answer; falling back to legacy"
     ) in caplog.text
     assert res is None
+
+
+def test_integrity_failure_reason_names_the_failing_check():
+    """_integrity_failure_reason returns a bounded code; the bool gate stays in step."""
+    from services.first_person_pipeline import (
+        _integrity_failure_reason,
+        _passes_integrity_gate,
+    )
+
+    clip = {"verbatim_text": "x", "first_person_eligible": False, "rights_cleared": True}
+    clip.update(is_verbatim=True, domain_rights_status="licensed", speaker_verified=False)
+    reason = _integrity_failure_reason(clip, check_availability=False)
+    assert reason is not None and reason.isidentifier()
+    assert _passes_integrity_gate(clip, check_availability=False) is False
+    clip["rights_cleared"] = False
+    assert _integrity_failure_reason(clip, check_availability=False) == "rights_not_cleared"

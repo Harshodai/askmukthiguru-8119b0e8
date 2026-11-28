@@ -296,7 +296,7 @@ done
 # Settings refuses to start in production without these (backend/app/config.py
 # validators), so a missing one is a crash loop, not a degraded boot.
 MISSING_REQUIRED=0
-for key in OPENROUTER_API_KEY SUPABASE_URL SUPABASE_KEY ANON_SESSION_HMAC_SECRET BRAIN_KEK JWT_SECRET FACULTY_ACCESS_CODE FIRST_PERSON_RELEVANCE_MODEL; do
+for key in OPENROUTER_API_KEY SUPABASE_URL SUPABASE_KEY ANON_SESSION_HMAC_SECRET BRAIN_KEK JWT_SECRET FIRST_PERSON_RELEVANCE_MODEL; do
     if ! railway variables get "$key" &>/dev/null; then
         warn "$key is REQUIRED in production and is not set"
         MISSING_REQUIRED=1

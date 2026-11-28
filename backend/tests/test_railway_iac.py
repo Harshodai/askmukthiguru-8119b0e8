@@ -117,9 +117,9 @@ def test_celery_has_one_switch_by_d30():
     assert "INCLUDE_CELERY ? [worker, beat] : []" in IAC
 
 
-def test_faculty_access_code_is_the_only_staging_gate_by_d29():
-    assert "D-29 decided" in IAC
-    assert "FACULTY_ACCESS_CODE: preserve()" in IAC
+def test_no_faculty_access_code_gate_in_iac():
+    """Owner decision 2026-11-28: faculty sign in with Google; no shared-code gate."""
+    assert "FACULTY_ACCESS_CODE" not in IAC
 
 
 def test_no_literal_secret_values():
@@ -129,7 +129,6 @@ def test_no_literal_secret_values():
         "BRAIN_KEK",
         "OPENROUTER_API_KEY",
         "SUPABASE_KEY",
-        "FACULTY_ACCESS_CODE",
         "METRICS_SCRAPE_TOKEN",
         "QDRANT_READ_ONLY_API_KEY",
     )

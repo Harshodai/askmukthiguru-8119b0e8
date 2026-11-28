@@ -58,13 +58,29 @@ describe('chat/transport helpers', () => {
     await submitFeedbackToBackend({ query: 'q', answer: 'a', rating: 1, feedback_text: 'good' });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/api/feedback',
+      'http://localhost:8000/api/feedback/',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({ Authorization: 'Bearer tok' }),
         body: JSON.stringify({ query: 'q', answer: 'a', rating: 1, feedback_text: 'good', metadata_json: undefined }),
       }),
     );
+  });
+
+  it('submitFeedbackToBackend throws with the HTTP status when the server rejects', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValue({ ok: false, status: 503 });
+    await expect(
+      submitFeedbackToBackend({ query: 'q', answer: 'a', rating: -1 }),
+    ).rejects.toMatchObject({ name: 'FeedbackSubmitError', status: 503 });
+  });
+
+  it('submitFeedbackToBackend throws status 0 on a network failure', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(
+      submitFeedbackToBackend({ query: 'q', answer: 'a', rating: 1 }),
+    ).rejects.toMatchObject({ name: 'FeedbackSubmitError', status: 0 });
   });
 
   it('submitFeedbackToBackend no-ops when provider is placeholder', async () => {

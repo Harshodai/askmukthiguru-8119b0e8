@@ -43,6 +43,11 @@ vi.mock('@/lib/aiService', () => ({
   submitFeedbackToBackend: vi.fn(),
 }));
 
+vi.mock('@/lib/chat', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/chat')>()),
+  submitFeedbackToBackend: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('@/lib/chatStorage', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/chatStorage')>();
   return {
