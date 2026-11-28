@@ -711,11 +711,19 @@ class RedisBackedRateLimiter:
             import logging
 
             logging.getLogger(__name__).warning(
-                "RedisBackedRateLimiter: async Redis error on is_allowed (%s) — degrading to allow",
+                "RedisBackedRateLimiter: async Redis error on is_allowed (%s) — using process-local fallback",
                 exc,
             )
-            # Fail-open on transient Redis error to avoid locking out all users.
-            return True, 0.0
+            # A live Redis client can fail after connection establishment. Do
+            # not turn that transport error into an unbounded bypass: enter the
+            # same bounded process-local limiter used by the startup path and
+            # account for this request exactly once.
+            self._async_redis = None
+            self._fallback_active = True
+            allowed, retry_after = self._fallback.is_allowed(key, now)
+            if allowed:
+                self._fallback.record_attempt(key, True, now)
+            return allowed, retry_after
 
     async def record_attempt_async(
         self, key: str, success: bool, now: Optional[float] = None

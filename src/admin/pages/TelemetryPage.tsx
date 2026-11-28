@@ -27,9 +27,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { useTelemetryEvents } from "@/admin/hooks/useAdminData";
+import { useQueries, useTelemetryEvents } from "@/admin/hooks/useAdminData";
 import { EmptyState } from "@/admin/components/EmptyState";
-import { fmtDateTime, truncate } from "@/admin/lib/formatters";
+import { fmtDateTime, fmtMs, fmtUsd, truncate } from "@/admin/lib/formatters";
 import { Search, X, Download } from "lucide-react";
 
 const PAGE_SIZE = 50;
@@ -53,6 +53,13 @@ export default function TelemetryPage() {
   const [sessionId, setSessionId] = useState("");
   const [metricType, setMetricType] = useState<string | undefined>();
   const [page, setPage] = useState(0);
+  const {
+    data: recentQueries = [],
+    isLoading: recentQueriesLoading,
+    isError: recentQueriesError,
+    error: recentQueriesErrorValue,
+    refetch: refetchRecentQueries,
+  } = useQueries({ limit: PAGE_SIZE });
 
   const { data, isLoading, isError, error, refetch, isFetching } = useTelemetryEvents({
     user_id: userId || undefined,
@@ -119,6 +126,61 @@ export default function TelemetryPage() {
           </Button>
         )}
       </div>
+
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold">Recent model usage</h2>
+              <p className="text-xs text-muted-foreground">
+                Per-turn accounting from recorded query traces; open a trace for stage-level detail.
+              </p>
+            </div>
+            <div className="text-xs text-muted-foreground">{recentQueries.length} recent turns</div>
+          </div>
+          {recentQueriesLoading ? (
+            <InlineSpinner className="p-4 text-sm text-muted-foreground" />
+          ) : recentQueriesError ? (
+            <div role="alert" className="space-y-2 text-sm text-destructive">
+              <p>Unable to load model usage: {(recentQueriesErrorValue as Error)?.message || "Telemetry service unavailable."}</p>
+              <Button variant="outline" size="sm" onClick={() => refetchRecentQueries()}>Retry</Button>
+            </div>
+          ) : recentQueries.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No query traces are available for this period.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Model</TableHead>
+                    <TableHead className="text-right">Tokens in</TableHead>
+                    <TableHead className="text-right">Tokens out</TableHead>
+                    <TableHead className="text-right">Cost</TableHead>
+                    <TableHead className="text-right">Latency</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentQueries.slice(0, PAGE_SIZE).map((query) => (
+                    <TableRow key={query.id}>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {fmtDateTime(query.created_at)}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{query.model || "unknown"}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{(query.prompt_tokens ?? 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{(query.completion_tokens ?? 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{fmtUsd(query.cost_estimate)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{fmtMs(query.latency_ms)}</TableCell>
+                      <TableCell className="text-xs">{query.status || "unknown"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Filter bar */}
       <Card>

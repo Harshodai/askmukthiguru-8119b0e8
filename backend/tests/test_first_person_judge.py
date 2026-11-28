@@ -287,3 +287,49 @@ def test_build_editorial_set_from_judge():
     assert ed_set["facet_coverage"]["practice"] == "direct"
     assert ed_set["is_complete_thought"] is True
     assert ed_set["content_safety"] == "clean"
+
+
+@pytest.mark.relevance_real
+def test_span_range_uses_versioned_schema_and_records_valid_range(judge_on):
+    clips = [
+        {
+            "span_texts": ["opening", "direct answer", "follow-up"],
+            "hit_positions": [1],
+        }
+    ]
+    reply = json.dumps(
+        {
+            "scores": [{"i": 0, "relevance": 3, "answers": True}],
+            "question_answerable": True,
+            "span_start": 1,
+            "span_end": 1,
+        }
+    )
+    metadata: dict = {}
+    assert fpp._relevance_select("q", clips, _LLM(reply), judge_meta_out=metadata) == 0
+    assert metadata["span_range"] == (1, 1)
+
+
+def test_valid_span_range_rejects_non_integer_and_hit_omitting_ranges():
+    assert judge.valid_span_range((True, 1), 3, {1}) is None
+    assert judge.valid_span_range((0, 0), 3, {1}) is None
+    assert judge.valid_span_range((0, 3), 3, {1}) is None
+    assert judge.valid_span_range((1, 2), 3, {1}) == (1, 2)
+
+
+@pytest.mark.relevance_real
+def test_span_range_parser_accepts_null_as_non_authoritative():
+    raw = json.dumps(
+        {
+            "scores": [{"i": 0, "relevance": 3, "answers": True}],
+            "question_answerable": True,
+            "span_start": None,
+            "span_end": None,
+        }
+    )
+    parsed = judge.parse_judge_reply(raw, 1, allow_span_range=True)
+    assert parsed is not None
+    scores, answerable, span_range = parsed
+    assert scores[0]["answers"] is True
+    assert answerable is True
+    assert span_range is None

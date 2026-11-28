@@ -429,6 +429,8 @@ async def get_recent_traces(
     prompt_version_id: Optional[str] = None,
     model: Optional[str] = None,
     min_judge_score: Optional[float] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
 ) -> list[dict[str, Any]]:
     """Fetch recent traces for Admin UI from Supabase.
 
@@ -445,18 +447,28 @@ async def get_recent_traces(
     if not client:
         return []
 
-    any_filter = bool(search or prompt_version_id or model or min_judge_score is not None)
+    any_filter = bool(
+        search
+        or prompt_version_id
+        or model
+        or min_judge_score is not None
+        or from_date
+        or to_date
+    )
     fetch_limit = min(500, max(limit * 5, limit)) if any_filter else limit
 
     try:
         # Join chat_queries with chat_responses and trace_spans
-        response = (
+        query = (
             client.table("chat_queries")
             .select("*, chat_responses(*), trace_spans(*)")
             .order("created_at", desc=True)
-            .limit(fetch_limit)
-            .execute()
         )
+        if from_date:
+            query = query.gte("created_at", validate_iso_date(from_date))
+        if to_date:
+            query = query.lte("created_at", validate_iso_date(to_date))
+        response = query.limit(fetch_limit).execute()
 
         traces = []
         for row in response.data:
@@ -1302,29 +1314,46 @@ async def get_annotations() -> list[dict[str, Any]]:
 
 
 async def get_admins() -> list[dict[str, Any]]:
-    """Get admin users. Raises on a missing client or a failed query: an empty list means "no admins", never "error"."""
+    """Get admin users without relying on a PostgREST foreign-key relationship.
+
+    Production schema caches may not expose ``user_roles.user_id`` as a
+    relationship to ``auth_users`` even though both tables are readable. Keep
+    the two reads explicit and join only the bounded admin role rows locally.
+    """
     client = _get_client()
     if not client:
         raise RuntimeError("Telemetry DB client is not configured; cannot list admins")
-
     try:
-        # Join user_roles with auth_users to get email
-        response = (
+        roles_response = (
             client.table("user_roles")
-            .select("*, auth_users:user_id(email)")
+            .select("user_id, role, created_at")
             .eq("role", "admin")
+            .limit(200)
             .execute()
         )
-        data = response.data or []
-
-        result = []
-        for row in data:
+        roles = [row for row in (roles_response.data or []) if isinstance(row, dict)]
+        user_ids = [str(row["user_id"]) for row in roles if row.get("user_id")]
+        emails: dict[str, str] = {}
+        if user_ids:
+            users_response = (
+                client.table("auth_users")
+                .select("id, email")
+                .in_("id", user_ids)
+                .limit(200)
+                .execute()
+            )
+            emails = {
+                str(row["id"]): str(row.get("email") or "Unknown")
+                for row in (users_response.data or [])
+                if isinstance(row, dict) and row.get("id")
+            }
+        result: list[dict[str, Any]] = []
+        for row in roles:
+            user_id = row.get("user_id")
             result.append(
                 {
-                    "id": row.get("user_id"),
-                    "email": row.get("auth_users", {}).get("email", "Unknown")
-                    if row.get("auth_users")
-                    else "Unknown",
+                    "id": user_id,
+                    "email": emails.get(str(user_id), "Unknown"),
                     "role": row.get("role"),
                     "created_at": row.get("created_at", "2024-01-01T00:00:00Z"),
                 }

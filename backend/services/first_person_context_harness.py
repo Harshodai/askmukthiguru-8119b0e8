@@ -612,6 +612,7 @@ class FirstPersonContextHarness:
         requested_teacher: str | None = None,
         answerability: str = "indeterminate",
         selected_span_ids: tuple[str, ...] | None = None,
+        selected_span_range: tuple[int, int] | None = None,
         retrieval_query: str | None = None,
         validated_predecessor: ValidatedCrossParentEdge | None = None,
     ) -> RetrievalDecision:
@@ -627,6 +628,7 @@ class FirstPersonContextHarness:
             requested_teacher=requested_teacher,
             answerability=answerability,
             selected_span_ids=selected_span_ids,
+            selected_span_range=selected_span_range,
             retrieval_query=retrieval_query,
             validated_predecessor=validated_predecessor,
         )
@@ -641,6 +643,7 @@ class FirstPersonContextHarness:
         requested_teacher: str | None = None,
         answerability: str = "indeterminate",
         selected_span_ids: tuple[str, ...] | None = None,
+        selected_span_range: tuple[int, int] | None = None,
         retrieval_query: str | None = None,
         validated_predecessor: ValidatedCrossParentEdge | None = None,
     ) -> RetrievalDecision:
@@ -726,6 +729,26 @@ class FirstPersonContextHarness:
                 return True
             present_ids = {span.source_span_id for span in candidate_spans}
             return validated_opener_id in present_ids and validated_hit_id in present_ids
+
+        if selected_span_range is not None:
+            start, end = selected_span_range
+            ordered_ids = tuple(context.parent.ordered_source_span_ids)
+            by_id = {span.source_span_id: span for span in context.spans}
+            if (
+                isinstance(start, bool)
+                or isinstance(end, bool)
+                or not isinstance(start, int)
+                or not isinstance(end, int)
+                or not 0 <= start <= end < len(ordered_ids)
+                or any(span_id not in by_id for span_id in ordered_ids[start : end + 1])
+            ):
+                return self._abstain(
+                    context,
+                    "citation_alignment_failed",
+                    gates={"selected_span_range": False},
+                    state_path=(),
+                )
+            selected_span_ids = ordered_ids[start : end + 1]
 
         spans = _drop_redundant_spans(self._window(context, span_limit=window_limit))
         if not spans:

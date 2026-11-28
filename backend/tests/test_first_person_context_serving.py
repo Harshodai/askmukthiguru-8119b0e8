@@ -290,11 +290,20 @@ def test_serving_parent_context_multiple_spans(monkeypatch):
 
 
 def test_local_editorial_set_selects_multiple_gated_video_contexts(monkeypatch):
-    """The opt-in path selects only independently served contexts, without LLM glue."""
+    """The opt-in path selects gated contexts and evaluates the final join."""
     monkeypatch.setattr(settings, "is_production", False)
     monkeypatch.setattr(settings, "first_person_editorial_set_selection_enabled", True)
     monkeypatch.setattr(settings, "first_person_facet_split_enabled", False)
     monkeypatch.setattr(settings, "first_person_harness_parallel_enabled", False)
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
+
+    def _passing_join_evaluator(*args, **kwargs):
+        scores_out = kwargs.get("scores_out")
+        if scores_out is not None:
+            scores_out.append(3)
+        return 0
+
+    monkeypatch.setattr("services.first_person_pipeline._relevance_select", _passing_join_evaluator)
 
     krishnaji_text = (
         "Love is not possession or dependence; it is freedom from fear, expectation, "
@@ -348,7 +357,7 @@ def test_local_editorial_set_selects_multiple_gated_video_contexts(monkeypatch):
         "vARTudIEq30",
         "_GEMrEWCiXw",
     }
-    assert result.answer_text == "\n\n".join(
+    assert result.answer_text == " ".join(
         citation["verbatim_text"] for citation in result.citations
     )
     editorial = result.to_dict()["editorial_set"]
@@ -361,6 +370,97 @@ def test_local_editorial_set_selects_multiple_gated_video_contexts(monkeypatch):
     assert context_store.retrieve.call_args.kwargs["limit_parents"] == 4
     redis.get.assert_not_called()
     redis.set.assert_not_called()
+
+
+def _make_editorial_join_result(answer_text: str) -> "FirstPersonPipelineResult":
+    from services.first_person_pipeline import FirstPersonPipelineResult
+
+    citations = [
+        {"verbatim_text": "Verified first source teaching."},
+        {"verbatim_text": "Verified second source teaching."},
+    ]
+    return FirstPersonPipelineResult(
+        answer_text=answer_text,
+        citations=citations,
+        status="weak_match",
+        is_direct_answer=False,
+        latency_ms=1.0,
+        stage_timings={},
+        editorial_set={"status": "partial"},
+    )
+
+
+def test_editorial_join_rejects_generated_body_before_evaluator(monkeypatch):
+    import asyncio
+
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
+    pipeline = FirstPersonPipeline(serene_mind_engine=Mock())
+    result = asyncio.run(
+        pipeline._evaluate_editorial_join_async(
+            "What is the teaching?",
+            _make_editorial_join_result("LLM-generated connective prose."),
+        )
+    )
+    assert result.status == "abstained"
+    assert result.abstain_reason == "reconstruction_failed"
+    assert result.citations == []
+
+
+def test_editorial_join_rejects_below_minimum_without_rewriting(monkeypatch):
+    import asyncio
+
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
+
+    def _rejecting_evaluator(*args, **kwargs):
+        kwargs["scores_out"].append(2)
+        return 0
+
+    monkeypatch.setattr("services.first_person_pipeline._relevance_select", _rejecting_evaluator)
+    original = "Verified first source teaching. Verified second source teaching."
+    result = asyncio.run(
+        FirstPersonPipeline(serene_mind_engine=Mock())._evaluate_editorial_join_async(
+            "What is the teaching?", _make_editorial_join_result(original)
+        )
+    )
+    assert result.status == "abstained"
+    assert result.abstain_reason == "joined_quality_rejected"
+    assert result.citations == []
+    assert "Verified first source teaching." not in result.answer_text
+
+
+def test_editorial_join_evaluator_exception_is_indeterminate(monkeypatch):
+    import asyncio
+
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
+
+    def _broken_evaluator(*args, **kwargs):
+        raise RuntimeError("provider transport failure")
+
+    monkeypatch.setattr("services.first_person_pipeline._relevance_select", _broken_evaluator)
+    original = "Verified first source teaching. Verified second source teaching."
+    result = asyncio.run(
+        FirstPersonPipeline(serene_mind_engine=Mock())._evaluate_editorial_join_async(
+            "What is the teaching?", _make_editorial_join_result(original)
+        )
+    )
+    assert result.status == "abstained"
+    assert result.abstain_reason == "joined_quality_indeterminate"
+    assert result.citations == []
+
+
+def test_editorial_join_disabled_fails_closed(monkeypatch):
+    import asyncio
+
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", False)
+    original = "Verified first source teaching. Verified second source teaching."
+    result = asyncio.run(
+        FirstPersonPipeline(serene_mind_engine=Mock())._evaluate_editorial_join_async(
+            "What is the teaching?", _make_editorial_join_result(original)
+        )
+    )
+    assert result.status == "abstained"
+    assert result.abstain_reason == "joined_quality_indeterminate"
+    assert result.citations == []
 
 
 def test_editorial_set_conflict_is_returned_as_weak_non_direct_evidence(monkeypatch):
@@ -425,7 +525,7 @@ def test_editorial_set_conflict_is_returned_as_weak_non_direct_evidence(monkeypa
     assert result.editorial_set["status"] == "conflicted"
     citation_texts = {citation["verbatim_text"] for citation in result.citations}
     assert citation_texts == {krishnaji_text, preethaji_text}
-    assert result.answer_text == "\n\n".join(
+    assert result.answer_text == " ".join(
         citation["verbatim_text"] for citation in result.citations
     )
     redis.get.assert_not_called()

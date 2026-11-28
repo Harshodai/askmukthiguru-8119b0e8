@@ -200,6 +200,33 @@ _ALLOWED_SPEAKERS = _allowed_labels()
 _CACHE_ENTRY_REQUIRED_KEYS = {"answer_text", "citations", "status", "is_direct_answer"}
 
 
+def reconstruct_verbatim_answer(citations: Any) -> str | None:
+    """Reconstruct the only answer body permitted for a served first-person result.
+
+    This is deliberately a small, pure contract shared by serving boundaries and
+    cache validation. It never normalizes, translates, paraphrases, or inserts
+    attribution prose: the stored span text is the evidence and the joined text
+    is the complete answer body.
+    """
+    if not isinstance(citations, list) or not citations:
+        return None
+    texts: list[str] = []
+    for citation in citations:
+        if not isinstance(citation, dict):
+            return None
+        text = str(citation.get("verbatim_text") or "").strip()
+        if not text:
+            return None
+        texts.append(text)
+    return " ".join(texts)
+
+
+def answer_matches_verbatim_citations(answer_text: Any, citations: Any) -> bool:
+    """Return true only when the visible body is exactly reconstructed evidence."""
+    expected = reconstruct_verbatim_answer(citations)
+    return expected is not None and isinstance(answer_text, str) and answer_text == expected
+
+
 def load_calibration_profile(path: str, collection: str) -> Optional[dict[str, Any]]:
     """Load and validate a fitted calibration profile JSON.
 
@@ -1000,7 +1027,7 @@ _RELEVANCE_RUBRIC_CORE = (
     "clip on this fixed scale. "
     "3 = directly answers the question or directly guides the seeker through an expressed state of sorrow, depression, or suffering in the teacher's own words: the clip names the specific "
     "mechanism, practice, or realisation the seeker asked for and stands alone as a coherent "
-    "thought. "
+    "thought. If verbatim spans from one or more videos have been deterministically joined, judge the final joined body as one answer: it must remain grammatically coherent, readable at every span boundary, and free of an orphan opener, dangling conjunction, abrupt contradiction, or mid-sentence break. "
     "2 = foundational or parabolic answer: the clip does not restate the question but "
     "illuminates its root cause, underlying spiritual law, or inner state (for example, "
     "explaining attachment to answer grief, or inner stillness to answer anger or sadness). A parable, "
@@ -3718,7 +3745,23 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
 
         citations = [citation for result in selected_results for citation in result.citations]
         audio_clips = [clip for result in selected_results for clip in result.audio_playback_clips]
-        answer_text = "\n\n".join(result.answer_text.strip() for result in selected_results)
+        # The public route's source-only contract is citation reconstruction,
+        # not presentation whitespace between result bodies. Rebuild from the
+        # immutable citations so editorial joining cannot create a body that
+        # the API boundary must later reject.
+        answer_text = reconstruct_verbatim_answer(citations)
+        if answer_text is None:
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                answerability=answerability,
+                abstain_reason="reconstruction_failed",
+                stage_timings=stage_timings,
+                editorial_set=editorial_set,
+            )
         is_direct = (
             all(result.is_direct_answer for result in selected_results)
             and decision.status == "supported"
@@ -3737,6 +3780,102 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             fp_served=bool(citations),
             editorial_set=editorial_set,
         )
+
+    async def _evaluate_editorial_join_async(
+        self,
+        query: str,
+        result: FirstPersonPipelineResult,
+        *,
+        token_sink: Optional[list[int]] = None,
+        is_distress: bool = False,
+    ) -> FirstPersonPipelineResult:
+        """Evaluate final editorial joins without rewriting source text.
+
+        Each parent result has already passed its own gates. A cross-video
+        editorial set still needs one evaluator pass over the *final joined
+        body*: individually complete spans can form a poor answer when
+        juxtaposed. The evaluator returns only a score/decision; it cannot
+        author or edit teaching text. Any disabled, missing, malformed,
+        rejected, or indeterminate evaluation fails closed so callers may fall
+        back to one already-gated parent result.
+        """
+        if result.status == "abstained" or len(result.citations) <= 1:
+            return result
+        expected = reconstruct_verbatim_answer(result.citations)
+        if expected is None or result.answer_text != expected:
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=result.latency_ms,
+                answerability=result.answerability,
+                abstain_reason="reconstruction_failed",
+                stage_timings=dict(result.stage_timings),
+                editorial_set=result.editorial_set,
+            )
+        if not getattr(settings, "first_person_relevance_gate_enabled", True):
+            logger.info("[FirstPersonPipeline] Editorial join rejected: post-join evaluator disabled")
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=result.latency_ms,
+                answerability=result.answerability,
+                abstain_reason="joined_quality_indeterminate",
+                stage_timings=dict(result.stage_timings),
+                editorial_set=result.editorial_set,
+            )
+
+        scores: list[int] = []
+        started = time.monotonic()
+        try:
+            pick = await _acall(
+                _relevance_select,
+                query,
+                [{"verbatim_text": expected}],
+                self._llm_service,
+                self._llm_loop,
+                token_sink=token_sink,
+                scores_out=scores,
+                is_distress=is_distress,
+            )
+        except Exception as exc:  # noqa: BLE001 - a broken evaluator fails closed
+            logger.info(
+                "[FirstPersonPipeline] Editorial post-join evaluator failed: %s",
+                type(exc).__name__,
+            )
+            pick = _RELEVANCE_INDETERMINATE
+        elapsed_ms = (time.monotonic() - started) * 1000.0
+        stage_timings = dict(result.stage_timings)
+        stage_timings["joined_quality_evaluator_ms"] = round(elapsed_ms, 2)
+        minimum = int(getattr(settings, "first_person_relevance_min_score", 3))
+        if pick == _RELEVANCE_INDETERMINATE or pick != 0 or not scores or scores[0] < minimum:
+            logger.info(
+                "[FirstPersonPipeline] Editorial join rejected by post-join evaluator "
+                "(pick=%s score=%s minimum=%s)",
+                pick,
+                scores[0] if scores else None,
+                minimum,
+            )
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=result.latency_ms,
+                answerability=result.answerability,
+                abstain_reason=(
+                    "joined_quality_indeterminate"
+                    if pick == _RELEVANCE_INDETERMINATE
+                    else "joined_quality_rejected"
+                ),
+                stage_timings=stage_timings,
+                editorial_set=result.editorial_set,
+            )
+        result.stage_timings = stage_timings
+        return result
 
     @staticmethod
     def _build_context_citation(
@@ -4795,10 +4934,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         "[FirstPersonPipeline] Skipping exact cache for hybrid fp-context result."
                     )
                     return
-                expected_answer = " ".join(
-                    str(cit.get("verbatim_text") or "").strip() for cit in data["citations"]
-                ).strip()
-                if not expected_answer or data.get("answer_text") != expected_answer:
+                expected_answer = reconstruct_verbatim_answer(data["citations"])
+                if expected_answer is None or data.get("answer_text") != expected_answer:
                     logger.warning(
                         "[FirstPersonPipeline] Refusing to cache non-reconstructible fp-context result."
                     )
@@ -5626,6 +5763,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 # genuinely relevant candidates behind the judge cap.
                 async def _prepare_ctx_candidate(
                     ctx: Any,
+                    selected_span_range: tuple[int, int] | None = None,
                 ) -> tuple[Optional[dict[str, Any]], list[int]]:
                     """Run deterministic + store gates before invoking any LLM scorer."""
                     _local_tokens: list[int] = []
@@ -5670,7 +5808,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         validated_predecessor = candidate_edge
 
                     selected_span_ids = None
-                    if bool(getattr(settings, "first_person_context_selector_enabled", False)):
+                    if selected_span_range is None and bool(
+                        getattr(settings, "first_person_context_selector_enabled", False)
+                    ):
                         selected_span_ids = await _acall(
                             select_span_ids, query, ctx.spans, llm_service=self._llm_service
                         )
@@ -5681,6 +5821,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         requested_teacher=editorial_teacher_id,
                         answerability=ans_str,
                         selected_span_ids=selected_span_ids,
+                        selected_span_range=selected_span_range,
                         retrieval_query=retrieval_query,
                         validated_predecessor=validated_predecessor,
                     )
@@ -5939,6 +6080,26 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         "ctx": ctx,
                         "decision": decision,
                         "served_spans": served_spans,
+                        "judge_spans": tuple(
+                            span
+                            for span in served_spans
+                            if validated_predecessor is None
+                            or span.source_span_id
+                            != validated_predecessor.predecessor.source_span_id
+                        ),
+                        "judge_hit_positions": tuple(
+                            index
+                            for index, span in enumerate(
+                                tuple(
+                                    candidate
+                                    for candidate in served_spans
+                                    if validated_predecessor is None
+                                    or candidate.source_span_id
+                                    != validated_predecessor.predecessor.source_span_id
+                                )
+                            )
+                            if span.source_span_id in set(ctx.hit_span_ids or ())
+                        ),
                         "citations": citations,
                         "audio_playback_clips": audio_playback_clips,
                         "confidence": confidence,
@@ -5985,8 +6146,11 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 ) -> tuple[Optional[FirstPersonPipelineResult], list[int]]:
                     """Evaluate one deterministically screened context through LLM relevance + assembly."""
                     _local_tokens: list[int] = []
+                    ctx = prep["ctx"]
                     decision = prep["decision"]
                     served_spans = prep["served_spans"]
+                    judge_spans = prep.get("judge_spans", ())
+                    judge_hit_positions = prep.get("judge_hit_positions", ())
                     citations = prep["citations"]
                     audio_playback_clips = prep["audio_playback_clips"]
                     confidence = prep["confidence"]
@@ -6011,6 +6175,10 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 {
                                     "verbatim_text": assembled_answer_text or "",
                                     "start_ms": getattr(_first_span, "start_ms", None),
+                                    "span_texts": [span.verbatim_text for span in judge_spans]
+                                    if len(judge_spans) > 1
+                                    else None,
+                                    "hit_positions": list(judge_hit_positions),
                                 }
                             ],
                             self._llm_service,
@@ -6053,6 +6221,48 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 )
                             return None, _local_tokens
                         _h_rel_score = _h_scores[0] if _h_scores else None
+                        proposed_range = _h_judge_meta.get("span_range")
+                        if _h_pick == 0 and proposed_range is not None and len(judge_spans) > 1:
+                            range_start, range_end = proposed_range
+                            selected_ids = tuple(
+                                span.source_span_id
+                                for span in judge_spans[range_start : range_end + 1]
+                            )
+                            parent_ids = tuple(
+                                getattr(ctx.parent, "ordered_source_span_ids", ()) or ()
+                            )
+                            parent_positions = tuple(
+                                parent_ids.index(span_id) if span_id in parent_ids else -1
+                                for span_id in selected_ids
+                            )
+                            contiguous = (
+                                selected_ids
+                                and all(position >= 0 for position in parent_positions)
+                                and parent_positions
+                                == tuple(range(parent_positions[0], parent_positions[-1] + 1))
+                            )
+                            if contiguous:
+                                selected_prep, selected_tokens = await _prepare_ctx_candidate(
+                                    ctx,
+                                    selected_span_range=(
+                                        parent_positions[0],
+                                        parent_positions[-1],
+                                    ),
+                                )
+                                _local_tokens.extend(selected_tokens)
+                                if selected_prep is not None:
+                                    prep = selected_prep
+                                    decision = prep["decision"]
+                                    served_spans = prep["served_spans"]
+                                    citations = prep["citations"]
+                                    audio_playback_clips = prep["audio_playback_clips"]
+                                    confidence = prep["confidence"]
+                                    assembled_answer_text = prep["assembled_answer_text"]
+                                    t_asm_start = prep["t_asm_start"]
+                                else:
+                                    logger.info(
+                                        "[FirstPersonPipeline] Judge span range failed deterministic re-gating; retaining fallback"
+                                    )
                         logger.info(
                             "[FirstPersonPipeline] Harness answer relevance score=%s (parallel=%s)",
                             _h_rel_score,
@@ -6235,14 +6445,19 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         ]
                         if _editorial_pairs:
                             _active_facets = editorial_facets or get_default_planner().plan(query)
-                            _editorial_res = self._build_editorial_set_result(
+                            _editorial_res = await self._evaluate_editorial_join_async(
                                 retrieval_query or query,
-                                _editorial_pairs,
-                                facets=_active_facets,
-                                max_clips=max_clips,
-                                start_time=start_time,
-                                retrieval_ms=t_ctx_ret_ms,
-                                answerability=public_context_answerability,
+                                self._build_editorial_set_result(
+                                    retrieval_query or query,
+                                    _editorial_pairs,
+                                    facets=_active_facets,
+                                    max_clips=max_clips,
+                                    start_time=start_time,
+                                    retrieval_ms=t_ctx_ret_ms,
+                                    answerability=public_context_answerability,
+                                ),
+                                token_sink=fp_llm_tokens,
+                                is_distress=is_distress,
                             )
                             # A6 graceful fallback: when the editorial set builder
                             # abstains (e.g. open-ended "general" intent with no
@@ -6382,14 +6597,19 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             return _seq_res
                     if editorial_set_enabled and _editorial_pairs_seq:
                         _seq_active_facets = editorial_facets or get_default_planner().plan(query)
-                        _editorial_res = self._build_editorial_set_result(
+                        _editorial_res = await self._evaluate_editorial_join_async(
                             retrieval_query or query,
-                            _editorial_pairs_seq,
-                            facets=_seq_active_facets,
-                            max_clips=max_clips,
-                            start_time=start_time,
-                            retrieval_ms=t_ctx_ret_ms,
-                            answerability=public_context_answerability,
+                            self._build_editorial_set_result(
+                                retrieval_query or query,
+                                _editorial_pairs_seq,
+                                facets=_seq_active_facets,
+                                max_clips=max_clips,
+                                start_time=start_time,
+                                retrieval_ms=t_ctx_ret_ms,
+                                answerability=public_context_answerability,
+                            ),
+                            token_sink=fp_llm_tokens,
+                            is_distress=is_distress,
                         )
                         # A6 graceful fallback: editorial abstain → first passing harness result.
                         if _editorial_res.status == "abstained" and _editorial_pairs_seq:

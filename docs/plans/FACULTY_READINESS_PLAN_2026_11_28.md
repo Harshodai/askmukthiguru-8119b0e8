@@ -65,3 +65,68 @@ Opened: Databricks, collect user feedback (https://docs.databricks.com/gcp/mlflo
 - 12 users, 36 distinct questions: no errors, p50 15.5 s, p95 34 s, wall 75 s; 24 abstained (odd phrasing), 12 served. Same-question burst (cache) p95 5 s: not representative.
 - Independent grader on 34 served clips (before deploy; Sonnet, not a human): 65 percent relevance 2 or higher, 35 percent 0-1, 76 percent with a defect. Artifact filters (default off) address part of it; the rest needs re-ingest or the judge.
 - Crisis phrases in hi/te/ta/kn return the helpline with no clip.
+
+## Strict first-person release closure added in PR #127
+
+The live audit found that Railway was still running `main` commit `5a244534` from PR #125, not PR #127's answer-window commit `199e569d`. Consequently, no Railway result may be used as evidence for the new range-selection implementation until the owner merges PR #127 and verifies the resulting deployment commit.
+
+This PR now makes the strict source-only contract executable at both the pipeline and API boundaries. A served `answer_text` must equal the exact space-joined `citation.verbatim_text` values; otherwise the route returns the deterministic abstention with zero citations. The dedicated route no longer exposes an LLM-generated `translated_text` gloss alongside teaching citations. Non-English input may still be translated for retrieval, but the served teaching body remains the original source words.
+
+The faculty gate now performs a direct known-teaching provenance check requiring exact reconstruction, `is_verbatim=true`, `speaker_verified=true`, `domain_rights_status=licensed`, and `boundary_status=verified`. It rejects generated gloss fields and malformed citation bodies. It also turns known canonical-memory dreamer errors and OKF/editorial HTTP 499 client-abort activity into hard readiness failures instead of warnings. A clean gate is therefore necessary but not sufficient: native-speaker, clinician, rights, and owner review packets remain human gates.
+
+The post-merge acceptance battery must include one known direct teaching, one contiguous multi-span answer, one out-of-corpus question, one acute-safety question, and one non-English request. The multi-span case must prove that the visible body is reconstructed from the selected verified spans and that an invalid or failed LLM range falls back or abstains without generated text.
+
+## Hardening verification (2026-11-28, PR worktree)
+
+- `python3 -m py_compile` passed for the changed route, pipeline, tests, and faculty gate; `git diff --check` passed.
+- Ruff import checks passed for all changed Python files; the isolated new faculty-gate contract test passed **4/4** with `pytest --noconftest`.
+- The full focused pytest invocation was attempted from `backend/`, the repository-required dependency path, but the host interpreter is Python 3.9 while the checked-in backend code requires Python 3.12 (`str | Sequence[str]` fails during import). No dependency installation or source workaround was made; the dependency-complete focused suite remains a CI/container gate.
+- The earlier repo-root pytest attempt was correctly rejected by the repository’s splitter-shadowing guard; it was not treated as test evidence.
+
+## PR #127 post-join audit and faculty-readiness matrix (2026-11-29)
+
+The cross-video editorial path had a real quality gap: each parent context was gated independently, but the final multi-video body was assembled with a separator that did not match the public citation reconstruction contract, and no final grammar/coherence/relevance evaluator inspected that joined body. PR #127 now reconstructs the body deterministically from the exact citation texts, evaluates the final source-only body through the existing relevance scorer, records bounded evaluator timing, and fails closed on mismatch, disabled evaluation, malformed output, rejection, timeout, or unexpected evaluator failure. The evaluator can return only metadata; it cannot rewrite teaching text. If the composite is rejected or indeterminate, the serving path may fall back only to an already-gated single result, never to an unchecked composite.
+
+| Gate or evidence | Status | Ruthless interpretation |
+|---|---|---|
+| Exact source-only body at pipeline and API boundaries | **PASS (code/tests)** | Visible teaching must equal the space-joined citation `verbatim_text`; generated gloss fields are rejected. |
+| Same-parent contiguous multi-span stitching | **PASS (code/tests)** | Ordered spans are deterministically joined and re-run through the serve-time gates. |
+| Cross-video deterministic selection and exact reconstruction | **PASS (code/tests)** | Distinct verified citations are joined only from already-gated results; no LLM-authored body is permitted. |
+| Final cross-video grammar/coherence/relevance evaluation | **PASS (code/tests)** | The evaluator sees the final joined body and may only accept/reject/score metadata. |
+| Evaluator rejection, indeterminacy, disabled gate, or exception | **PASS (code/tests)** | Composite serving fails closed or falls back to one already-gated result; no composite leak. |
+| Railway deployment of PR #127 | **UNPROVEN** | Read-only Railway metadata confirms deployment `17530dcb-e9f8-42e4-993f-ef3c838e9faf` runs `main` commit `5a24453434dbe9d2c67a48925cfebb70d9bf66c5` (PR #125), not PR #127. |
+| Production latency, reason distribution, and post-redeploy smoke battery | **UNPROVEN** | Must be measured after merge and deployment, not inferred from local tests. |
+| RLS cross-user end-to-end workflow | **UNPROVEN** | No fresh production/test-environment evidence. |
+| Supabase backup secret, successful backup, and restore drill | **UNPROVEN** | Operational evidence is absent. |
+| Role migration applied and faculty admin access verified | **UNPROVEN** | Migration application/proof is absent. |
+| Native-speaker, clinician, helpline, rights, gold-label, and speaker human gates | **HUMAN-PENDING** | Empty or unsigned review packets are not approvals and must remain open. |
+| Monitoring, rollback rehearsal, and corpus top-up/re-ingest | **OWNER-PENDING** | No unattended production change is authorized by this PR. |
+
+### Acceptance criteria for the joined-answer evaluator
+
+A multi-video answer is faculty-testable only if its visible body is byte-equivalent after the repository’s whitespace normalization to the ordered citation reconstruction, every citation remains verified and licensed, and the final joined body passes the configured minimum metadata-only relevance/coherence score. The test battery must include a passing join, a below-minimum join, an evaluator transport/exception path, a disabled-gate path, and a deliberately generated/reformatted body. Any failed or indeterminate case must return zero composite citations or a single independently gated fallback; it must never expose an LLM-generated teaching sentence.
+
+### Railway status
+
+**UNPROVEN for PR #127.** Read-only metadata was retrieved from project `resilient-embrace`, production service `askmukthiguru-8119b0e8`: deployment `17530dcb-e9f8-42e4-993f-ef3c838e9faf` is `SUCCESS`, branch `main`, commit `5a24453434dbe9d2c67a48925cfebb70d9bf66c5`, merged PR #125. The captured production logs are therefore pre-PR evidence and cannot certify the joined-answer implementation.
+
+### Live-log triage and PR-scoped fixes (2026-11-29)
+
+- **Rate limiting:** production logged async Redis timeouts followed by “degrading to allow.” The async limiter now enters the same bounded process-local sliding/backoff limiter used during startup, records the current request once, and reconnects through the existing cooldown path. Focused regression coverage passes; no Railway configuration or Redis state was changed.
+- **Canonical memory:** production logged rejected audit inserts with actor `dreamer` and a separate string-row `.get` failure in `dream_all`. Dreamer audit events now use the schema-approved `system` actor, and both active-user and active-memory query boundaries reject malformed rows. Focused dreamer and actor-contract tests pass; no Supabase migration was applied remotely.
+- **Memgraph/TeachingUnit:** first-person concept/TU expansion remains explicitly off by default. Memgraph sizing is bounded and returns a deterministic heuristic on unavailable/error/timeout; it does not inject text or write graph state. This is an intentional fallback, not evidence that TU retrieval improves answer quality.
+- **General RAG faithfulness:** the observed low-faithfulness/no-citation run was fail-closed in the generation/formatting path; no additional source leak was identified. This remains a separate general-RAG quality/latency concern, not evidence for first-person readiness.
+
+After the owner merges and deploys, capture the deployed commit again, run the faculty gate, inspect bounded `fp.rejected` reason counts and rate-limit health, and run the full acceptance battery before inviting faculty.
+
+
+## Latest code-only hardening pass (2026-11-29)
+
+- **Composer:** fixed a source-confirmed flex-layout defect in `ChatInterface.tsx`: the message scroll region lacked `min-h-0`, so its content minimum could push the shrink-protected composer below the viewport. Browser verification at 375/768/1280/1920 remains required because frontend dependencies and the supplied media are unavailable in this worktree.
+- **Telemetry:** recent model usage now receives the selected admin date range; backend trace projections already allowlist model, prompt/completion tokens, cost, latency, status, route, and bounded spans. The UI now shows loading and actionable retry/error state instead of silently presenting an empty table when traces fail.
+- **OKF/admin:** independent admin lookup, review-flow coverage, encoded review IDs, and safe backend error presentation are in place. No live approval was executed.
+- **Research:** current official Tailwind and PostgREST documentation findings are saved in `docs/research/FACULTY_READINESS_RESEARCH_2026-11-29.md`.
+
+### Approval boundary remains open
+
+This pass does not approve or fabricate answerability threshold changes, ambiguity clarification policy, crisis false-positive changes, native-speaker/clinician/rights/gold-label/speaker reviews, helpline verification, corpus top-up/re-ingest, production deployment, role migration proof, backup/restore evidence, uptime alerting, rollback rehearsal, or faculty acceptance. Therefore faculty readiness remains **UNPROVEN**, even though these code-level fixes are verified locally.

@@ -1152,3 +1152,29 @@ def test_external_guru_contamination_abstains():
     )
     with pytest.raises(ValueError, match="every span must belong to the parent guru"):
         context([span_preetha, span_sadhguru], guru_id="preethaji")
+
+
+def test_selected_span_range_uses_canonical_parent_order():
+    spans = [
+        span(0, "Opening statement."),
+        span(1, "Direct answer."),
+        span(2, "Closing statement."),
+    ]
+    ctx = context(spans)
+    decision = FirstPersonContextHarness().decide(
+        ctx, answerability="yes", selected_span_range=(1, 2)
+    )
+    assert decision.decision is HarnessDecision.SERVE_PARENT_CONTEXT
+    assert decision.source_span_ids == (spans[1].source_span_id, spans[2].source_span_id)
+
+
+def test_selected_span_range_fails_closed_when_hydration_has_a_gap():
+    spans = [span(0, "Opening statement."), span(2, "Closing statement.")]
+    ctx = context(
+        spans, ordered_source_span_ids=(spans[0].source_span_id, "missing", spans[1].source_span_id)
+    )
+    decision = FirstPersonContextHarness().decide(
+        ctx, answerability="yes", selected_span_range=(0, 2)
+    )
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "citation_alignment_failed"

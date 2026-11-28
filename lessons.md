@@ -1,5 +1,22 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
+## Nov 29, 2026 — Production infrastructure failures must fail bounded, not open
+### L-RATE-LIMITER-FAIL-CLOSED-1 (2026-11-29). A connected Redis client can fail after startup, so the async exception path must not return an unconditional allow.
+- **What:** Railway logs showed async Redis timeouts followed by `degrading to allow`. That bypassed the bounded process-local limiter even though the startup path already had one.
+- **Rule:** on an async transport error, detach the broken client, enter the process-local limiter, account for the current request once, and preserve the existing reconnect cooldown. Availability fallback must remain bounded and observable.
+- **Verification:** the focused Redis limiter suite passes under Python 3.12, including the transport-error regression.
+
+### L-DREAMER-SCHEMA-1 (2026-11-29). Audit actors must come from the database contract, and worker query rows need type validation.
+- **What:** production rejected canonical-memory audit inserts because the dreamer emitted actor `dreamer`, while the live schema allows `user`, `system`, `admin`, `resolver`, and `consolidator`; `dream_all` also assumed every returned row was a mapping.
+- **Rule:** use `system` for dreamer-owned audit events unless the schema is deliberately migrated, and reject malformed rows before calling `.get` or indexing fields.
+- **Verification:** focused dreamer tests and the actor-constraint contract test pass under Python 3.12; no remote migration or data write was performed.
+
+## Nov 29, 2026 — Cross-video first-person joins require a final source-only quality gate
+### L-POST-JOIN-EVALUATOR-1 (2026-11-29). Individually valid clips are not enough: a composite answer must be checked after deterministic assembly.
+- **What:** the editorial path joined already-gated multi-video citations, but its final body had no post-assembly grammar/coherence/relevance decision and could diverge from the citation contract at the join boundary.
+- **Rule:** reconstruct the visible body exactly as `" ".join(citation["verbatim_text"].strip() ...)`; run a metadata-only evaluator over that final body; never let the evaluator rewrite, paraphrase, translate, or add connective teaching prose. A reconstruction mismatch, disabled gate, malformed response, rejection, timeout, or unexpected evaluator exception must abstain or fall back to one already-gated result.
+- **Verification:** the PR tests cover passing exact reconstruction, generated-body rejection, below-minimum rejection, evaluator indeterminacy, and disabled-gate abstention. Railway evidence remains unproven until PR #127 is merged and the deployed commit is checked.
+
 
 ## Nov 28, 2026 (evening) — Faculty-readiness live eval: what the logs and the eval exposed
 
@@ -1484,7 +1501,15 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Rule:** A prompt-restructuring proposal justified by prompt caching must first prove the target model honours the cache directive. If it does not, ship the same calibration signal in a compact rubric; do not restructure prompts to fit a cache that is not there.
 - **Pin:** `backend/services/first_person_pipeline.py` (`_RELEVANCE_RUBRIC_CORE`), `backend/tests/test_openrouter.py`.
 
+### L-LLM-RANGE-IS-METADATA-NOT-A-GATE-1. Let the model choose a window, never let it choose evidence.
+- **What:** The first-person judge may propose a zero-based contiguous `[span_start, span_end]` range within an already screened parent window. The proposal is metadata only: deterministic code validates bounds, hit inclusion, canonical parent order, hydration completeness, and then re-runs the full harness and serve-time gate chain. Invalid or failed proposals retain the independently screened deterministic window; provider failure still abstains as `relevance_indeterminate`.
+- **Rule:** Keep identity, contiguity, rights, speaker, hashes, safety, citations, reconstruction, caching, and abstention authoritative in application code. Never accept an LLM-selected range by text matching, never bridge a hydrated-parent gap, and do not join distinct videos until an atomic multi-video evidence contract proves every clip safe together.
+- **Pin:** `backend/services/first_person_judge.py`, `backend/services/first_person_context_harness.py`, `backend/services/first_person_pipeline.py`, and their focused tests (200 passed; broader host suite remains dependency-limited by the installed Transformers/scikit-learn import stack).
 
+### L-FIRST-PERSON-ROUTE-MUST-RECONSTRUCT-1. A safe pipeline result still needs an untrusted API boundary.
+- **What:** The live audit proved that a served quote matched its citation, but the dedicated route could independently expose an LLM-generated `translated_text` gloss and had no explicit final equality assertion between `answer_text` and citations. A future caller or cache regression could mistake that metadata for teacher words.
+- **Rule:** The strict route exposes only source citation text for first-person teaching. Retrieval may translate the query, but it must not translate or augment the teaching body. At the route boundary, reconstruct `answer_text` from `citation.verbatim_text` and abstain with zero citations on any mismatch. The faculty gate must assert rights, speaker, boundary, verbatim, and exact reconstruction, and must treat known production error signatures as hard blockers.
+- **Pin:** `backend/app/api/first_person.py`, `backend/services/first_person_pipeline.py`, `scripts/ops/faculty_readiness_gate.py`, and `backend/tests/test_first_person_route.py`.
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point
 > into the archive. `backend/tests/test_lessons_archive.py` fails if a cited `L-` ID is in neither file.

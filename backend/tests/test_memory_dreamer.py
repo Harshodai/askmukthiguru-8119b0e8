@@ -293,6 +293,8 @@ async def test_dreamer_grounding_audit_evicts_hallucination(seeded_client, test_
     # Grounded memory must remain active
     grounded_mem = seeded_client._memories["mem-1-grounded"]
     assert grounded_mem["status"] == "active"
+    assert seeded_client._audit_events
+    assert {event["actor"] for event in seeded_client._audit_events} == {"system"}
 
 
 @pytest.mark.asyncio

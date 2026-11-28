@@ -144,7 +144,7 @@ def test_first_person_route_success():
         with patch("app.api.first_person.FirstPersonPipeline") as mock_pipeline_cls:
             mock_pipeline = mock_pipeline_cls.return_value
             mock_pipeline.execute.return_value = FirstPersonPipelineResult(
-                answer_text='"Suffering is resistance to what is."\n— Sri Preethaji (vid1, 10s)',
+                answer_text="Suffering is resistance to what is.",
                 citations=[
                     {
                         "video_id": "vid1",
@@ -283,13 +283,43 @@ def test_non_english_query_is_embedded_in_english_and_both_forms_reach_pipeline(
     assert kwargs["retrieval_query"] == "What is love?"
 
 
-def test_language_adds_gloss_and_never_replaces_verbatim():
+def test_non_english_request_never_adds_generated_teaching_gloss():
     translation = _FakeTranslation()
     resp, _, _ = _route_with(translation, {"query": "What is love?", "language": "hi"})
     cit = resp.json()["citations"][0]
     assert cit["verbatim_text"] == "Love is a state within you."
-    assert cit["translated_text"] == "प्रेम आपके भीतर की एक अवस्था है।"
-    assert cit["translated_language"] == "hi"
+    assert "translated_text" not in cit
+    assert "translated_language" not in cit
+
+
+def test_route_abstains_when_answer_body_does_not_reconstruct_from_citations():
+    mock_embedding = create_autospec(EmbeddingService, instance=True)
+    mock_embedding.encode_single_full_async.return_value = {"dense": [0.1] * 1024, "sparse": {}}
+
+    class _FakeContainer:
+        embedding = mock_embedding
+        guardrails = _PassRail()
+
+    app.dependency_overrides[get_container_async] = lambda: _FakeContainer()
+    try:
+        with patch("app.api.first_person.FirstPersonPipeline") as mock_pipeline_cls:
+            mock_pipeline_cls.return_value.execute.return_value = FirstPersonPipelineResult(
+                answer_text="LLM-authored connective text.",
+                citations=[dict(_CITATION)],
+                status="success",
+                is_direct_answer=True,
+                latency_ms=1.0,
+            )
+            response = client.post("/api/first-person/query", json={"query": "What is love?"})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "abstained"
+        assert body["citations"] == []
+        assert body["answer_text"] == (
+            "No verified first-person discourse found for this question."
+        )
+    finally:
+        app.dependency_overrides.pop(get_container_async, None)
 
 
 def test_query_translation_timeout_embeds_raw_question(monkeypatch):
