@@ -82,3 +82,16 @@ def test_usage_limits_and_cost_driver():
     assert "hard_limit" in _checks(hard, audit.CRITICAL)
     assert not _checks(fine, audit.WARN) and not _checks(fine, audit.CRITICAL)
     assert any(f.check == "cost_driver" and "Memory" in f.detail for f in soft)
+
+
+def test_deploy_lag_warns_when_main_has_moved_on():
+    found = audit.evaluate_deploy_lag("backend", "c667beec2aaaa", 146)
+    assert _checks(found, audit.WARN) == {"deploy_lag"}
+    assert "146" in found[0].detail and "c667beec2" in found[0].detail
+
+
+def test_deploy_lag_quiet_when_current_and_informational_when_unknown():
+    assert audit.evaluate_deploy_lag("backend", "850b49796abc", 0) == []
+    unknown = audit.evaluate_deploy_lag("backend", "850b49796abc", None)
+    assert _checks(unknown, audit.INFO) == {"deploy_lag"} and not _checks(unknown, audit.WARN)
+    assert _checks(audit.evaluate_deploy_lag("backend", None, None), audit.INFO) == {"deploy_lag"}

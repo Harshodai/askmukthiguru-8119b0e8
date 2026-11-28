@@ -23,6 +23,7 @@ import json
 import subprocess
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 SERVICES = ("askmukthiguru-8119b0e8", "celery-worker")
@@ -151,6 +152,77 @@ def evaluate_usage(usage: dict[str, Any]) -> list[Finding]:
     return out
 
 
+def evaluate_deploy_lag(
+    service: str, deployed_sha: str | None, behind: int | None
+) -> list[Finding]:
+    """Compare what a service is RUNNING with `main`: merged is not deployed.
+
+    `behind` = commits on main since the deployed SHA that touched the service's build inputs
+    (None when it could not be computed). 2026-11-27: the backend ran a build 146 commits
+    behind main for days and nothing said so; the backend does not auto-deploy on pushes to main.
+    """
+    if not deployed_sha:
+        return [Finding(INFO, "deploy_lag", f"{service}: no deployed commit found")]
+    if behind is None:
+        return [
+            Finding(
+                INFO,
+                "deploy_lag",
+                f"{service}: running {deployed_sha[:9]}; could not compare with main "
+                "(run from a clone with `git fetch origin main`, or pass --repo-dir)",
+            )
+        ]
+    if behind > 0:
+        return [
+            Finding(
+                WARN,
+                "deploy_lag",
+                f"{service}: running {deployed_sha[:9]}, {behind} commit(s) on main since then "
+                "touch backend/memory/config: merged but not deployed",
+            )
+        ]
+    return []
+
+
+def _deployed_sha(service: str, environment: str) -> str | None:
+    """Commit of the newest SUCCESS deployment of a service (None when unknown)."""
+    try:
+        deployments = _railway_json(
+            ["deployment", "list", "--service", service, "--environment", environment]
+        )
+    except (RuntimeError, ValueError):
+        return None
+    for d in deployments if isinstance(deployments, list) else []:
+        if str(d.get("status", "")).upper() == "SUCCESS":
+            return (d.get("meta") or {}).get("commitHash") or None
+    return None
+
+
+def _commits_behind(repo_dir: str, sha: str) -> int | None:
+    """Commits on origin/main after `sha` that touch the build inputs (None on any git failure)."""
+    proc = subprocess.run(
+        [
+            "git",
+            "-C",
+            repo_dir,
+            "rev-list",
+            "--count",
+            f"{sha}..origin/main",
+            "--",
+            "backend",
+            "memory",
+            "config",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    try:
+        return int(proc.stdout.strip()) if proc.returncode == 0 else None
+    except ValueError:
+        return None
+
+
 def _railway_json(args: list[str]) -> Any:
     proc = subprocess.run(["railway", *args, "--json"], capture_output=True, text=True, check=False)
     if proc.returncode != 0:
@@ -162,6 +234,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--workspace", default=None, help="Railway workspace name or id")
     parser.add_argument("--environment", default="production")
+    parser.add_argument(
+        "--repo-dir",
+        default=None,
+        help="git clone to compare deployed commits with origin/main (default: this script's repo)",
+    )
     parser.add_argument(
         "--max-daily", type=float, default=15.0, help="max sane OpenRouter daily cap (USD)"
     )
@@ -184,6 +261,11 @@ def main(argv: list[str] | None = None) -> int:
             max_monthly_usd=args.max_monthly,
         )
     findings += evaluate_posture(by_service)
+    repo_dir = args.repo_dir or str(Path(__file__).resolve().parents[2])
+    for service in SERVICES:
+        sha = _deployed_sha(service, args.environment)
+        behind = _commits_behind(repo_dir, sha) if sha else None
+        findings += evaluate_deploy_lag(service, sha, behind)
     usage_args = ["usage"] + (["--workspace", args.workspace] if args.workspace else [])
     findings += evaluate_usage(_railway_json(usage_args))
 
