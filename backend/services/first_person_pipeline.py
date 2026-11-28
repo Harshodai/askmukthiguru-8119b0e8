@@ -200,6 +200,33 @@ _ALLOWED_SPEAKERS = _allowed_labels()
 _CACHE_ENTRY_REQUIRED_KEYS = {"answer_text", "citations", "status", "is_direct_answer"}
 
 
+def reconstruct_verbatim_answer(citations: Any) -> str | None:
+    """Reconstruct the only answer body permitted for a served first-person result.
+
+    This is deliberately a small, pure contract shared by serving boundaries and
+    cache validation. It never normalizes, translates, paraphrases, or inserts
+    attribution prose: the stored span text is the evidence and the joined text
+    is the complete answer body.
+    """
+    if not isinstance(citations, list) or not citations:
+        return None
+    texts: list[str] = []
+    for citation in citations:
+        if not isinstance(citation, dict):
+            return None
+        text = str(citation.get("verbatim_text") or "").strip()
+        if not text:
+            return None
+        texts.append(text)
+    return " ".join(texts)
+
+
+def answer_matches_verbatim_citations(answer_text: Any, citations: Any) -> bool:
+    """Return true only when the visible body is exactly reconstructed evidence."""
+    expected = reconstruct_verbatim_answer(citations)
+    return expected is not None and isinstance(answer_text, str) and answer_text == expected
+
+
 def load_calibration_profile(path: str, collection: str) -> Optional[dict[str, Any]]:
     """Load and validate a fitted calibration profile JSON.
 
@@ -4795,10 +4822,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         "[FirstPersonPipeline] Skipping exact cache for hybrid fp-context result."
                     )
                     return
-                expected_answer = " ".join(
-                    str(cit.get("verbatim_text") or "").strip() for cit in data["citations"]
-                ).strip()
-                if not expected_answer or data.get("answer_text") != expected_answer:
+                expected_answer = reconstruct_verbatim_answer(data["citations"])
+                if expected_answer is None or data.get("answer_text") != expected_answer:
                     logger.warning(
                         "[FirstPersonPipeline] Refusing to cache non-reconstructible fp-context result."
                     )

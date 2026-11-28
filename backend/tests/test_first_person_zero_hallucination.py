@@ -3,6 +3,10 @@ import hashlib
 
 import pytest
 
+from services.first_person_pipeline import (
+    answer_matches_verbatim_citations,
+    reconstruct_verbatim_answer,
+)
 from services.first_person_store import validate_clip_entry
 from services.quote_fidelity import sources_from_payloads
 from services.quote_weaver import QuoteWeaverService
@@ -72,3 +76,22 @@ def test_store_rejects_okf_provenance():
     clip["provenance_kind"] = "curated_okf"
     with pytest.raises(ValueError, match="OKF"):
         validate_clip_entry(clip)
+
+
+def test_answer_reconstruction_is_exactly_the_joined_source_spans():
+    citations = [{"verbatim_text": "Opening."}, {"verbatim_text": "Answer."}]
+    assert reconstruct_verbatim_answer(citations) == "Opening. Answer."
+    assert answer_matches_verbatim_citations("Opening. Answer.", citations)
+
+
+@pytest.mark.parametrize(
+    ("answer", "citations"),
+    [
+        ("LLM connective prose", [{"verbatim_text": "Answer."}]),
+        ("Answer.", [{"verbatim_text": ""}]),
+        ("Answer.", [{"not_verbatim_text": "Answer."}]),
+        ("Answer.", "not-a-list"),
+    ],
+)
+def test_answer_reconstruction_rejects_non_source_bodies(answer, citations):
+    assert not answer_matches_verbatim_citations(answer, citations)

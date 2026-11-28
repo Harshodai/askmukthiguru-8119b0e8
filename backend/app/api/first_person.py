@@ -21,7 +21,6 @@ from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container_async
 from app.language_utils import guardrail_text_for
-from app.orchestrator_utils import _translate_cached
 from services.auth_service import (
     get_optional_user,
     require_aal2,
@@ -30,7 +29,11 @@ from services.auth_service import (
 )
 from services.cost_tracker import get_cost_tracker
 from services.crisis_helplines import format_helplines_block
-from services.first_person_pipeline import FirstPersonPipeline, serve_first_person
+from services.first_person_pipeline import (
+    FirstPersonPipeline,
+    answer_matches_verbatim_citations,
+    serve_first_person,
+)
 from services.first_person_public_projection import public_editorial_set_metadata
 from services.first_person_store import FirstPersonStore
 from services.safety_telemetry import log_crisis_referral_shown
@@ -52,8 +55,11 @@ class FirstPersonQueryRequest(BaseModel):
     language: Optional[str] = Field(
         None,
         max_length=10,
-        description="Seeker's selected language (e.g. 'hi'). When not English, each citation "
-        "gets a 'translated_text' gloss; 'verbatim_text' always stays the teacher's own words.",
+        description=(
+            "Seeker's selected language (e.g. 'hi'). The strict first-person route "
+            "always returns the teacher's original verbatim words; it never "
+            "translates the teaching body."
+        ),
     )
     cache_bypass: bool = Field(
         False,
@@ -277,36 +283,6 @@ async def _english_query(query: str, container: ServiceContainer) -> str:
         return query
 
 
-async def _add_glosses(
-    citations: list[dict[str, Any]], language: str, container: ServiceContainer
-) -> None:
-    """Attach a 'translated_text' gloss per citation. 'verbatim_text' is never touched;
-    a gloss that fails is omitted, never faked."""
-    service = getattr(container, "translation", None)
-    if service is None:
-        logger.warning("[FirstPersonRoute] No translation service; glosses omitted.")
-        return
-    results = await asyncio.gather(
-        *(
-            _translate_cached(
-                service,
-                text=c["verbatim_text"],
-                source_lang="en",
-                target_lang=language,
-                timeout=settings.first_person_translation_timeout_s,
-            )
-            for c in citations
-        ),
-        return_exceptions=True,
-    )
-    for cit, res in zip(citations, results):
-        if isinstance(res, str) and res.strip() and res.strip() != cit["verbatim_text"].strip():
-            cit["translated_text"] = res.strip()
-            cit["translated_language"] = language
-        elif isinstance(res, BaseException):
-            logger.warning("[FirstPersonRoute] Gloss translation failed (%s)", type(res).__name__)
-
-
 @router.post("/first-person/query", response_model=FirstPersonQueryResponse)
 @limiter.limit(getattr(settings, "first_person_rate_limit", "120/minute"))
 async def query_first_person_teaching(
@@ -451,7 +427,21 @@ async def query_first_person_teaching(
     payload = result.to_dict()
     if payload.get("editorial_set") is not None:
         payload["editorial_set"] = public_editorial_set_metadata(payload["editorial_set"])
-    if payload.get("citations") and not await _output_rail_passes(container, result.answer_text):
+    if payload.get("citations") and not answer_matches_verbatim_citations(
+        payload.get("answer_text"), payload.get("citations")
+    ):
+        logger.error("[FirstPersonRoute] Refusing non-reconstructible first-person answer body")
+        payload = FirstPersonQueryResponse(
+            answer_text=_UNVERIFIED_ABSTAIN_TEXT,
+            citations=[],
+            status="abstained",
+            is_direct_answer=False,
+            latency_ms=result.latency_ms,
+            cached=result.cached,
+        ).model_dump()
+    elif payload.get("citations") and not await _output_rail_passes(
+        container, result.answer_text
+    ):
         # Same output rail the chat bridge applies before serving a clip. A
         # blocked, missing or crashing rail abstains: no clip is served unchecked.
         payload = FirstPersonQueryResponse(
@@ -467,12 +457,6 @@ async def query_first_person_teaching(
         req.teacher_id,
         status=str(payload.get("status") or ""),
     )
-    language = (req.language or "en").lower().split("-")[0]
-    if language != "en" and payload["citations"]:
-        # Copies: the pipeline's cached citation dicts must stay language-free.
-        payload["citations"] = [dict(c) for c in payload["citations"]]
-        await _add_glosses(payload["citations"], language, container)
-
     return FirstPersonQueryResponse(**payload)
 
 

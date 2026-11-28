@@ -65,3 +65,20 @@ Opened: Databricks, collect user feedback (https://docs.databricks.com/gcp/mlflo
 - 12 users, 36 distinct questions: no errors, p50 15.5 s, p95 34 s, wall 75 s; 24 abstained (odd phrasing), 12 served. Same-question burst (cache) p95 5 s: not representative.
 - Independent grader on 34 served clips (before deploy; Sonnet, not a human): 65 percent relevance 2 or higher, 35 percent 0-1, 76 percent with a defect. Artifact filters (default off) address part of it; the rest needs re-ingest or the judge.
 - Crisis phrases in hi/te/ta/kn return the helpline with no clip.
+
+## Strict first-person release closure added in PR #127
+
+The live audit found that Railway was still running `main` commit `5a244534` from PR #125, not PR #127's answer-window commit `199e569d`. Consequently, no Railway result may be used as evidence for the new range-selection implementation until the owner merges PR #127 and verifies the resulting deployment commit.
+
+This PR now makes the strict source-only contract executable at both the pipeline and API boundaries. A served `answer_text` must equal the exact space-joined `citation.verbatim_text` values; otherwise the route returns the deterministic abstention with zero citations. The dedicated route no longer exposes an LLM-generated `translated_text` gloss alongside teaching citations. Non-English input may still be translated for retrieval, but the served teaching body remains the original source words.
+
+The faculty gate now performs a direct known-teaching provenance check requiring exact reconstruction, `is_verbatim=true`, `speaker_verified=true`, `domain_rights_status=licensed`, and `boundary_status=verified`. It rejects generated gloss fields and malformed citation bodies. It also turns known canonical-memory dreamer errors and OKF/editorial HTTP 499 client-abort activity into hard readiness failures instead of warnings. A clean gate is therefore necessary but not sufficient: native-speaker, clinician, rights, and owner review packets remain human gates.
+
+The post-merge acceptance battery must include one known direct teaching, one contiguous multi-span answer, one out-of-corpus question, one acute-safety question, and one non-English request. The multi-span case must prove that the visible body is reconstructed from the selected verified spans and that an invalid or failed LLM range falls back or abstains without generated text.
+
+## Hardening verification (2026-11-28, PR worktree)
+
+- `python3 -m py_compile` passed for the changed route, pipeline, tests, and faculty gate; `git diff --check` passed.
+- Ruff import checks passed for all changed Python files; the isolated new faculty-gate contract test passed **4/4** with `pytest --noconftest`.
+- The full focused pytest invocation was attempted from `backend/`, the repository-required dependency path, but the host interpreter is Python 3.9 while the checked-in backend code requires Python 3.12 (`str | Sequence[str]` fails during import). No dependency installation or source workaround was made; the dependency-complete focused suite remains a CI/container gate.
+- The earlier repo-root pytest attempt was correctly rejected by the repository’s splitter-shadowing guard; it was not treated as test evidence.

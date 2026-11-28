@@ -58,6 +58,43 @@ DEFECTS = {
 OK, FAIL, WARN = "PASS", "FAIL", "WARN"
 
 
+def validate_first_person_response(payload: dict) -> tuple[bool, str]:
+    """Validate the public first-person contract without trusting model metadata."""
+    citations = payload.get("citations") or []
+    if not citations:
+        safe_empty = payload.get("status") in {"abstained", "crisis_redirect"}
+        return safe_empty, (
+            "empty evidence with fail-closed status"
+            if safe_empty
+            else "empty citations on serving status"
+        )
+    if not isinstance(citations, list) or not isinstance(payload.get("answer_text"), str):
+        return False, "malformed answer or citation payload"
+    expected: list[str] = []
+    for citation in citations:
+        if not isinstance(citation, dict):
+            return False, "non-object citation"
+        text = str(citation.get("verbatim_text") or "").strip()
+        if not text:
+            return False, "citation missing verbatim_text"
+        expected.append(text)
+        required = {
+            "is_verbatim": True,
+            "speaker_verified": True,
+            "domain_rights_status": "licensed",
+            "boundary_status": "verified",
+        }
+        for field, value in required.items():
+            if citation.get(field) != value:
+                return False, f"citation {field}={citation.get(field)!r}"
+        if "translated_text" in citation or "translated_language" in citation:
+            return False, "generated translation gloss exposed with teaching citation"
+    reconstructed = " ".join(expected)
+    if payload.get("answer_text") != reconstructed:
+        return False, "answer_text is not the exact citation reconstruction"
+    return True, f"{len(citations)} licensed verbatim citation(s)"
+
+
 class Gate:
     def __init__(self, host: str, origin: str, service: str):
         self.host, self.origin, self.service = host.rstrip("/"), origin, service
@@ -186,6 +223,25 @@ class Gate:
         bad = b.get("route") in ("general_knowledge_unverified", "live_research")
         self.add(FAIL if bad else OK, "no LLM prose on a 'difference' follow-up", f"route={b.get('route')}")
 
+    def first_person_provenance(self):
+        tok, h = self.session()
+        code, payload = self.req(
+            "/api/first-person/query",
+            {
+                "query": "What is a Beautiful State?",
+                "max_clips": 3,
+                "language": "en",
+                "cache_bypass": True,
+                "session_id": tok,
+            },
+            h,
+        )
+        if code != 200:
+            self.add(FAIL, "first-person route available", f"HTTP {code}")
+            return
+        valid, detail = validate_first_person_response(payload)
+        self.add(OK if valid else FAIL, "first-person answer is exact licensed evidence", detail)
+
     def crisis(self):
         tok, h = self.session()
         bad = []
@@ -249,7 +305,36 @@ class Gate:
         self.add(OK if not judge else WARN, "judge indeterminate reasons", str(dict(judge)))
         top = ", ".join(f"{k}:{v}" for k, v in rej.most_common(5))
         self.add(OK, "top gate counters (read these, no threshold)", top)
-        self.add(OK if sum(errs.values()) < 30 else WARN, "error-level log lines", f"{sum(errs.values())}")
+        critical = [
+            key for key in errs
+            if "canonical_memory_events_actor_check" in key
+            or "Dreaming failed" in key
+            or "canonical_memory" in key
+        ]
+        self.add(
+            FAIL if critical else (OK if sum(errs.values()) < 30 else WARN),
+            "production error signatures",
+            f"total={sum(errs.values())} critical={critical[:3]}",
+        )
+        hp = subprocess.run(
+            ["railway", "logs", "--service", self.service, "--environment", "production",
+             "--http", "--json", "--lines", "2500"],
+            capture_output=True, text=True, timeout=120,
+        )
+        aborted_okf = 0
+        for line in hp.stdout.splitlines():
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            path = str(row.get("path") or "").lower()
+            if row.get("httpStatus") == 499 and ("okf" in path or "editorial" in path):
+                aborted_okf += 1
+        self.add(
+            FAIL if aborted_okf else OK,
+            "OKF/editorial client-abort errors",
+            str(aborted_okf),
+        )
 
 
 def main() -> int:
@@ -267,6 +352,7 @@ def main() -> int:
     g.audit()
     g.basics()
     g.no_prose_leak()
+    g.first_person_provenance()
     g.crisis()
     if not a.skip_smoke:
         g.smoke()
