@@ -1180,7 +1180,7 @@ describe('ChatMessage personalize this teaching (T-B14)', () => {
         <ChatMessage
           message={makeGuruMessage({
             content:
-              "I couldn't finish checking the teachings for this question just now. Please try again in a moment.",
+              "I couldn't complete the check on this question. Rephrasing it slightly, or asking again in a few minutes, may help.",
             routeDecision: 'first_person_abstain',
             groundingState: 'abstained',
             verification: { method: 'first_person_check_unavailable', passed: false },
@@ -1189,7 +1189,7 @@ describe('ChatMessage personalize this teaching (T-B14)', () => {
         { wrapper },
       );
 
-      expect(screen.getByText(/Please try again in a moment/)).toBeInTheDocument();
+      expect(screen.getByText(/asking again in a few minutes/)).toBeInTheDocument();
       expect(screen.queryByTestId('abstain-help-card')).not.toBeInTheDocument();
       expect(screen.queryByText(/No recorded teaching was found/)).not.toBeInTheDocument();
     });

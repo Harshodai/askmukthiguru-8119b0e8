@@ -101,7 +101,7 @@ def test_system_unavailable_causes_provider_outage_failure():
     outage_resp = {
         "route_decision": "first_person_abstain",
         "citations": [],
-        "response": "I couldn't finish checking the teachings for this question just now.",
+        "response": "I couldn't complete the check on this question.",
         "verification": {"passed": False, "abstain_cause": "system_unavailable"},
     }
 

@@ -784,6 +784,36 @@ def apply_injection_screen(clips: list[dict[str, Any]], *, lane: str) -> list[di
     return kept
 
 
+# Artifact filters (always on, tighten-only, owner decision 2026-11-28). Measured 2026-11-28 on
+# first_person_v13_shadow; each pattern is deliberately narrow and tighten-only. They never edit text.
+_ARTIFACT_ASR_RESTART_RE = re.compile(r"[.?!]\s+[a-z]{2,}[.?!](?=\s|$)")
+_ARTIFACT_AUDIENCE_RE = re.compile(
+    r"please be seated|are you (?:all )?ready|from today you (?:are|will)|has freed",
+    re.IGNORECASE,
+)
+_ARTIFACT_PROMISE_RE = re.compile(
+    r"magic potion|heal your \w+ of all|everything happens\.\s+everything comes|wellspring",
+    re.IGNORECASE,
+)
+
+
+def _artifact_problem(text: str) -> Optional[str]:
+    """Bounded reason code for an ASR/event/promise artifact in ``text``, else None.
+
+    Applies even to practice clips (the soul-sync exemption must not hide event address).
+    """
+    if _ARTIFACT_ASR_RESTART_RE.search(text):
+        return "artifact_asr_restart"
+    if _ARTIFACT_AUDIENCE_RE.search(text):
+        return "artifact_audience_address"
+    if _ARTIFACT_PROMISE_RE.search(text):
+        return "artifact_outcome_promise"
+    stripped = text.rstrip()
+    if stripped.endswith("?") and len(re.split(r"[.!?]\s+", stripped[:-1])[-1].split()) <= 4:
+        return "artifact_short_question_tail"
+    return None
+
+
 def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bool] = None) -> bool:
     """Content quality gate: filters clips that are technically valid but contextually
     worthless — live-event instructions, thin rhetorical openers, discourse acknowledgments.
@@ -868,6 +898,16 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
         or "soul-sync" in text_lower
         or "serene mind" in text_lower
     )
+    artifact = _artifact_problem(text)
+    if artifact:
+        logger.info(
+            "[FirstPersonPipeline] Clip %s rejected by content quality gate: %s",
+            clip.get("point_id") or clip.get("video_id"),
+            artifact,
+        )
+        fp_reject(artifact)
+        return False
+
     if _is_live_event_instruction(text) and not is_practice:
         logger.info(
             "[FirstPersonPipeline] Clip %s rejected by content quality gate: live-event instruction pattern",
@@ -2506,6 +2546,8 @@ class FirstPersonPipelineResult:
 
 
 _ENRICH_SLOTS = threading.BoundedSemaphore(8)
+# Per-request fan-out: half the slots, so two concurrent requests never starve each other.
+_ENRICH_PARALLELISM = 4
 
 
 def _call_with_deadline(fn: Callable[[], Any], *, timeout_s: float) -> Any:
@@ -3161,7 +3203,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             if len(items) <= 1:
                 return [_one(c) for c in items]
             with concurrent.futures.ThreadPoolExecutor(
-                max_workers=len(items), thread_name_prefix="fp-enrich-join"
+                max_workers=min(len(items), _ENRICH_PARALLELISM),
+                thread_name_prefix="fp-enrich-join",
             ) as pool:
                 return list(pool.map(_one, items))
 
