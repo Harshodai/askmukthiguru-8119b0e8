@@ -1,5 +1,16 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
+## Nov 29, 2026 — Production infrastructure failures must fail bounded, not open
+### L-RATE-LIMITER-FAIL-CLOSED-1 (2026-11-29). A connected Redis client can fail after startup, so the async exception path must not return an unconditional allow.
+- **What:** Railway logs showed async Redis timeouts followed by `degrading to allow`. That bypassed the bounded process-local limiter even though the startup path already had one.
+- **Rule:** on an async transport error, detach the broken client, enter the process-local limiter, account for the current request once, and preserve the existing reconnect cooldown. Availability fallback must remain bounded and observable.
+- **Verification:** the focused Redis limiter suite passes under Python 3.12, including the transport-error regression.
+
+### L-DREAMER-SCHEMA-1 (2026-11-29). Audit actors must come from the database contract, and worker query rows need type validation.
+- **What:** production rejected canonical-memory audit inserts because the dreamer emitted actor `dreamer`, while the live schema allows `user`, `system`, `admin`, `resolver`, and `consolidator`; `dream_all` also assumed every returned row was a mapping.
+- **Rule:** use `system` for dreamer-owned audit events unless the schema is deliberately migrated, and reject malformed rows before calling `.get` or indexing fields.
+- **Verification:** focused dreamer tests and the actor-constraint contract test pass under Python 3.12; no remote migration or data write was performed.
+
 ## Nov 29, 2026 — Cross-video first-person joins require a final source-only quality gate
 ### L-POST-JOIN-EVALUATOR-1 (2026-11-29). Individually valid clips are not enough: a composite answer must be checked after deterministic assembly.
 - **What:** the editorial path joined already-gated multi-video citations, but its final body had no post-assembly grammar/coherence/relevance decision and could diverge from the citation contract at the join boundary.

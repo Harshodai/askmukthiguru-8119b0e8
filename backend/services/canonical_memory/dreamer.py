@@ -404,7 +404,16 @@ class MemoryDreamer:
                 .execute
             )
             rows = res.data if res and hasattr(res, "data") else []
-            user_ids = sorted(list({r["user_id"] for r in rows if r.get("user_id")}))
+            valid_rows = [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+            rejected = len(rows) - len(valid_rows) if isinstance(rows, list) else 1
+            if rejected:
+                logger.warning(
+                    "Dreamer rejected %d malformed active-user row(s)",
+                    rejected,
+                )
+            user_ids = sorted(
+                list({row["user_id"] for row in valid_rows if row.get("user_id")})
+            )
         except Exception as e:
             logger.error("Failed to query active users for dreaming: %s", e)
             return []
@@ -889,7 +898,22 @@ class MemoryDreamer:
             .order("importance", desc=True)
             .execute
         )
-        return res.data if res and hasattr(res, "data") else []
+        rows = res.data if res and hasattr(res, "data") else []
+        if not isinstance(rows, list):
+            logger.warning(
+                "Dreamer received malformed active-memory payload for user %s; refusing it",
+                user_id,
+            )
+            return []
+        valid_rows = [row for row in rows if isinstance(row, dict)]
+        rejected = len(rows) - len(valid_rows)
+        if rejected:
+            logger.warning(
+                "Dreamer rejected %d malformed active-memory row(s) for user %s",
+                rejected,
+                user_id,
+            )
+        return valid_rows
 
     async def _update_memory_status(
         self,
@@ -934,7 +958,7 @@ class MemoryDreamer:
         memory_id: str,
         event_type: str,
         reason: str,
-        actor: str = "dreamer",
+        actor: str = "system",
         old_version: Optional[int] = None,
         new_version: Optional[int] = None,
     ) -> Optional[str]:

@@ -94,7 +94,7 @@ The cross-video editorial path had a real quality gap: each parent context was g
 | Cross-video deterministic selection and exact reconstruction | **PASS (code/tests)** | Distinct verified citations are joined only from already-gated results; no LLM-authored body is permitted. |
 | Final cross-video grammar/coherence/relevance evaluation | **PASS (code/tests)** | The evaluator sees the final joined body and may only accept/reject/score metadata. |
 | Evaluator rejection, indeterminacy, disabled gate, or exception | **PASS (code/tests)** | Composite serving fails closed or falls back to one already-gated result; no composite leak. |
-| Railway deployment of PR #127 | **UNPROVEN** | Railway was not linked and no fresh logs were obtained; the prior live deployment was not PR #127. |
+| Railway deployment of PR #127 | **UNPROVEN** | Read-only Railway metadata confirms deployment `17530dcb-e9f8-42e4-993f-ef3c838e9faf` runs `main` commit `5a24453434dbe9d2c67a48925cfebb70d9bf66c5` (PR #125), not PR #127. |
 | Production latency, reason distribution, and post-redeploy smoke battery | **UNPROVEN** | Must be measured after merge and deployment, not inferred from local tests. |
 | RLS cross-user end-to-end workflow | **UNPROVEN** | No fresh production/test-environment evidence. |
 | Supabase backup secret, successful backup, and restore drill | **UNPROVEN** | Operational evidence is absent. |
@@ -108,4 +108,13 @@ A multi-video answer is faculty-testable only if its visible body is byte-equiva
 
 ### Railway status
 
-**UNPROVEN — no project was linked and no Railway logs were retrieved in this audit.** Do not treat the older deployment’s logs as evidence for PR #127. After the owner merges and deploys, capture the deployed commit, run the faculty gate, inspect bounded `fp.rejected` reason counts, and run the full acceptance battery before inviting faculty.
+**UNPROVEN for PR #127.** Read-only metadata was retrieved from project `resilient-embrace`, production service `askmukthiguru-8119b0e8`: deployment `17530dcb-e9f8-42e4-993f-ef3c838e9faf` is `SUCCESS`, branch `main`, commit `5a24453434dbe9d2c67a48925cfebb70d9bf66c5`, merged PR #125. The captured production logs are therefore pre-PR evidence and cannot certify the joined-answer implementation.
+
+### Live-log triage and PR-scoped fixes (2026-11-29)
+
+- **Rate limiting:** production logged async Redis timeouts followed by “degrading to allow.” The async limiter now enters the same bounded process-local sliding/backoff limiter used during startup, records the current request once, and reconnects through the existing cooldown path. Focused regression coverage passes; no Railway configuration or Redis state was changed.
+- **Canonical memory:** production logged rejected audit inserts with actor `dreamer` and a separate string-row `.get` failure in `dream_all`. Dreamer audit events now use the schema-approved `system` actor, and both active-user and active-memory query boundaries reject malformed rows. Focused dreamer and actor-contract tests pass; no Supabase migration was applied remotely.
+- **Memgraph/TeachingUnit:** first-person concept/TU expansion remains explicitly off by default. Memgraph sizing is bounded and returns a deterministic heuristic on unavailable/error/timeout; it does not inject text or write graph state. This is an intentional fallback, not evidence that TU retrieval improves answer quality.
+- **General RAG faithfulness:** the observed low-faithfulness/no-citation run was fail-closed in the generation/formatting path; no additional source leak was identified. This remains a separate general-RAG quality/latency concern, not evidence for first-person readiness.
+
+After the owner merges and deploys, capture the deployed commit again, run the faculty gate, inspect bounded `fp.rejected` reason counts and rate-limit health, and run the full acceptance battery before inviting faculty.

@@ -313,6 +313,32 @@ class TestAsyncRateLimiterPath:
         assert asyncio.run(_run()) == (True, 0.0)
         assert len(ticks) == 5
 
+    def test_async_transport_error_enters_bounded_fallback(self):
+        limiter = RedisBackedRateLimiter(
+            redis_url="redis://127.0.0.1:1/0",
+            ttl=60.0,
+            max_requests=1,
+        )
+        limiter._fallback_active = False
+        limiter._async_redis = object()
+
+        async def _broken(_key, _now):
+            raise TimeoutError("redis transport unavailable")
+
+        limiter._async_redis_is_allowed = _broken
+
+        async def _run():
+            first = await limiter.is_allowed_async("async:transport-error:1", now=100.0)
+            second = await limiter.is_allowed_async("async:transport-error:1", now=100.5)
+            return first, second
+
+        first, second = asyncio.run(_run())
+        assert first == (True, 0.0)
+        assert second[0] is False
+        assert second[1] == pytest.approx(59.5)
+        assert limiter._fallback_active is True
+        assert limiter._async_redis is None
+
     @requires_async_redis
     def test_async_live_redis_uses_asyncio_client(self):
         import redis
