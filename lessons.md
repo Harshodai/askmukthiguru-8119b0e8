@@ -1484,7 +1484,10 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Rule:** A prompt-restructuring proposal justified by prompt caching must first prove the target model honours the cache directive. If it does not, ship the same calibration signal in a compact rubric; do not restructure prompts to fit a cache that is not there.
 - **Pin:** `backend/services/first_person_pipeline.py` (`_RELEVANCE_RUBRIC_CORE`), `backend/tests/test_openrouter.py`.
 
-
+### L-LLM-RANGE-IS-METADATA-NOT-A-GATE-1. Let the model choose a window, never let it choose evidence.
+- **What:** The first-person judge may propose a zero-based contiguous `[span_start, span_end]` range within an already screened parent window. The proposal is metadata only: deterministic code validates bounds, hit inclusion, canonical parent order, hydration completeness, and then re-runs the full harness and serve-time gate chain. Invalid or failed proposals retain the independently screened deterministic window; provider failure still abstains as `relevance_indeterminate`.
+- **Rule:** Keep identity, contiguity, rights, speaker, hashes, safety, citations, reconstruction, caching, and abstention authoritative in application code. Never accept an LLM-selected range by text matching, never bridge a hydrated-parent gap, and do not join distinct videos until an atomic multi-video evidence contract proves every clip safe together.
+- **Pin:** `backend/services/first_person_judge.py`, `backend/services/first_person_context_harness.py`, `backend/services/first_person_pipeline.py`, and their focused tests (200 passed; broader host suite remains dependency-limited by the installed Transformers/scikit-learn import stack).
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point
 > into the archive. `backend/tests/test_lessons_archive.py` fails if a cited `L-` ID is in neither file.

@@ -150,6 +150,29 @@ JUDGE_JSON_SCHEMA: dict[str, Any] = {
 }
 
 
+JUDGE_SPAN_RANGE_BLOCK = (
+    "When a clip includes ordered source spans, choose the smallest contiguous "
+    "source-span range that contains the marked hit and is sufficient to answer "
+    "the question. Return zero-based span_start and span_end for the selected "
+    "clip only. These are indices into the supplied ordered list, not text "
+    "character offsets. Never invent, reorder, or skip a span."
+)
+
+
+def _span_range_schema() -> dict[str, Any]:
+    """Return the range-aware schema without mutating the pinned legacy schema."""
+    schema = json.loads(json.dumps(JUDGE_JSON_SCHEMA))
+    root = schema["json_schema"]["schema"]
+    root["required"] = [*root["required"], "span_start", "span_end"]
+    root["properties"]["span_start"] = {"type": ["integer", "null"]}
+    root["properties"]["span_end"] = {"type": ["integer", "null"]}
+    schema["json_schema"]["name"] = "first_person_evidence_judge_span_range"
+    return schema
+
+
+JUDGE_JSON_SCHEMA_SPAN_RANGE = _span_range_schema()
+
+
 def judge_enabled() -> bool:
     from app.config import settings
 
@@ -192,12 +215,54 @@ def _gate_pins() -> dict[str, Any]:
     return scorer_provider_kwargs()
 
 
+def _has_spans(clip: dict[str, Any]) -> bool:
+    span_texts = clip.get("span_texts")
+    return isinstance(span_texts, list) and bool(span_texts)
+
+
 def build_judge_prompt(question: str, clips: list[dict[str, Any]]) -> str:
     lines = []
     for i, clip in enumerate(clips):
-        text = " ".join(str(clip.get("verbatim_text") or "").split())
-        lines.append(f"[{i}] {fence_inline('clip', text)}")
+        if _has_spans(clip):
+            span_lines = []
+            hit_positions = set(clip.get("hit_positions") or ())
+            for span_index, span_text in enumerate(clip["span_texts"]):
+                marker = " hit" if span_index in hit_positions else ""
+                text = " ".join(str(span_text or "").split())
+                span_lines.append(f"(s{span_index}{marker}) {fence_inline('span', text)}")
+            lines.append(f"[{i}]\n" + "\n".join(span_lines))
+        else:
+            text = " ".join(str(clip.get("verbatim_text") or "").split())
+            lines.append(f"[{i}] {fence_inline('clip', text)}")
     return f"Question: {neutralise(question)}\n\nClips:\n" + "\n".join(lines)
+
+
+def valid_span_range(
+    span_range: tuple[Any, Any] | None,
+    n_spans: int,
+    hit_positions: set[int] | frozenset[int] | tuple[int, ...] | list[int],
+) -> tuple[int, int] | None:
+    """Validate a judge proposal against the immutable ordered span list."""
+    if not isinstance(span_range, tuple) or len(span_range) != 2:
+        return None
+    start, end = span_range
+    if (
+        isinstance(start, bool)
+        or isinstance(end, bool)
+        or not isinstance(start, int)
+        or not isinstance(end, int)
+        or n_spans <= 0
+        or not 0 <= start <= end < n_spans
+    ):
+        return None
+    hits = {
+        position
+        for position in hit_positions
+        if isinstance(position, int) and not isinstance(position, bool)
+    }
+    if not hits or not any(start <= position <= end for position in hits):
+        return None
+    return start, end
 
 
 ALLOWED_ITEM_KEYS = frozenset(
@@ -214,7 +279,14 @@ ALLOWED_ITEM_KEYS = frozenset(
 REQUIRED_BASE_KEYS = frozenset({"i", "relevance", "answers"})
 
 
-def parse_judge_reply(raw: Any, n_clips: int) -> Optional[tuple[list[dict[str, Any]], bool]]:
+def parse_judge_reply(
+    raw: Any,
+    n_clips: int,
+    *,
+    allow_span_range: bool = False,
+) -> Optional[
+    tuple[list[dict[str, Any]], bool] | tuple[list[dict[str, Any]], bool, tuple[Any, Any] | None]
+]:
     """Strict parse with multi-dimensional decoding and backward compatibility.
 
     Returns (scores ordered by index, question_answerable) or None.
@@ -231,7 +303,10 @@ def parse_judge_reply(raw: Any, n_clips: int) -> Optional[tuple[list[dict[str, A
         decoded = json.loads(text)
     except ValueError:
         return None
-    if not isinstance(decoded, dict) or set(decoded) != {"scores", "question_answerable"}:
+    required_keys = {"scores", "question_answerable"}
+    if allow_span_range:
+        required_keys |= {"span_start", "span_end"}
+    if not isinstance(decoded, dict) or set(decoded) != required_keys:
         return None
     answerable = decoded["question_answerable"]
     scores = decoded["scores"]
@@ -284,7 +359,23 @@ def parse_judge_reply(raw: Any, n_clips: int) -> Optional[tuple[list[dict[str, A
         }
     if len(by_index) != n_clips:
         return None
-    return [by_index[i] for i in range(n_clips)], answerable
+    ordered_scores = [by_index[i] for i in range(n_clips)]
+    if not allow_span_range:
+        return ordered_scores, answerable
+    start = decoded["span_start"]
+    end = decoded["span_end"]
+    if start is None and end is None:
+        span_range = None
+    elif (
+        isinstance(start, int)
+        and not isinstance(start, bool)
+        and isinstance(end, int)
+        and not isinstance(end, bool)
+    ):
+        span_range = (start, end)
+    else:
+        span_range = None
+    return ordered_scores, answerable, span_range
 
 
 def rejection_reason(scores: list[dict[str, Any]], answerable: bool, minimum: int) -> str:
@@ -457,8 +548,12 @@ async def judge_select_async(
         if fail_log is not None:
             fail_log.append("no_service")
         return INDETERMINATE
+    span_aware = any(_has_spans(clip) for clip in clips)
     user_prompt = build_judge_prompt(question, clips)
     system_prompt = judge_system_prompt(rubric)
+    if span_aware:
+        system_prompt = system_prompt + "\n\n" + JUDGE_SPAN_RANGE_BLOCK
+    response_schema = JUDGE_JSON_SCHEMA_SPAN_RANGE if span_aware else JUDGE_JSON_SCHEMA
 
     async def _call(refresh: bool = False) -> str:
         # Every OpenRouter call sends X-OpenRouter-Cache: true, and a retry is the SAME
@@ -468,7 +563,7 @@ async def judge_select_async(
         res = llm_service.generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            response_format=JUDGE_JSON_SCHEMA,
+            response_format=response_schema,
             **judge_call_kwargs(judge_model()),
             **_gate_pins(),
             **extra,
@@ -497,7 +592,7 @@ async def judge_select_async(
         if raw is None:
             last_reason = call_reasons[-1] if call_reasons else "provider_error"
             continue
-        parsed = parse_judge_reply(raw, len(clips))
+        parsed = parse_judge_reply(raw, len(clips), allow_span_range=span_aware)
         if parsed is not None:
             break
         last_reason = "parse" if str(raw).strip() else "empty"
@@ -510,7 +605,11 @@ async def judge_select_async(
         if fail_log is not None:
             fail_log.append(last_reason)
         return INDETERMINATE
-    scores, answerable = parsed
+    if span_aware:
+        scores, answerable, proposed_range = parsed
+    else:
+        scores, answerable = parsed
+        proposed_range = None
     if scores_out is not None:
         scores_out[:] = [int(s["relevance"]) for s in scores]
     from app.config import settings
@@ -531,6 +630,17 @@ async def judge_select_async(
                 "is_direct": is_direct,
             }
         )
+        if span_aware and chosen is not None:
+            chosen_clip = clips[chosen]
+            hit_positions = chosen_clip.get("hit_positions") or ()
+            validated_range = valid_span_range(
+                proposed_range,
+                len(chosen_clip.get("span_texts") or ()),
+                hit_positions,
+            )
+            judge_meta_out["span_range"] = validated_range
+            if validated_range is None and proposed_range is not None:
+                judge_meta_out["range_invalid_reason"] = "out_of_bounds_or_hit_omitted"
         editorial_set = build_editorial_set_from_judge(
             judge_meta_out, query=question, is_direct=is_direct
         )

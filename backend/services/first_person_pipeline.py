@@ -5626,6 +5626,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 # genuinely relevant candidates behind the judge cap.
                 async def _prepare_ctx_candidate(
                     ctx: Any,
+                    selected_span_range: tuple[int, int] | None = None,
                 ) -> tuple[Optional[dict[str, Any]], list[int]]:
                     """Run deterministic + store gates before invoking any LLM scorer."""
                     _local_tokens: list[int] = []
@@ -5670,7 +5671,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         validated_predecessor = candidate_edge
 
                     selected_span_ids = None
-                    if bool(getattr(settings, "first_person_context_selector_enabled", False)):
+                    if selected_span_range is None and bool(
+                        getattr(settings, "first_person_context_selector_enabled", False)
+                    ):
                         selected_span_ids = await _acall(
                             select_span_ids, query, ctx.spans, llm_service=self._llm_service
                         )
@@ -5681,6 +5684,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         requested_teacher=editorial_teacher_id,
                         answerability=ans_str,
                         selected_span_ids=selected_span_ids,
+                        selected_span_range=selected_span_range,
                         retrieval_query=retrieval_query,
                         validated_predecessor=validated_predecessor,
                     )
@@ -5939,6 +5943,26 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         "ctx": ctx,
                         "decision": decision,
                         "served_spans": served_spans,
+                        "judge_spans": tuple(
+                            span
+                            for span in served_spans
+                            if validated_predecessor is None
+                            or span.source_span_id
+                            != validated_predecessor.predecessor.source_span_id
+                        ),
+                        "judge_hit_positions": tuple(
+                            index
+                            for index, span in enumerate(
+                                tuple(
+                                    candidate
+                                    for candidate in served_spans
+                                    if validated_predecessor is None
+                                    or candidate.source_span_id
+                                    != validated_predecessor.predecessor.source_span_id
+                                )
+                            )
+                            if span.source_span_id in set(ctx.hit_span_ids or ())
+                        ),
                         "citations": citations,
                         "audio_playback_clips": audio_playback_clips,
                         "confidence": confidence,
@@ -5985,8 +6009,11 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 ) -> tuple[Optional[FirstPersonPipelineResult], list[int]]:
                     """Evaluate one deterministically screened context through LLM relevance + assembly."""
                     _local_tokens: list[int] = []
+                    ctx = prep["ctx"]
                     decision = prep["decision"]
                     served_spans = prep["served_spans"]
+                    judge_spans = prep.get("judge_spans", ())
+                    judge_hit_positions = prep.get("judge_hit_positions", ())
                     citations = prep["citations"]
                     audio_playback_clips = prep["audio_playback_clips"]
                     confidence = prep["confidence"]
@@ -6011,6 +6038,10 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 {
                                     "verbatim_text": assembled_answer_text or "",
                                     "start_ms": getattr(_first_span, "start_ms", None),
+                                    "span_texts": [span.verbatim_text for span in judge_spans]
+                                    if len(judge_spans) > 1
+                                    else None,
+                                    "hit_positions": list(judge_hit_positions),
                                 }
                             ],
                             self._llm_service,
@@ -6053,6 +6084,48 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 )
                             return None, _local_tokens
                         _h_rel_score = _h_scores[0] if _h_scores else None
+                        proposed_range = _h_judge_meta.get("span_range")
+                        if _h_pick == 0 and proposed_range is not None and len(judge_spans) > 1:
+                            range_start, range_end = proposed_range
+                            selected_ids = tuple(
+                                span.source_span_id
+                                for span in judge_spans[range_start : range_end + 1]
+                            )
+                            parent_ids = tuple(
+                                getattr(ctx.parent, "ordered_source_span_ids", ()) or ()
+                            )
+                            parent_positions = tuple(
+                                parent_ids.index(span_id) if span_id in parent_ids else -1
+                                for span_id in selected_ids
+                            )
+                            contiguous = (
+                                selected_ids
+                                and all(position >= 0 for position in parent_positions)
+                                and parent_positions
+                                == tuple(range(parent_positions[0], parent_positions[-1] + 1))
+                            )
+                            if contiguous:
+                                selected_prep, selected_tokens = await _prepare_ctx_candidate(
+                                    ctx,
+                                    selected_span_range=(
+                                        parent_positions[0],
+                                        parent_positions[-1],
+                                    ),
+                                )
+                                _local_tokens.extend(selected_tokens)
+                                if selected_prep is not None:
+                                    prep = selected_prep
+                                    decision = prep["decision"]
+                                    served_spans = prep["served_spans"]
+                                    citations = prep["citations"]
+                                    audio_playback_clips = prep["audio_playback_clips"]
+                                    confidence = prep["confidence"]
+                                    assembled_answer_text = prep["assembled_answer_text"]
+                                    t_asm_start = prep["t_asm_start"]
+                                else:
+                                    logger.info(
+                                        "[FirstPersonPipeline] Judge span range failed deterministic re-gating; retaining fallback"
+                                    )
                         logger.info(
                             "[FirstPersonPipeline] Harness answer relevance score=%s (parallel=%s)",
                             _h_rel_score,
