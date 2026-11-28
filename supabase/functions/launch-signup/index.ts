@@ -37,8 +37,6 @@ Deno.serve(async (req) => {
     if (validSignup(body)) {
       const { data, error } = await intake.rpc('subscribe_launch_updates', { p_email: email, p_consent: true, p_source: body.source });
       if (error || data !== 'accepted') return reply({ error: 'Could not save signup. Please try again.' }, 503);
-      const queued = await db.rpc('queue_existing_launch_confirmation', { p_email: email });
-      if (queued.error) console.error('launch confirmation enqueue failed', queued.error.code);
     }
     const claimed = await db.rpc('claim_launch_confirmations', { p_email: email, p_limit: retry ? 5 : 1 });
     if (claimed.error) console.error('launch confirmation claim failed', claimed.error.code);
@@ -61,14 +59,14 @@ Deno.serve(async (req) => {
           const details = await response.text();
           // Provider bodies can include recipients; keep private details out of public responses/logs.
           console.error('Brevo confirmation refused', response.status, details.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]'));
-          throw new Error(`provider_${response.status}`);
+          throw new Error(response.status === 401 && /unrecogni[sz]ed IP address/i.test(details) ? 'brevo_ip_not_authorized' : `provider_${response.status}`);
         }
         const receipt = await response.json();
         if (typeof receipt.messageId !== 'string') throw new Error('provider_receipt_missing');
         const saved = await db.from('launch_email_deliveries').update({ state: 'accepted', provider_message_id: receipt.messageId, locked_at: null, last_error: null }).eq('subscriber_id', job.subscriber_id).eq('attempts', job.attempts);
         if (saved.error) console.error('launch provider receipt persistence failed', saved.error.code);
       } catch (err) {
-        const reason = err instanceof Error && /^provider_\d+$/.test(err.message) ? err.message : 'send_unconfirmed';
+        const reason = err instanceof Error && /^(provider_\d+|brevo_ip_not_authorized)$/.test(err.message) ? err.message : 'send_unconfirmed';
         await db.from('launch_email_deliveries').update({ state: 'failed', last_error: reason, locked_at: null, next_attempt_at: new Date(Date.now() + 60_000).toISOString() }).eq('subscriber_id', job.subscriber_id).eq('attempts', job.attempts);
       }
     }

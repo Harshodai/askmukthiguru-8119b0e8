@@ -176,7 +176,7 @@ def format_whatsapp_message(text: str, citations: list[str] | None = None) -> st
 async def create_link_challenge(
     supabase: Any,
     phone: str,
-    confirmed_whatsapp: bool = True,
+    confirmed_whatsapp: bool = False,
     expiry_minutes: int = DEFAULT_LINK_EXPIRY_MINUTES,
 ) -> tuple[str, dict[str, Any]]:
     """
@@ -186,6 +186,11 @@ async def create_link_challenge(
     clean = clean_phone(phone)
     if not clean:
         raise ValueError("Phone number is required to create link challenge")
+
+    if confirmed_whatsapp is not True:
+        raise ValueError("Send LINK from your WhatsApp number to prove ownership")
+    if not 1 <= expiry_minutes <= DEFAULT_LINK_EXPIRY_MINUTES:
+        raise ValueError("Link expiry must be between 1 and 15 minutes")
 
     raw_token = generate_link_token()
     token_hash = hash_token(raw_token)
@@ -199,7 +204,7 @@ async def create_link_challenge(
         "challenge_token_hash": token_hash,
         "phone_number_hash": p_hash,
         "phone_number_masked": p_masked,
-        "phone_number_raw": clean,
+        "phone_number_raw": "",
         "created_at": now.isoformat(),
         "expires_at": expires_at.isoformat(),
         "confirmed_whatsapp": confirmed_whatsapp,
@@ -230,80 +235,18 @@ async def verify_link_challenge(
     if not user_id or not user_id.strip():
         raise ValueError("User ID is required")
 
-    t_hash = hash_token(token)
+    def _redeem():
+        return supabase.rpc("redeem_whatsapp_link", {
+            "p_token_hash": hash_token(token),
+            "p_user_id": user_id,
+            "p_tenant_id": tenant_id,
+        }).execute()
 
-    def _get_challenge():
-        return (
-            supabase.table("whatsapp_link_challenges")
-            .select("*")
-            .eq("challenge_token_hash", t_hash)
-            .execute()
-        )
-
-    res = await asyncio.to_thread(_get_challenge)
-    rows = getattr(res, "data", []) or []
-    if not rows:
-        raise ValueError("Invalid or unrecognized linking code")
-
-    challenge = rows[0]
-    if challenge.get("consumed_at"):
-        raise ValueError("This linking code has already been used")
-
-    now = datetime.now(UTC)
-    expires_at_str = challenge.get("expires_at")
-    if expires_at_str:
-        expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
-        if now > expires_at:
-            raise ValueError("This linking code has expired. Please request a new one.")
-
-    p_hash = challenge["phone_number_hash"]
-    p_masked = challenge["phone_number_masked"]
-    p_raw = challenge.get("phone_number_raw", "")
-
-    # Atomic consume challenge
-    def _consume_challenge():
-        return (
-            supabase.table("whatsapp_link_challenges")
-            .update(
-                {
-                    "consumed_at": now.isoformat(),
-                    "confirmed_web_user_id": user_id,
-                }
-            )
-            .eq("id", challenge["id"])
-            .execute()
-        )
-
-    await asyncio.to_thread(_consume_challenge)
-
-    # Upsert account link row
-    link_data = {
-        "user_id": user_id,
-        "tenant_id": tenant_id,
-        "phone_number_hash": p_hash,
-        "phone_number_masked": p_masked,
-        "phone_number_encrypted": p_raw,
-        "status": "active",
-        "sync_history_consent": False,  # DPDP: channel history sync defaults to False
-        "memory_write_consent": False,  # DPDP: long-term memory consent defaults to False
-        "linked_at": now.isoformat(),
-        "revoked_at": None,
-        "updated_at": now.isoformat(),
-    }
-
-    def _upsert_link():
-        return (
-            supabase.table("whatsapp_account_links")
-            .upsert(link_data, on_conflict="phone_number_hash")
-            .execute()
-        )
-
-    upsert_res = await asyncio.to_thread(_upsert_link)
-    upserted_rows = getattr(upsert_res, "data", []) or []
-    linked_row = upserted_rows[0] if upserted_rows else link_data
-
-    logger.info("Successfully bound WhatsApp %s to user %s", p_masked, user_id)
-    return linked_row
+    result = await asyncio.to_thread(_redeem)
+    rows = getattr(result, "data", None)
+    if not isinstance(rows, list) or len(rows) != 1 or rows[0].get("user_id") != user_id:
+        raise ValueError("Unable to confirm account linking")
+    return rows[0]
 
 
 async def get_link_status(supabase: Any, user_id: str) -> dict[str, Any]:
@@ -339,6 +282,25 @@ async def get_link_status(supabase: Any, user_id: str) -> dict[str, Any]:
         "memory_write_consent": bool(link.get("memory_write_consent", False)),
         "linked_at": link.get("linked_at"),
     }
+
+
+async def has_whatsapp_memory_consent(supabase: Any, session_id: str, user_id: str) -> bool:
+    """Recheck channel consent before shared memory writes; a database failure means no consent."""
+    from httpx import HTTPError
+    from postgrest.exceptions import APIError
+
+    if supabase is None or not session_id.startswith("wa_"):
+        return False
+    try:
+        def _query():
+            return (supabase.table("whatsapp_account_links")
+                    .select("id").eq("id", session_id[3:]).eq("user_id", user_id)
+                    .eq("status", "active").eq("memory_write_consent", True)
+                    .limit(1).execute())
+        result = await asyncio.to_thread(_query)
+        return bool(getattr(result, "data", None))
+    except (HTTPError, APIError, ValueError, OSError):
+        return False
 
 
 async def update_link_consent(
@@ -436,8 +398,9 @@ async def optout_account_by_phone(supabase: Any, phone: str) -> bool:
     def _optout():
         return (
             supabase.table("whatsapp_account_links")
-            .update({"status": "opted_out", "updated_at": now})
+            .update({"status": "opted_out", "sync_history_consent": False, "memory_write_consent": False, "updated_at": now})
             .eq("phone_number_hash", p_hash)
+            .eq("status", "active")
             .execute()
         )
 
