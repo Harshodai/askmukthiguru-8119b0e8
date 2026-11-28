@@ -422,12 +422,16 @@ async def test_false_abstention_recovery_soul_sync_instructions(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_false_abstention_recovery_difference_synthesis():
+async def test_false_abstention_recovery_difference_synthesis(monkeypatch):
     """Test conceptual difference inquiries (ego vs intelligence) hand off to GraphStage for multi-source synthesis."""
+    from app.config import settings
     from app.pipeline.stages.context import PipelineContext
     from app.pipeline.stages.first_person_bridge import FirstPersonBridgeStage
     from app.schemas import ChatRequest
 
+    # Hand-off to the generating graph exists only with fallback ON; with it OFF the
+    # bridge abstains (invariant 21; tests/test_fp_only_no_generated_comparison_2026_11_28.py).
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     query = "What is the difference between the ego-self ('I') and universal intelligence according to the teachings?"
 
     container = MagicMock()
@@ -617,12 +621,14 @@ async def test_false_abstention_recovery_step_instructions_soul_sync():
 
 
 @pytest.mark.asyncio
-async def test_false_abstention_recovery_distinction_synthesis():
+async def test_false_abstention_recovery_distinction_synthesis(monkeypatch):
     """Test 'distinction between' synthesis inquiry hands off to GraphStage."""
+    from app.config import settings
     from app.pipeline.stages.context import PipelineContext
     from app.pipeline.stages.first_person_bridge import FirstPersonBridgeStage
     from app.schemas import ChatRequest
 
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     query = "What is the distinction between ego and universal consciousness according to the teachings?"
 
     container = MagicMock()

@@ -14,7 +14,6 @@ def _valid_env():
         "LLM_PROVIDER": "openrouter",
         "OPENROUTER_API_KEY": "key-redacted",
         "BRAIN_KEK": "kek-redacted",
-        "FACULTY_ACCESS_CODE": "code-redacted",
         "OPENROUTER_BUDGET_GUARD_ENABLED": "true",
         "OPENROUTER_BUDGET_FAIL_CLOSED": "true",
     }
@@ -39,21 +38,6 @@ def test_brain_kek_present_passes():
     assert "BRAIN_KEK is required" not in validate_environment(env).errors
 
 
-def test_missing_faculty_code_without_gate_disabled_fails():
-    env = _valid_env()
-    del env["FACULTY_ACCESS_CODE"]
-    result = validate_environment(env)
-    assert any(error.startswith("FACULTY_ACCESS_CODE is required") for error in result.errors)
-
-
-def test_faculty_gate_disabled_true_replaces_access_code():
-    env = _valid_env()
-    del env["FACULTY_ACCESS_CODE"]
-    env["FACULTY_GATE_DISABLED"] = "true"
-    result = validate_environment(env)
-    assert not any("FACULTY_ACCESS_CODE" in error for error in result.errors)
-
-
 def test_budget_guard_disabled_fails_without_uncapped_decision():
     env = _valid_env()
     env["OPENROUTER_BUDGET_GUARD_ENABLED"] = "false"
@@ -72,7 +56,7 @@ def test_budget_unset_defaults_to_guarded_and_passes():
 @pytest.mark.parametrize("bad", [" ", "", "maybe", " true"])
 @pytest.mark.parametrize(
     "name",
-    ["OPENROUTER_BUDGET_GUARD_ENABLED", "FACULTY_GATE_DISABLED", "ALLOW_UNCAPPED_LLM_SPEND"],
+    ["OPENROUTER_BUDGET_GUARD_ENABLED", "ALLOW_UNCAPPED_LLM_SPEND"],
 )
 def test_unparseable_boolean_fails_like_settings_does(name, bad):
     """Found by the test challenge pass: the preflight stripped and defaulted a
@@ -86,7 +70,7 @@ def test_unparseable_boolean_fails_like_settings_does(name, bad):
 @pytest.mark.parametrize("good", ["TRUE", "0", "off", "Yes"])
 def test_pydantic_boolean_spellings_are_accepted(good):
     env = _valid_env()
-    env["FACULTY_GATE_DISABLED"] = good
+    env["ALLOW_UNCAPPED_LLM_SPEND"] = good
     assert not any("not a valid boolean" in e for e in validate_environment(env).errors)
 
 

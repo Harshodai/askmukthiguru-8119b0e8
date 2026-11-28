@@ -79,9 +79,15 @@ async def test_feedback_lessons_mining():
     # a hostname that only resolves inside the docker network, not from the
     # host running pytest. The refiner background-task patch alone doesn't
     # cover this; both call sites need the mock.
+    # The store now fails visibly (503) when Supabase is unreachable instead of faking success
+    # (2026-11-28), so give this lessons-mining test a store that accepts the row.
     with (
         patch("app.core.refiner.get_container", return_value=mock_container),
         patch("app.dependencies.get_container", return_value=mock_container),
+        patch(
+            "services.feedback_service.FeedbackService._insert_event",
+            new=AsyncMock(return_value={"id": "stored"}),
+        ),
     ):
         # Post negative feedback (rating <= 0)
         response = client.post(

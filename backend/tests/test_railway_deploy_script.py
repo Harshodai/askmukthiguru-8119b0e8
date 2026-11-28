@@ -41,7 +41,7 @@ def test_jwt_secret_is_a_required_variable():
     loops = [m.group(1).split() for m in re.finditer(r"for key in ([A-Z_ ]+); do", SCRIPT)]
     required = next((lst for lst in loops if "BRAIN_KEK" in lst), None)
     assert required is not None, "required-variable loop not found"
-    for name in ("JWT_SECRET", "FACULTY_ACCESS_CODE", "OPENROUTER_API_KEY", "BRAIN_KEK"):
+    for name in ("JWT_SECRET", "OPENROUTER_API_KEY", "BRAIN_KEK"):
         assert name in required, required
 
 

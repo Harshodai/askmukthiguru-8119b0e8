@@ -97,15 +97,6 @@ def test_transport_url_error_recorded(monkeypatch):
     assert not smoke.answered(body)
 
 
-def test_client_reads_faculty_code_from_settings(monkeypatch):
-    from app.config import settings
-
-    monkeypatch.delenv("FACULTY_ACCESS_CODE", raising=False)
-    monkeypatch.setattr(settings, "faculty_access_code", "test-faculty-code")
-    client = smoke.Client("https://api.test", "https://askmukthiguru.lovable.app")
-    assert client.faculty == "test-faculty-code"
-
-
 def test_system_unavailable_causes_provider_outage_failure():
     outage_resp = {
         "route_decision": "first_person_abstain",

@@ -169,7 +169,6 @@ _PROD_ENV = {
     "LLM_PROVIDER": "openrouter",
     "OPENROUTER_API_KEY": "k",
     "BRAIN_KEK": "k",
-    "FACULTY_ACCESS_CODE": "c",
 }
 _FLAG_ENV = {
     "both_on": {

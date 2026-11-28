@@ -2034,3 +2034,48 @@ def test_editorial_set_selector_is_default_off_and_nonproduction_only(monkeypatc
 
     monkeypatch.setattr(settings, "first_person_context_harness_enabled", True)
     assert _editorial_set_enabled() is True
+
+
+def test_terminal_gate_failure_logs_and_counts_the_failing_gate(monkeypatch, caplog):
+    """Observability (2026-11-28): the abstain warn line and fp.rejected name the gate.
+
+    Counts and bounded codes only; no question or clip text may appear in the line.
+    """
+    import logging
+
+    from app.turn_trace import TurnTrace, turn_trace_var
+
+    monkeypatch.setattr(settings, "first_person_context_terminal_enabled", True)
+    # A real integrity failure: the video-availability check says "gone".
+    monkeypatch.setattr(
+        "services.first_person_pipeline.is_youtube_video_available", lambda _vid: False
+    )
+    ctx = make_test_context([make_test_span(n=0, text=TEXT_ONE)])
+    mock_store = Mock()
+    mock_store.retrieve.return_value = [ctx]
+    pipeline = FirstPersonPipeline(
+        store=Mock(), serene_mind_engine=Mock(), context_store=mock_store
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    trace = TurnTrace()
+    token = turn_trace_var.set(trace)
+    try:
+        with caplog.at_level(logging.WARNING):
+            result = pipeline.execute(
+                query="SENTINEL_QUESTION_TEXT",
+                query_dense_vector=[0.1] * 1024,
+                cache_bypass=True,
+            )
+    finally:
+        turn_trace_var.reset(token)
+
+    assert result.citations == []
+    line = next(
+        r.getMessage() for r in caplog.records if "failed a serve-time gate" in r.getMessage()
+    )
+    assert "gates=integrity_youtube_unavailable:1" in line
+    assert "SENTINEL_QUESTION_TEXT" not in line and TEXT_ONE[:30] not in line
+    rejected = trace.snapshot()["rejected"]
+    assert rejected["integrity"] >= 1
+    assert rejected["integrity_youtube_unavailable"] >= 1

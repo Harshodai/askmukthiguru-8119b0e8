@@ -32,6 +32,13 @@ import { getAIConfig } from '@/lib/chat/config';
 import { getAccessToken } from '@/lib/chat/auth';
 import { MemorySourceLink } from '@/components/common/MemorySourceLink';
 import type { MemorySourceRef } from '@/lib/memorySource';
+import {
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  dedupeSubgraph,
+  resolveOverlaps,
+  sortByParentAngle,
+} from './kgGraph';
 
 export interface KGNode {
   id: string;
@@ -42,6 +49,8 @@ export interface KGNode {
   content_preview?: string | null;
   /** Provenance of a Memory/NotebookItem node; null/absent means unavailable. */
   source_ref?: MemorySourceRef | null;
+  /** Number of duplicate records the backend merged into this node. */
+  merged_count?: number;
 }
 
 export interface KGEdge {
@@ -330,9 +339,6 @@ function getChatPromptForNode(label: string, nodeType: string, stateCategory?: s
   return `Please share the deeper spiritual wisdom behind ${l} in the Ekam teachings.`;
 }
 
-const NODE_WIDTH = 230;
-const NODE_HEIGHT = 110;
-
 type WisdomNodeData = {
   label: string;
   nodeType: string;
@@ -341,6 +347,7 @@ type WisdomNodeData = {
   contentPreview?: string | null;
   sourceRef?: MemorySourceRef | null;
   degree: number;
+  mergedCount: number;
 };
 
 type WisdomFlowNode = Node<WisdomNodeData, 'wisdom'>;
@@ -350,6 +357,7 @@ const nodeTypes = {
 };
 
 function WisdomNode({ data, selected }: NodeProps<WisdomFlowNode>) {
+  const { t } = useTranslation();
   const visual = getNodeVisual(data.nodeType, data.stateCategory, data.label);
   // Bright accents fail WCAG AA as small text on the themed card, so mix toward the foreground (works in light and dark).
   const textAccent = `color-mix(in srgb, ${visual.accent} 50%, hsl(var(--foreground)))`;
@@ -413,6 +421,15 @@ function WisdomNode({ data, selected }: NodeProps<WisdomFlowNode>) {
             {data.stateCategory}
           </span>
         )}
+        {data.mergedCount > 1 && (
+          <span
+            className="rounded-full border border-border/50 bg-background/50 px-2 py-0.5 text-[9px] font-medium text-muted-foreground"
+            title={t('kg.mergedCountTitle', '{{count}} similar records merged', { count: data.mergedCount })}
+            aria-label={t('kg.mergedCountTitle', '{{count}} similar records merged', { count: data.mergedCount })}
+          >
+            {t('kg.mergedCountBadge', '{{count}} merged', { count: data.mergedCount })}
+          </span>
+        )}
         {!isUser && data.degree > 0 && (
           <span className="ms-auto text-[9px] text-muted-foreground">
             {data.degree} {data.degree === 1 ? 'connection' : 'connections'}
@@ -457,15 +474,18 @@ function layoutGraph(data: Subgraph): WisdomFlowNode[] {
   const ringRadius = (count: number, minRadius: number) =>
     count <= 1 ? minRadius : Math.max(minRadius, (count * (NODE_WIDTH + 28)) / (2 * Math.PI));
 
+  const angles = new Map<string, number>();
   const placeRing = (
-    items: KGNode[],
+    unsorted: KGNode[],
     minRadius: number,
     startAngle: number,
     yScale = 0.82,
   ): number => {
+    const items = sortByParentAngle(unsorted, adjacency, angles);
     const radius = items.length ? ringRadius(items.length, minRadius) : minRadius;
     items.forEach((node, index) => {
       const angle = startAngle + (index / items.length) * Math.PI * 2;
+      angles.set(node.id, angle);
       positions.set(node.id, {
         x: center.x + Math.cos(angle) * radius - 115,
         y: center.y + Math.sin(angle) * radius * yScale - 50,
@@ -499,17 +519,19 @@ function layoutGraph(data: Subgraph): WisdomFlowNode[] {
   }
 
   let fallbackIndex = 0;
+  for (const node of valid) {
+    if (positions.has(node.id)) continue;
+    const angle = fallbackIndex * 0.75;
+    const radius = 340 + fallbackIndex * 20;
+    positions.set(node.id, {
+      x: center.x + Math.cos(angle) * radius - 115,
+      y: center.y + Math.sin(angle) * radius * (260 / 340) - 50,
+    });
+    fallbackIndex += 1;
+  }
+  resolveOverlaps(positions, new Set(user ? [user.id] : []));
   return valid.map((node) => {
-    let position = positions.get(node.id);
-    if (!position) {
-      const angle = fallbackIndex * 0.75;
-      const radius = 340 + fallbackIndex * 20;
-      position = {
-        x: center.x + Math.cos(angle) * radius - 115,
-        y: center.y + Math.sin(angle) * radius * (260 / 340) - 50,
-      };
-      fallbackIndex += 1;
-    }
+    const position = positions.get(node.id)!;
 
     return {
       id: node.id,
@@ -525,6 +547,7 @@ function layoutGraph(data: Subgraph): WisdomFlowNode[] {
         contentPreview: node.content_preview,
         sourceRef: node.source_ref ?? null,
         degree: degree.get(node.id) ?? 0,
+        mergedCount: node.merged_count ?? 1,
       },
       style: { width: NODE_WIDTH } satisfies CSSProperties,
     };
@@ -554,12 +577,14 @@ function directionalHandles(source: { x: number; y: number }, target: { x: numbe
   };
 }
 
+const SECONDARY_EDGES = new Set(['HAS_MEMORY', 'SAVED_NOTE', 'MENTIONS_CONCEPT', 'IN_STATE']);
+
 function edgeStyle(label?: string | null, active = false) {
-  const semantic = Boolean(label && !['HAS_MEMORY', 'SAVED_NOTE'].includes(label));
+  const semantic = Boolean(label && !SECONDARY_EDGES.has(label));
   return {
     stroke: active ? '#f59e0b' : semantic ? '#8a8274' : '#4b463f',
-    strokeWidth: active ? 2.4 : semantic ? 1.6 : 1.2,
-    opacity: active ? 0.95 : semantic ? 0.75 : 0.45,
+    strokeWidth: active ? 2.4 : semantic ? 1.5 : 1,
+    opacity: active ? 0.95 : semantic ? 0.65 : 0.28,
   };
 }
 
@@ -639,7 +664,7 @@ export const KGConceptMap = ({
           return;
         }
 
-        setData(json);
+        setData({ ...json, ...dedupeSubgraph(json) });
         setSelectedNodeId(null);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -685,9 +710,8 @@ export const KGConceptMap = ({
           target: edge.target,
           sourceHandle: handles.sourceHandle,
           targetHandle: handles.targetHandle,
-          type: 'smoothstep',
-          pathOptions: { borderRadius: 14, offset: 18 },
-          label: edge.label && !['HAS_MEMORY', 'SAVED_NOTE'].includes(edge.label) ? edge.label : undefined,
+          type: 'default',
+          label: edge.label && !SECONDARY_EDGES.has(edge.label) ? edge.label : undefined,
           labelStyle: { fill: '#d6d3d1', fontSize: 9, fontWeight: 600 },
           labelBgStyle: { fill: '#15120e', fillOpacity: 0.92 },
           labelBgPadding: [5, 3] as [number, number],

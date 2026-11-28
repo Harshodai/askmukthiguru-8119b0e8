@@ -204,17 +204,12 @@ def validate_environment(
 
     # Read every flag once, up front: a short-circuited `and` would skip the
     # parse check for a flag whose value Settings still rejects.
-    faculty_gate_disabled = flag("FACULTY_GATE_DISABLED", False)
     budget_guard = flag("OPENROUTER_BUDGET_GUARD_ENABLED", True)
     budget_fail_closed = flag("OPENROUTER_BUDGET_FAIL_CLOSED", True)
     allow_uncapped = flag("ALLOW_UNCAPPED_LLM_SPEND", False)
 
     if not is_set("BRAIN_KEK"):
         errors.append("BRAIN_KEK is required")
-    if not is_set("FACULTY_ACCESS_CODE") and not faculty_gate_disabled:
-        errors.append(
-            "FACULTY_ACCESS_CODE is required (or FACULTY_GATE_DISABLED=true as a recorded decision)"
-        )
     budget_guarded = budget_guard and budget_fail_closed
     if not allow_uncapped and not budget_guarded:
         errors.append(

@@ -547,7 +547,8 @@ async def test_harness_path_records_retrieval_answerability_and_rejections(monke
     assert trace.fp["answerability"] == "permissive"
     assert trace.fp["abstain_reason"] == traced.abstain_reason
     assert trace.fp["pipeline_status"] == "abstained"
-    assert trace.rejected == {"decide_decline": 1}
+    # decide_* names the harness verdict; abstain_* adds its bounded reason (2026-11-28)
+    assert trace.rejected == {"decide_decline": 1, "abstain_other": 1}
 
 
 # --- the bridge stage hooks -----------------------------------------------------------------

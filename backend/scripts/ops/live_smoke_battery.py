@@ -9,14 +9,12 @@ deploy, do not loop it on production.
 
 Usage: live_smoke_battery.py https://<host> [--origin https://askmukthiguru.lovable.app]
        [--serve-floor 0.7] [--followup-floor 0.5] [--out results.json]
-FACULTY_ACCESS_CODE in the environment is sent as X-Faculty-Code when the gate is on.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import time
 import urllib.error
 import urllib.request
@@ -127,25 +125,9 @@ def floor_check(
 class Client:
     def __init__(self, base: str, origin: str):
         self.base, self.origin = base.rstrip("/"), origin
-        faculty = os.environ.get("FACULTY_ACCESS_CODE", "")
-        if not faculty:
-            try:
-                from app.config import settings
-
-                faculty = getattr(settings, "faculty_access_code", "") or ""
-            except Exception:
-                try:
-                    from backend.app.config import settings
-
-                    faculty = getattr(settings, "faculty_access_code", "") or ""
-                except Exception:
-                    pass
-        self.faculty = faculty
 
     def call(self, method: str, path: str, body: dict | None = None, headers: dict | None = None):
         h = {"Content-Type": "application/json", **(headers or {})}
-        if self.faculty:
-            h["X-Faculty-Code"] = self.faculty
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(self.base + path, data=data, headers=h, method=method)
         try:

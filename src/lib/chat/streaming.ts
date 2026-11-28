@@ -2,6 +2,7 @@ import { getCurrentConfig } from './config';
 import { publishQuota } from './quotaEvents';
 import { getAccessToken, refreshAccessToken } from './auth';
 import { getAnonSessionToken, refreshAnonSessionToken } from './anonSession';
+import { isAnonTokenRejected } from './anonRejected';
 import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
 import { fetchWithRetry, SERVER_BUSY_HELPLINE_MESSAGE } from './fetchWithRetry';
@@ -80,7 +81,7 @@ export async function* sendMessageStreaming(
   personalizeTeaching?: PersonalizeTeachingRef,
   streamTimeoutMs: number = DEFAULT_STREAM_TIMEOUT_MS,
 ): AsyncGenerator<StreamChunk> {
-  const { provider, endpoint, systemPrompt } = getCurrentConfig();
+  const { provider, endpoint } = getCurrentConfig();
 
   // Streaming only works for the custom backend with SSE support
   if (provider !== 'custom' || !endpoint) {
@@ -97,10 +98,8 @@ export async function* sendMessageStreaming(
   let effectiveSessionId = (await getAnonSessionToken()) ?? sessionId;
 
   const buildBody = () => JSON.stringify({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      ...trimmedMessages,
-    ],
+    // The backend owns the system prompt; never send a client-side one.
+    messages: trimmedMessages,
     user_message: userMessage,
     meditation_step: meditationStep,
     session_id: effectiveSessionId,
@@ -141,7 +140,7 @@ export async function* sendMessageStreaming(
   // A cached anonymous token can expire between reloads. Refresh it once
   // before surfacing an authentication error; authenticated users retain
   // the existing access-token refresh path below.
-  if (response.status === 401 && !token) {
+  if (!token && (response.status === 401 || (await isAnonTokenRejected(response)))) {
     const refreshedAnon = await refreshAnonSessionToken();
     if (refreshedAnon) {
       effectiveSessionId = refreshedAnon;

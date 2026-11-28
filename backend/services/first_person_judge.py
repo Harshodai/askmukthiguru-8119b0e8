@@ -388,11 +388,43 @@ def build_editorial_set_from_judge(
 JUDGE_RETRY_LOG: ContextVar[Optional[list[int]]] = ContextVar("fp_judge_retry_log", default=None)
 
 
-async def _call_or_none(call: Any, timeout_s: float, label: str) -> Optional[str]:
+# 2026-11-28: one entry per context whose judge ended INDETERMINATE: a bounded code for WHY
+# (parse, empty, timeout, refusal, budget, provider_error, no_service). The harness sets a
+# list and notes the most common one as fp.judge_indeterminate_reason. Logging only.
+JUDGE_FAIL_LOG: ContextVar[Optional[list[str]]] = ContextVar("fp_judge_fail_log", default=None)
+
+
+def _failure_reason(exc: BaseException) -> str:
+    """Bounded code for a failed judge call. Never carries message text."""
+    from app.openrouter_budget import OpenRouterBudgetExceeded, OpenRouterBudgetUnavailable
+    from services.llm_budget_guard import LLMBudgetExceeded, LLMBudgetUnavailable
+    from services.openrouter_service import ProviderRefusalError
+
+    if isinstance(exc, TimeoutError):
+        return "timeout"
+    if isinstance(exc, ProviderRefusalError):
+        return "refusal"
+    if isinstance(
+        exc,
+        (
+            OpenRouterBudgetExceeded,
+            OpenRouterBudgetUnavailable,
+            LLMBudgetExceeded,
+            LLMBudgetUnavailable,
+        ),
+    ):
+        return "budget"
+    return "provider_error"
+
+
+async def _call_or_none(
+    call: Any, timeout_s: float, label: str, reasons: Optional[list[str]] = None
+) -> Optional[str]:
     """Run one judge-model call under its timeout; None on any failure.
 
     The single fail-closed handler for both judge calls: a timeout, a provider
     error or a cancelled budget all mean "indeterminate", and the caller abstains.
+    ``reasons`` (when given) receives the bounded failure code.
     """
     import asyncio
 
@@ -400,6 +432,8 @@ async def _call_or_none(call: Any, timeout_s: float, label: str) -> Optional[str
         return await asyncio.wait_for(call(), timeout=timeout_s)
     except Exception as exc:  # noqa: BLE001 - any failure is indeterminate (fail closed)
         logger.info("[FPJudge] %s call indeterminate: %s", label, type(exc).__name__)
+        if reasons is not None:
+            reasons.append(_failure_reason(exc))
         return None
 
 
@@ -418,18 +452,26 @@ async def judge_select_async(
 
     ``rubric`` overrides the configured rubric for this call only (offline replay)."""
 
+    fail_log = JUDGE_FAIL_LOG.get()
     if not clips or llm_service is None or not hasattr(llm_service, "generate"):
+        if fail_log is not None:
+            fail_log.append("no_service")
         return INDETERMINATE
     user_prompt = build_judge_prompt(question, clips)
     system_prompt = judge_system_prompt(rubric)
 
-    async def _call() -> str:
+    async def _call(refresh: bool = False) -> str:
+        # Every OpenRouter call sends X-OpenRouter-Cache: true, and a retry is the SAME
+        # request (temperature 0), so without this it is answered from the cache in ~30 ms
+        # with the first reply, malformed or not. Only the retry asks for a refresh.
+        extra = {"refresh_response_cache": True} if refresh else {}
         res = llm_service.generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             response_format=JUDGE_JSON_SCHEMA,
             **judge_call_kwargs(judge_model()),
             **_gate_pins(),
+            **extra,
         )
         if inspect.isawaitable(res):
             res = await res
@@ -439,6 +481,7 @@ async def judge_select_async(
     # (the second attempt gets only the time left, never a fresh timeout_s).
     deadline = time.monotonic() + timeout_s
     parsed = None
+    last_reason = "timeout"  # the budget ran out before another attempt could start
     for attempt in (0, 1):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
@@ -447,14 +490,25 @@ async def judge_select_async(
             retry_log = JUDGE_RETRY_LOG.get()
             if retry_log is not None:
                 retry_log.append(1)
-        raw = await _call_or_none(_call, remaining, "judge")
+        call_reasons: list[str] = []
+        raw = await _call_or_none(
+            lambda refresh=bool(attempt): _call(refresh), remaining, "judge", call_reasons
+        )
         if raw is None:
+            last_reason = call_reasons[-1] if call_reasons else "provider_error"
             continue
         parsed = parse_judge_reply(raw, len(clips))
         if parsed is not None:
             break
-        logger.info("[FPJudge] judge reply rejected by the strict parser (attempt %d)", attempt + 1)
+        last_reason = "parse" if str(raw).strip() else "empty"
+        logger.info(
+            "[FPJudge] judge reply rejected by the strict parser (attempt %d, reason=%s)",
+            attempt + 1,
+            last_reason,
+        )
     if parsed is None:
+        if fail_log is not None:
+            fail_log.append(last_reason)
         return INDETERMINATE
     scores, answerable = parsed
     if scores_out is not None:

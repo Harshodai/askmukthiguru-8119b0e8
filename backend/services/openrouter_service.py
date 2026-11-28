@@ -827,6 +827,10 @@ class OpenRouterService:
         if is_anthropic:
             headers["anthropic-beta"] = "prompt-caching-2024-07-31"
         headers["X-OpenRouter-Cache"] = "true"
+        if kwargs.get("refresh_response_cache"):
+            # A retry of a request whose reply was unusable: without this the cache returns
+            # the same body (30 ms, zero usage). Clear also replaces the stored bad reply.
+            headers["X-OpenRouter-Cache-Clear"] = "true"
 
         attempt_count = 0
         call_started = time.perf_counter()

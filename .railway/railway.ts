@@ -56,9 +56,8 @@ const INCLUDE_CELERY = true;
 // environment (preserve(): set both in the dashboard). Never put the write key
 // on a Railway service (backend/app/config.py: the running backend never gets it).
 //
-// D-29 decided 2026-11-07: the faculty access code is the only staging gate.
-// FACULTY_ACCESS_CODE is preserve(): set it in the dashboard before the first
-// deploy. No other staging gate is added.
+// Faculty reviewers sign in with Google like any user (owner decision 2026-11-28);
+// there is no shared access-code gate.
 
 const REPO = "Harshodai/askmukthiguru-8119b0e8";
 
@@ -209,7 +208,6 @@ export default defineRailway((ctx) => {
       ...livePosture,
       RAILWAY_DEPLOYMENT_DRAINING_SECONDS: DRAIN_SECONDS_BACKEND,
       REDIS_URL: cache.env.REDIS_URL,
-      FACULTY_ACCESS_CODE: preserve(), // D-29: the only staging gate
       METRICS_SCRAPE_TOKEN: preserve(),
       CORS_ORIGINS: preserve(), // exact origins only, no "*"
       ALLOWED_HOSTS: preserve(),

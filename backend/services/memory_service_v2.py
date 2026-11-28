@@ -19,6 +19,7 @@ import logging
 import os
 import re
 import time
+import unicodedata
 import uuid
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -67,6 +68,53 @@ _DEFAULT_CONCEPT_CATALOG: list[str] = [
     "Oneness",
     "Meditation",
 ]
+
+
+def _norm_kg_label(label: Any) -> str:
+    """NFKC + casefold + strip punctuation + collapse whitespace (KG dedupe key)."""
+    text = unicodedata.normalize("NFKC", str(label or "")).lower()
+    text = "".join(" " if unicodedata.category(c).startswith(("P", "S")) else c for c in text)
+    return " ".join(text.split())
+
+
+def _dedupe_kg(nodes: dict[str, dict], edges: list[dict]) -> tuple[dict[str, dict], list[dict]]:
+    """Merge nodes sharing (type, normalised label); redirect and dedupe edges.
+
+    The canonical node keeps ``merged_count`` and ``merged_ids``; the newest
+    ``created_at`` wins. Edges are remapped, self-loops dropped, repeats removed.
+    """
+    canon: dict[tuple[str, str], str] = {}
+    remap: dict[str, str] = {}
+    out: dict[str, dict] = {}
+    for nid, node in nodes.items():
+        norm = _norm_kg_label(node.get("label"))
+        if node.get("type") == "User" or not norm:
+            out[nid] = node
+            remap[nid] = nid
+            continue
+        key = (str(node.get("type")), norm)
+        cid = canon.setdefault(key, nid)
+        remap[nid] = cid
+        if cid == nid:
+            out[nid] = {**node, "merged_count": 1, "merged_ids": [nid]}
+            continue
+        keep = out[cid]
+        keep["merged_count"] += 1
+        keep["merged_ids"].append(nid)
+        if str(node.get("created_at") or "") > str(keep.get("created_at") or ""):
+            keep["created_at"] = node.get("created_at")
+        for field in ("teacher", "state_category", "content", "source_ref"):
+            if not keep.get(field) and node.get(field):
+                keep[field] = node[field]
+    seen: set[tuple[str, str, Any]] = set()
+    new_edges: list[dict] = []
+    for e in edges:
+        src, dst = remap.get(e["source"]), remap.get(e["target"])
+        if not src or not dst or src == dst or (src, dst, e.get("label")) in seen:
+            continue
+        seen.add((src, dst, e.get("label")))
+        new_edges.append({**e, "source": src, "target": dst})
+    return out, new_edges
 
 
 def _resolve_concept_meta(cid: str) -> tuple[str, Optional[str], Optional[str]]:
@@ -1339,9 +1387,11 @@ class MemoryServiceV2(MemoryService):
             state_category: str | None = None,
             content: str | None = None,
             source_ref: dict | None = None,
+            created_at: Any = None,
         ) -> None:
             if uid not in nodes:
                 nodes[uid] = {
+                    "created_at": str(created_at) if created_at else None,
                     "id": uid,
                     "label": label,
                     "type": ntype,
@@ -1487,7 +1537,14 @@ class MemoryServiceV2(MemoryService):
             state_cat = str(m.get("state_category") or "").strip() or None
             processed_memory_ids.add(mid)
 
-            _add_node(f"memory:{mid}", insight, "Memory", state_category=state_cat, content=content)
+            _add_node(
+                f"memory:{mid}",
+                insight,
+                "Memory",
+                state_category=state_cat,
+                content=content,
+                created_at=m.get("created_at"),
+            )
             _add_edge(f"user:{user_id}", f"memory:{mid}", "HAS_MEMORY")
 
             if state_cat:
@@ -1511,6 +1568,7 @@ class MemoryServiceV2(MemoryService):
                 state_category=state_cat,
                 content=content,
                 source_ref=memory_source_ref(m),
+                created_at=m.get("created_at"),
             )
             _add_edge(f"user:{user_id}", f"memory:{mid}", "HAS_MEMORY")
             if state_cat:
@@ -1618,7 +1676,7 @@ class MemoryServiceV2(MemoryService):
                 target = f"state:{cid}" if ntype == "State" else f"concept:{cid}"
                 if (f"memory:{mid}", target) in existing_concept_edges:
                     continue
-                _add_node(target, cid, "Concept")
+                _add_node(target, cid, ntype, teacher=teacher_name, state_category=state_cat_meta)
                 # Token/phrase overlap proves a mention, not a persisted
                 # semantic relationship. Keep this inferential edge distinct.
                 _add_edge(f"memory:{mid}", target, "MENTIONS_CONCEPT")
@@ -1641,6 +1699,7 @@ class MemoryServiceV2(MemoryService):
                 if answer
                 else f"Inquiry: {query}",
                 source_ref=notebook_source_ref(nid),
+                created_at=item.get("created_at"),
             )
             _add_edge(f"user:{user_id}", f"notebook:{nid}", "SAVED_NOTE")
 
@@ -1649,8 +1708,10 @@ class MemoryServiceV2(MemoryService):
             for cid in concept_catalog:
                 if not _matches_concept(full_text, cid):
                     continue
-                _add_node(f"concept:{cid}", cid, "Concept")
-                _add_edge(f"notebook:{nid}", f"concept:{cid}", "MENTIONS_CONCEPT")
+                ntype, teacher_name, state_cat_meta = _resolve_concept_meta(cid)
+                target = f"state:{cid}" if ntype == "State" else f"concept:{cid}"
+                _add_node(target, cid, ntype, teacher=teacher_name, state_category=state_cat_meta)
+                _add_edge(f"notebook:{nid}", target, "MENTIONS_CONCEPT")
 
         # Query and add relationships between the matched ontology concepts
         personal_ontology_ids = {
@@ -1720,6 +1781,7 @@ class MemoryServiceV2(MemoryService):
         # returns the most connected recent view; a query returns matches plus
         # their one-hop real neighbors.
         user_node_id = f"user:{user_id}"
+        nodes, edges = _dedupe_kg(nodes, edges)
         degree: dict[str, int] = {nid: 0 for nid in nodes}
         adjacency: dict[str, set[str]] = {nid: set() for nid in nodes}
         for edge in edges:

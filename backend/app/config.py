@@ -1290,15 +1290,6 @@ class Settings(BaseSettings):
     # admin-only. It is never a fallback for a failed admin check, only a
     # separate, equally explicit credential.
     metrics_scrape_token: Optional[str] = None
-    # Faculty-preview shared secret. When set, /api/chat*, /api/first-person* and
-    # /api/jobs* require it in the X-Faculty-Code header (401 otherwise, before
-    # any LLM spend). Unset (default) = gate off. See app/middleware/faculty_gate.py.
-    faculty_access_code: Optional[str] = None
-    # Explicit, recorded opt-out of the faculty preview gate. RP-A4 (2026-10-13):
-    # production refuses to start with no FACULTY_ACCESS_CODE unless this is
-    # true — an ungated launch is then a deliberate recorded decision, never a
-    # missing env var. Never true in a preview deploy.
-    faculty_gate_disabled: bool = False
     # Seconds a queued inference call waits for a slot before shedding load.
     # Generous on purpose: waiting beats an OOM kill (latency is the lowest
     # of the three invariants — misattribution > refusal > latency).
@@ -2771,17 +2762,6 @@ class Settings(BaseSettings):
             raise ValueError(
                 "brain_kek is required in production: the Second Brain default "
                 "Mode-A vault wrap needs a server-side KEK (see field comment)."
-            )
-        # RP-A4 (2026-10-13): an unset FACULTY_ACCESS_CODE silently disables
-        # the preview gate (main.py adds the middleware only when set). In
-        # production that must be a recorded decision (faculty_gate_disabled),
-        # never a missing env var.
-        if self.is_production and not self.faculty_access_code and not self.faculty_gate_disabled:
-            raise ValueError(
-                "faculty_access_code is required in production: without it the "
-                "faculty preview gate is silently off. Set FACULTY_ACCESS_CODE, "
-                "or set faculty_gate_disabled=true as a recorded owner decision "
-                "that this launch is intentionally ungated."
             )
         # T1-07: an uncapped paid-LLM path must be a recorded decision, never an env typo.
         if (

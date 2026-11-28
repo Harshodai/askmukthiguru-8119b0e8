@@ -1105,13 +1105,13 @@ class FirstPersonBridgeStage(Stage):
             or needs_relationship_safety_boundary(msg_str)
             or needs_addiction_support_boundary(msg_str)
         )
+        # A difference/comparison question is NOT a carve-out here: with fallback off the
+        # graph would write the comparison (invariant 21, 2026-11-28); abstain instead.
         if (
-            is_meditation_imperative(msg_str)
-            or bool(_STEP_INSTRUCTION_RE.search(msg_str))
-            or bool(_DIFFERENCE_SYNTHESIS_RE.search(msg_str))
+            is_meditation_imperative(msg_str) or bool(_STEP_INSTRUCTION_RE.search(msg_str))
         ) and not _has_promise_or_boundary:
             logger.info(
-                "[FirstPersonBridge] Meditation instruction / difference inquiry declined for single clip; falling through to GraphStage."
+                "[FirstPersonBridge] Meditation instruction declined for single clip; falling through to GraphStage."
             )
             return None
         return await self._abstain(
@@ -1734,9 +1734,8 @@ class FirstPersonBridgeStage(Stage):
                 ):
                     return self._scripted_meditation_result(ctx, _query_str)
 
-                _is_allowed_practice_or_diff = (
-                    bool(_STEP_INSTRUCTION_RE.search(_query_str))
-                    or bool(_DIFFERENCE_SYNTHESIS_RE.search(_query_str))
+                _is_allowed_practice_or_diff = bool(
+                    _STEP_INSTRUCTION_RE.search(_query_str)
                 ) and not (needs_rel or needs_add)
                 if not is_meditation_imperative(_query_str) and not _is_allowed_practice_or_diff:
                     _mild_compassion = (

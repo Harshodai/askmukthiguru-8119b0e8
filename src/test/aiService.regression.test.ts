@@ -256,7 +256,7 @@ describe('aiService regression — health and fallback paths', () => {
       await submitFeedbackToBackend({ query: 'q', answer: 'a', rating: 1, feedback_text: 'good' });
 
       expect(fetchMock).toHaveBeenCalledWith(
-        'http://localhost:8000/api/feedback',
+        'http://localhost:8000/api/feedback/',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({ Authorization: 'Bearer token-1' }),

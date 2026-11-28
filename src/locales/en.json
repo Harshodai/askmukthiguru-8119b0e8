@@ -502,7 +502,13 @@
       "notQuite": "Not quite",
       "no": "No",
       "thanks": "Thank you for walking this path with us",
-      "whatWouldServe": "What would have served you better?"
+      "whatWouldServe": "What would have served you better?",
+      "signInToSend": "Please sign in to send feedback.",
+      "sendFailed": "We could not save your feedback. Please try again."
+    },
+    "clipReport": {
+      "signInRequired": "Please sign in to report a clip.",
+      "failed": "Could not submit report. Please try again."
     },
     "closeFeedbackPanel": "Close feedback panel",
     "feedbackCommentPlaceholder": "Optional: tell us more…",
@@ -1405,6 +1411,8 @@
     "bloomingDescDetailed": "0 reflections recorded yet. Ask a question or share a reflection to begin.",
     "bloomingTitle": "Your Personal Wisdom Map is Blooming",
     "closeDetails": "Close node details",
+    "mergedCountBadge": "{{count}} merged",
+    "mergedCountTitle": "{{count}} similar records merged",
     "connectionCountOne": "{{count}} connection",
     "connectionCountOther": "{{count}} connections",
     "consciousnessEvolution": "Consciousness Evolution",

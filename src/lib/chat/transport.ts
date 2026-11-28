@@ -3,6 +3,7 @@ import { loadProfile } from '@/lib/profileStorage';
 import { getCurrentConfig } from './config';
 import { getAccessToken, refreshAccessToken } from './auth';
 import { getAnonSessionToken, refreshAnonSessionToken } from './anonSession';
+import { isAnonTokenRejected } from './anonRejected';
 import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
 import { fetchWithRetry, BACKPRESSURE_ONLY_STATUSES, SERVER_BUSY_HELPLINE_MESSAGE } from './fetchWithRetry';
@@ -180,7 +181,7 @@ export const sendMessage = async (
       // A cached anonymous token can expire between reloads. Refresh it once
       // before surfacing an authentication error; authenticated users retain
       // the existing access-token refresh path below.
-      if (response.status === 401 && !token) {
+      if (!token && (response.status === 401 || (await isAnonTokenRejected(response)))) {
         const refreshedAnon = await refreshAnonSessionToken();
         if (refreshedAnon) {
           effectiveSessionId = refreshedAnon;
@@ -228,7 +229,7 @@ export const sendMessage = async (
                 ...(effectiveSessionId ? { 'X-Session-Id': effectiveSessionId } : {}),
               },
             });
-            if (pollResp.status === 401 || pollResp.status === 403 || pollResp.status === 404) {
+            if (pollResp.status === 400 || pollResp.status === 401 || pollResp.status === 403 || pollResp.status === 404) {
               // Not transient: the job is gone or we are not allowed to read it.
               return {
                 content: '',
@@ -466,6 +467,15 @@ export const generateConversationTitle = async (
   return fallback;
 };
 
+/** Feedback the server did not accept. `status` is 0 when the request never completed. */
+export class FeedbackSubmitError extends Error {
+  constructor(public readonly status: number) {
+    super(`Feedback not saved (HTTP ${status})`);
+    this.name = 'FeedbackSubmitError';
+  }
+}
+
+/** Resolves only when the server stored the feedback; throws FeedbackSubmitError otherwise. */
 export const submitFeedbackToBackend = async (payload: {
   query: string;
   answer: string;
@@ -476,12 +486,14 @@ export const submitFeedbackToBackend = async (payload: {
   const { provider, endpoint } = getCurrentConfig();
   if (provider !== 'custom' || !endpoint) return;
 
-  try {
-    // Usually endpoint is /api/chat. We replace it with /api/feedback.
-    const feedbackEndpoint = endpoint.replace(/\/chat\/?$/, '/feedback');
-    const token = await getAccessToken();
+  // The router is registered at `/api/feedback/`; without the trailing slash
+  // production answers 307 to an http:// URL (mixed content, drops Authorization).
+  const feedbackEndpoint = endpoint.replace(/\/chat\/?$/, '/feedback/');
+  const token = await getAccessToken();
 
-    await fetch(feedbackEndpoint, {
+  let res: Response;
+  try {
+    res = await fetch(feedbackEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -491,11 +503,11 @@ export const submitFeedbackToBackend = async (payload: {
       signal: options?.signal,
     });
   } catch (err) {
-    // Aborts are caller-initiated cancellations — surface them so the
-    // caller can react; everything else is best-effort and stays silent.
+    // Aborts are caller-initiated cancellations — surface them unchanged.
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
-    console.error('Failed to submit feedback to server:', err);
+    throw new FeedbackSubmitError(0);
   }
+  if (!res.ok) throw new FeedbackSubmitError(res.status);
 };
 
 export const translateText = async (

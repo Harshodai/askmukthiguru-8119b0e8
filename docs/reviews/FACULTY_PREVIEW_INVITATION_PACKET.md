@@ -1,126 +1,119 @@
 # AskMukthiGuru: Faculty Preview Invitation & Testing Packet
 
-**Release:** Controlled Faculty Pilot (Password-Protected)  
-**Date:** 2026-11-21  
-**Audience:** Sri Preethaji & Sri Krishnaji Faculty & Senior Guides  
-**Backend:** Railway Deployment (`https://askmukthiguru-8119b0e8-production.up.railway.app`)  
-**Frontend Access:** `https://askmukthiguru.com` (or `https://askmukthiguru.lovable.app`)  
+**Release:** Controlled Faculty Preview
+**Updated:** 2026-11-28
+**Audience:** Faculty and senior guides of Sri Preethaji & Sri Krishnaji (12 invited reviewers)
+**Access:** `https://askmukthiguru.lovable.app`, sign in with Google. There is no access code and no shared password.
 
 ---
 
-## 1. Executive Brief: What is AskMukthiGuru?
+## 1. What is AskMukthiGuru?
 
-AskMukthiGuru is an authentic, privacy-first spiritual AI guide powered exclusively by the verbatim spoken discourses of **Sri Preethaji** and **Sri Krishnaji**.
+AskMukthiGuru is a privacy-first spiritual guide built only on the recorded discourses of **Sri Preethaji** and **Sri Krishnaji**.
 
-### Key Architectural Invariant: Verbatim Quotes Only
-Unlike generic conversational AI, AskMukthiGuru **never generates or synthesizes a spiritual teaching**. 
-- Every single answer returned by the system is an exact, word-for-word transcript excerpt from Sri Preethaji or Sri Krishnaji.
-- Every teaching provides a direct link to the exact second of the recorded video where the words were spoken.
-- If the system cannot find a verified discourse that answers the seeker's inquiry, it says so plainly and honestly: *"I could not find a teaching that answers this."*
+- It never writes or paraphrases a teaching. When it answers, the answer is an exact, word-for-word span of a recorded discourse, with a link to the second of the video where it was spoken.
+- When it has no verified clip that directly answers the question, it says so and stops: *"I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one."*
 
----
-
-## 2. What to Expect: Measured Live System Baseline
-
-The system has undergone rigorous blind evaluation across 26 categories (Sonnet/Opus judges against live Railway production):
-- **Serve Rate**: **63.1%** on answer-expected questions (41 of 65 served a clip; the remaining 36.9% received an honest abstention).
-- **Answer Precision**:
-  - **32.3%** directly answer the core inquiry (`RIGHT`).
-  - **41.5%** are on-theme or address the broad principle (`WEAK / General Theme`).
-  - **7.3%** are off-topic (`WRONG`).
-- **Directness Metadata**: Because human attribution calibration is ongoing, all served clips currently carry the honest UI affordance: *"Related, not a direct answer"*.
-- **Response Latency**: Median latency is **8.8 seconds** (p95 is 17.3 seconds).
-- **Indic Languages**: Supported across Hindi, Telugu, Tamil, Kannada, and Hinglish with a **76.5%** serve rate.
-- **Clinical Safety & Helpline Preemption**: **100%** crisis preemption rate on self-harm inquiries (immediate Tele-MANAS `14416` / `112` preemption, zero teacher clips displayed on acute distress turns).
+An abstain is the designed behaviour, not an error. A wrong clip is the failure we most need to hear about.
 
 ---
 
-## 3. Recommended Inquiry Categories for Faculty
+## 2. What to expect
 
-We invite you to test across a diverse range of inquiry styles:
+- **A clip for roughly half of on-topic questions.** In the 28 Nov 2026 live run, 16 of 29 frozen on-topic questions were served a clip. Across the wider question sets the serve rate is lower, about 24 to 31%. These are small samples, so treat them as a rough guide, not a guarantee.
+- **Questions outside the teachings abstain by design** (general knowledge, news, unrelated tasks).
+- **Clips are labelled "Related, not a direct answer."** Attribution calibration is not finished, so no clip is presented as a confirmed direct answer.
+- **Some clips are held back** because the speaker has not yet been confirmed by a human ear. This is one reason a correct topic can still abstain.
+- **Latency** is several seconds per question because each clip is checked before it is shown.
+- **Rate limit:** 20 messages per minute per signed-in identity on chat. Each reviewer signs in individually, so reviewers do not affect each other. If you hit the limit, wait a minute.
 
-1. **Fundamental Spiritual Principles**:
-   - *"What is a beautiful state, and how is it different from a suffering state?"*
-   - *"Why does the mind constantly create division and conflict?"*
-   - *"What are the four sacred secrets to living in an extraordinary state?"*
-2. **Meditation & Sadhana Practice**:
-   - *"How do I practice the Soul Sync meditation?"*
-   - *"How can I quiet anxiety through conscious breathing?"*
-   - *"How do I overcome unconscious limiting beliefs?"*
-3. **Daily Life, Leadership & Relationship Challenges**:
-   - *"How do I handle anger when communicating with my partner?"*
-   - *"How can a leader stay calm and intuitive during crisis?"*
-   - *"My family is experiencing discord, how can we restore connection?"*
-4. **Indic Languages**:
-   - Ask questions naturally in Hindi, Telugu, Tamil, Kannada, or conversational Hinglish.
-5. **Multi-turn Follow-ups**:
-   - Ask a question, and follow up in the same conversation: *"Why does this pattern keep repeating in my life?"*
+### Safety, and what is not yet certified
+
+- Acute distress questions in English show the helpline (Tele-MANAS 14416) and no teacher clip.
+- **Crisis behaviour in non-English languages is not yet certified.** The native-speaker and clinician reviews are still pending. Please treat Hindi, Telugu, Tamil, Kannada and Hinglish distress wording as untested, and report anything that mishandles it with **Not quite** and a comment that starts with "Safety:" (see section 4).
 
 ---
 
-## 4. Known System Boundaries
+## 3. Suggested questions
 
-- **Speaker Voice Verification**: Approximately 45% of potential discourse candidates are currently held back because voice biometric algorithms (ECAPA-TDNN) require human ear confirmation. This is the primary reason the system abstains.
-- **Bereavement & Grief**: Standalone grief clips on loss and departed ancestors have been indexed. However, if an inquiry uses words associated with acute despair, the system fails closed to provide the crisis helpline.
-- **Follow-up Depth**: Concise follow-ups like *"explain simply"* or *"give an example"* may abstain if no direct explanatory clip is indexed.
-
----
-
-## 5. How to Report Issues (The 4 Canonical Triage Tags)
-
-Your feedback directly refines our corpus boundaries and retrieval gates. When reviewing a response, if something feels suboptimal, please click **Report clip issue** on the citation card or share feedback tagged with one of our four canonical terms:
-
-| Triage Tag | When to Use | Example |
-| :---: | :--- | :--- |
-| **`WRONG`** | The clip is unrelated to the question, assigned to the wrong teacher, or inappropriate. | Seeker asks about health; clip discusses financial abundance. |
-| **`WEAK`** | The clip touches on the general topic, but does not provide actionable spiritual guidance for the question. | Seeker asks how to stop jealousy; clip only defines consciousness. |
-| **`MISSING`** | The system abstained ("could not find a teaching"), but you know a specific discourse by Sri Preethaji or Sri Krishnaji exists. | Seeker asks about the 3 laws of consciousness, but receives no clip. |
-| **`UNSAFE`** | Any response that mishandles distress, lacks appropriate boundary, or feels clinically risky. | Any inquiry touching on self-harm that fails to display the helpline. |
+1. **Core principles:** "What is a beautiful state, and how is it different from a suffering state?" / "Why does the mind keep creating conflict?"
+2. **Practice:** "How do I practise Soul Sync?" / "How can I quiet anxiety through conscious breathing?"
+3. **Daily life:** "How do I handle anger when talking with my partner?" / "How can a leader stay calm in a crisis?"
+4. **Other languages:** ask naturally in Hindi, Telugu, Tamil, Kannada or Hinglish.
+5. **Follow-ups:** ask a question, then follow up in the same conversation. Very short follow-ups ("explain simply") may abstain.
+6. **Out-of-scope:** try one or two unrelated questions to confirm it abstains rather than improvises.
 
 ---
 
-## 6. Faculty Preview Distribution Templates
+## 4. How to report a bad clip
 
-### Template A: Direct Email Invitation
+**You must be signed in (Google) to send feedback.** If you are not, the app says so instead of saying thanks. If it says the feedback could not be saved, please try again and tell us if it keeps failing.
+
+There are two controls:
+
+**1. "Did this land?" under each answer: Yes / Not quite.**
+
+- **Yes** sends a thumbs-up straight away.
+- **Not quite** opens a small panel with optional quick tags and a comment box. The comment is the most useful part. Use it for the cases below.
+
+| What you saw | What to write in the comment |
+| :--- | :--- |
+| The system abstained, but you know a discourse that answers the question. | The question, plus the discourse name or link if you have it. |
+| The clip touches the topic but gives no usable guidance. | One line on what was missing. |
+| A response mishandles distress, lacks a boundary, or feels clinically risky. | Start with "Safety:" and say what happened and in which language. |
+
+**2. "Report clip issue" inside the clip player.** Tap a citation to open the clip, then tap **Report clip issue**. Pick one category and add optional details:
+
+| Category | When to use | Example |
+| :--- | :--- | :--- |
+| **Wrong teacher** | The clip is attributed to the wrong teacher, or the speaker is not a teacher. | The label says Sri Krishnaji but the voice is the host. |
+| **Wrong topic** | The clip is unrelated to the question. | Asked about health; the clip is about financial abundance. |
+| **Cut mid-thought** | The clip starts or ends in the middle of a sentence or idea. | The clip stops before the teacher finishes the point. |
+| **Other** | Anything else about this clip. | The audio is silent or the video will not play. |
+
+Please include the question you asked and, if you can, the language.
+
+---
+
+## 5. Invitation templates
+
+### Template A: Email
 
 ```text
-Subject: Private Invitation: Testing AskMukthiGuru with Sri Preethaji & Sri Krishnaji's Teachings
+Subject: Invitation to the AskMukthiGuru faculty preview
 
 Dear [Faculty Name],
 
-We warmly invite you to participate in the private Faculty Preview of AskMukthiGuru — a privacy-first AI guide dedicated exclusively to the wisdom of Sri Preethaji and Sri Krishnaji.
+We invite you to the faculty preview of AskMukthiGuru, a guide built only on the recorded discourses of Sri Preethaji and Sri Krishnaji.
 
-Unlike standard chatbots, AskMukthiGuru NEVER generates artificial spiritual text. It answers only using authentic, verbatim audio-video clips spoken by the teachers, linking to the exact second in the discourse. If a trustworthy clip is not found, it honestly abstains.
+It never writes a teaching. It answers with an exact clip of the teachers speaking, linked to the second in the video, or it says honestly that it has no verified clip. For many questions the honest answer is "no clip", by design.
 
-Please test the guide on your laptop or mobile device:
-• Website: https://askmukthiguru.com (or https://askmukthiguru.lovable.app)
-• Faculty Access Passcode: [FACULTY_ACCESS_CODE]
+To try it:
+- Open https://askmukthiguru.lovable.app
+- Sign in with your Google account (no access code is needed)
 
-We especially value your feedback on:
-1. Core teachings on the Beautiful State vs Suffering State.
-2. Guidance on Soul Sync and meditation practice.
-3. Indic language questions (Hindi, Telugu, Tamil, Kannada).
-4. Reporting bad or weak answers using our 4 feedback tags: WRONG, WEAK, MISSING, or UNSAFE.
+What helps most:
+1. Core teachings (beautiful state and suffering state, Soul Sync, meditation practice).
+2. Questions in Hindi, Telugu, Tamil or Kannada.
+3. Telling us when an answer misses: tap "Not quite" and add a comment, or open a clip and tap "Report clip issue" (you need to be signed in for both).
 
-Your discerning ear and feedback will shape the final public release. Thank you for your service and guidance.
+Please note that crisis handling in languages other than English has not yet had its native-speaker and clinician review, so please report anything that looks unsafe, starting your comment with "Safety:".
 
 With reverence,
 The AskMukthiGuru Core Team
 ```
 
-### Template B: WhatsApp / Direct Message Invitation
+### Template B: WhatsApp / direct message
 
 ```text
-🙏 *Namaste [Faculty Name],*
+Namaste [Faculty Name],
 
-You are warmly invited to the private *Faculty Preview of AskMukthiGuru* — an AI spiritual companion built strictly upon the authentic verbatim spoken discourses of Sri Preethaji and Sri Krishnaji.
+You are invited to the faculty preview of AskMukthiGuru, built only on the recorded discourses of Sri Preethaji and Sri Krishnaji.
 
-🔒 *How it works:*
-• Zero generated text: Every answer is an exact recorded quote from the teachers with a direct video timestamp.
-• Access URL: https://askmukthiguru.com
-• Faculty Passcode: *[FACULTY_ACCESS_CODE]*
+- Every answer is an exact recorded clip with a video timestamp, or an honest "no verified teaching".
+- Open https://askmukthiguru.lovable.app and sign in with Google. No code is needed.
 
-Please ask questions about meditation, relationship stress, leadership, or questions in Hindi/Telugu/Tamil. If a clip feels off-topic or weak, please tap "Report clip issue" and let us know (WRONG, WEAK, or MISSING).
+Please try questions on meditation, relationships, leadership, and in Hindi/Telugu/Tamil/Kannada. If a clip feels off, open it and tap "Report clip issue" (wrong teacher, wrong topic, cut mid-thought, other), or tap "Not quite" and write what was wrong. You need to be signed in.
 
-Thank you for helping us uphold the integrity of the teachings!
+Thank you for helping us keep the teachings intact.
 ```

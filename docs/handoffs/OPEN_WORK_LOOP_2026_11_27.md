@@ -51,3 +51,6 @@ Not done: `judge_failed` in the trace; separate `standalone`/`speaker` rejection
 
 ## Environment risk
 Other sessions run `codex-*` compose stacks; the Docker VM is memory-starved (about 0.7-1.8 GB free) and `mukthiguru-backend` was OOM-killed twice on 2026-11-27 by measurement runs. Check `docker stats --no-stream` first; never touch `codex-*` containers or restart `mukthiguru-backend`; use the host venv for tests.
+
+## 2026-11-28 evening: faculty-readiness plan
+Live eval results, defects, fixes and acceptance criteria: `docs/plans/FACULTY_READINESS_PLAN_2026_11_28.md`. Faculty access-code gate removed; anon HMAC kept and rotated. After redeploy, rerun the live eval and read `fp.rejected` `integrity_<reason>` counters before touching any gate.

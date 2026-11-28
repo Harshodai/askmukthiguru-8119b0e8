@@ -6,6 +6,8 @@ const TRANSLATIONS: Record<string, string> = {
   'chat.engagement.yes': 'Yes',
   'chat.engagement.notQuite': 'Not quite',
   'chat.engagement.thanks': 'Thanks',
+  'chat.engagement.signInToSend': 'Sign in to send',
+  'chat.engagement.sendFailed': 'Not saved',
   'chat.clearAnswer': 'Clear answer',
   'chat.relevantSources': 'Relevant sources',
   'chat.calmingTone': 'Calming tone',
@@ -74,5 +76,21 @@ describe('EngagementCard', () => {
     renderCard();
     fireEvent.click(screen.getByTestId('engagement-not-quite'));
     await waitFor(() => expect(screen.getByText('Clear answer')).toBeInTheDocument());
+  });
+
+  it('does not show thanks when the server did not store the feedback', async () => {
+    vi.mocked(submitFeedbackToBackend).mockRejectedValueOnce({ status: 503 });
+    renderCard();
+    fireEvent.click(screen.getByTestId('engagement-yes'));
+    await waitFor(() => expect(screen.getByTestId('engagement-error')).toHaveTextContent('Not saved'));
+    expect(screen.queryByTestId('engagement-thanks')).not.toBeInTheDocument();
+    expect(screen.getByTestId('engagement-yes')).toBeInTheDocument();
+  });
+
+  it('asks the reviewer to sign in on 401', async () => {
+    vi.mocked(submitFeedbackToBackend).mockRejectedValueOnce({ status: 401 });
+    renderCard();
+    fireEvent.click(screen.getByTestId('engagement-yes'));
+    await waitFor(() => expect(screen.getByTestId('engagement-error')).toHaveTextContent('Sign in to send'));
   });
 });
