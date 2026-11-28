@@ -135,6 +135,15 @@ class MemoryStage(Stage):
         # ponytail: body of _save_memory verbatim (self -> ctx.container)
         container = ctx.container
         user_id = ctx.user_id
+        whatsapp_session = str(ctx.session_id or "")
+        is_whatsapp = whatsapp_session.startswith("wa_")
+        if is_whatsapp:
+            from services.whatsapp_service import has_whatsapp_memory_consent
+
+            if not await has_whatsapp_memory_consent(
+                getattr(container, "supabase_client", None), whatsapp_session, user_id
+            ):
+                return None
         stable_session_id = ctx.stable_session_id
         chat_body_messages = ctx.chat_body_messages
         user_msg = ctx.user_msg
@@ -170,6 +179,10 @@ class MemoryStage(Stage):
 
             async def _canonical_write() -> None:
                 try:
+                    if is_whatsapp and not await has_whatsapp_memory_consent(
+                        getattr(container, "supabase_client", None), whatsapp_session, user_id
+                    ):
+                        return
                     _outbox = getattr(container, "memory_outbox", None)
                     if _outbox is None or not _is_persistable_user_id(user_id):
                         logger.info(
@@ -241,6 +254,10 @@ class MemoryStage(Stage):
             consent = await outbox.active_consent(user_id=user_id, tenant_id=tenant_id)
             if not consent:
                 logger.debug("Memory persistence skipped: no active consent receipt")
+                return None
+            if is_whatsapp and not await has_whatsapp_memory_consent(
+                getattr(container, "supabase_client", None), whatsapp_session, user_id
+            ):
                 return None
             outbox_entry = await outbox.enqueue(
                 user_id=user_id,

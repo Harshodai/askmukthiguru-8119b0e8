@@ -4221,6 +4221,30 @@ export type Database = {
           total_practice_days: number
         }[]
       }
+      redeem_whatsapp_link: {
+        Args: { p_tenant_id: string; p_token_hash: string; p_user_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          linked_at: string
+          memory_write_consent: boolean
+          phone_number_encrypted: string | null
+          phone_number_hash: string
+          phone_number_masked: string
+          revoked_at: string | null
+          status: string
+          sync_history_consent: boolean
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "whatsapp_account_links"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       regenerate_summaries: {
         Args: { p_tenant_id: string; p_user_id: string }
         Returns: number
@@ -4281,6 +4305,15 @@ export type Database = {
       subscribe_launch_updates: {
         Args: { p_consent: boolean; p_email: string; p_source: string }
         Returns: string
+      }
+      sync_whatsapp_turn: {
+        Args: {
+          p_answer: string
+          p_link_id: string
+          p_question: string
+          p_user_id: string
+        }
+        Returns: boolean
       }
       upsert_canonical_memory: {
         Args: {

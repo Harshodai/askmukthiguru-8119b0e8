@@ -112,6 +112,7 @@ def _send_meta_outbound(phone_number_id: str, to_number: str, message_text: str)
             json=payload,
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
             timeout=10,
+            allow_redirects=False,
         )
         if resp.status_code in (200, 201):
             data = resp.json() if resp.content else {}
@@ -122,7 +123,7 @@ def _send_meta_outbound(phone_number_id: str, to_number: str, message_text: str)
                 mask_phone(target_phone),
             )
             return True
-        logger.error("Meta API error %d: %s", resp.status_code, resp.text)
+        logger.error("Meta API error %d", resp.status_code)
         return False
     except Exception as exc:
         logger.exception(
@@ -152,10 +153,11 @@ def _send_meta_interactive(phone_number_id: str, payload: dict[str, Any]) -> boo
             json=payload,
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
             timeout=10,
+            allow_redirects=False,
         )
         if resp.status_code in (200, 201):
             return True
-        logger.error("Meta API interactive error %d: %s", resp.status_code, resp.text)
+        logger.error("Meta API interactive error %d", resp.status_code)
         return False
     except Exception as exc:
         logger.exception("Failed sending interactive WhatsApp: %s", exc)
@@ -182,6 +184,7 @@ def _send_twilio_outbound(to_number: str, message_text: str) -> bool:
             data={"From": sender, "To": target, "Body": message_text[:1600]},
             auth=(account_sid, auth_token),
             timeout=10,
+            allow_redirects=False,
         )
         return resp.status_code in (200, 201)
     except Exception as exc:
@@ -235,116 +238,48 @@ def process_whatsapp_turn_task(
         )
         return {"status": "ai_paused_for_human", "phone": mask_phone(clean_p)}
 
-    user_id: str | None = None
-    sync_history = False
-    memory_write = False
+    from app.dependencies import get_container
+    from tasks.worker_loop import run_in_worker_loop
+    from services.whatsapp_service import get_account_link_by_phone
 
-    try:
-        from app.dependencies import get_container
+    container = get_container()
+    db = getattr(container, "supabase_client", None)
+    if db is None:
+        return {"status": "account_unavailable"}
+    link = run_in_worker_loop(get_account_link_by_phone(db, clean_p))
+    if not link or not link.get("user_id") or not link.get("id"):
+        return {"status": "link_required"}
+    user_id = link["user_id"]
+    sync_history = link.get("sync_history_consent") is True
+    memory_write = link.get("memory_write_consent") is True
+    session_id = f"wa_{link['id']}"
 
-        container = get_container()
-        db = getattr(container, "supabase_client", None)
-        if db:
-            res = (
-                db.table("whatsapp_account_links")
-                .select("user_id,sync_history_consent,memory_write_consent,status")
-                .eq("phone_number_hash", p_hash)
-                .eq("status", "active")
-                .limit(1)
-                .execute()
-            )
-            rows = getattr(res, "data", []) or []
-            if rows:
-                user_id = rows[0].get("user_id")
-                sync_history = bool(rows[0].get("sync_history_consent", False))
-                memory_write = bool(rows[0].get("memory_write_consent", False))
-                logger.info(
-                    "WhatsApp %s resolved to linked user %s (sync_history=%s, memory_write=%s)",
-                    mask_phone(clean_p),
-                    user_id,
-                    sync_history,
-                    memory_write,
-                )
-    except Exception as exc:
-        logger.warning("Failed checking account link for %s: %s", mask_phone(clean_p), exc)
+    from app.pipeline.pipeline_coordinator import PipelineCoordinator
+    from app.schemas import ChatRequest
+    from services.tenant_context import TenantContext
 
-    # 3. Execute teaching turn via internal PipelineCoordinator or fallback HTTP
-    effective_user = (
-        {"id": user_id, "is_anonymous": False}
-        if user_id
-        else {"id": "anonymous", "is_anonymous": True}
-    )
-    session_id = f"wa_{user_id}" if user_id else f"wa_{p_hash[:16]}"
-    incognito_mode = not memory_write
-
-    answer_text = ""
-    try:
-        import asyncio
-
-        from app.pipeline.pipeline_coordinator import PipelineCoordinator
-        from app.schemas import ChatRequest
-
-        container = get_container()
-        coordinator = PipelineCoordinator(container)
-        chat_req = ChatRequest(
-            user_message=user_message,
-            session_id=session_id,
-            messages=[],
-            incognito=incognito_mode,
-        )
-
-        async def _run_pipeline():
-            return await coordinator.execute(
+    async def _run_pipeline():
+        with TenantContext.scope(link["tenant_id"], user_id=user_id):
+            return await PipelineCoordinator(container).execute(
                 user_msg=user_message,
                 preferred_lang="en",
-                chat_body=chat_req,
+                chat_body=ChatRequest(user_message=user_message, session_id=session_id,
+                                     messages=[], incognito=not memory_write),
                 session_id=session_id,
-                user=effective_user,
+                user={"id": user_id, "is_anonymous": False},
             )
 
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import nest_asyncio
-
-                nest_asyncio.apply()
-                pipeline_res = loop.run_until_complete(_run_pipeline())
-            else:
-                pipeline_res = loop.run_until_complete(_run_pipeline())
-        except RuntimeError:
-            pipeline_res = asyncio.run(_run_pipeline())
-
-        raw_response = getattr(pipeline_res, "final_answer", "") or ""
-        citations = getattr(pipeline_res, "citations", []) or []
-        answer_text = format_whatsapp_message(raw_response, citations)
-    except Exception as exc:
-        logger.warning(
-            "In-process pipeline execution failed for %s (%s); falling back to internal HTTP",
-            mask_phone(clean_p),
-            exc,
-        )
-        try:
-            import requests
-
-            chat_url = f"{BACKEND_INTERNAL_URL}/api/chat?wait=true"
-            payload = {
-                "user_message": user_message,
-                "messages": [],
-                "session_id": session_id,
-                "incognito": incognito_mode,
-            }
-            resp = requests.post(chat_url, json=payload, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
-            raw_response = data.get("response", "") or ""
-            citations = data.get("citations") or []
-            answer_text = format_whatsapp_message(raw_response, citations)
-        except Exception as http_exc:
-            logger.exception("HTTP fallback also failed for %s: %s", mask_phone(clean_p), http_exc)
-            answer_text = (
-                "🙏 I am momentarily unable to reach the teachings. "
-                "Please pause, take a deep breath, and try asking again shortly."
-            )
+    pipeline_res = run_in_worker_loop(_run_pipeline())
+    raw_response = getattr(pipeline_res, "final_answer", "") or ""
+    if not raw_response.strip():
+        return {"status": "answer_unavailable"}
+    answer_text = format_whatsapp_message(raw_response, getattr(pipeline_res, "citations", []) or [])
+    # A queued turn must not outlive STOP, unlink or replacement of its binding.
+    current = run_in_worker_loop(get_account_link_by_phone(db, clean_p))
+    if not current or current.get("id") != link["id"] or current.get("user_id") != user_id:
+        return {"status": "binding_revoked"}
+    if is_whatsapp_ai_paused(p_hash):
+        return {"status": "ai_paused_for_human"}
 
     # 4. Outbound delivery in WhatsApp-sized chunks
     chunks = _split_whatsapp_message(answer_text)
@@ -357,87 +292,14 @@ def process_whatsapp_turn_task(
         if not ok:
             sent = False
 
-    # 5. DPDP-compliant conversation sync (if user explicitly consented)
-    if sync_history and user_id and db:
-        try:
-            conv_res = (
-                db.table("conversations")
-                .select("id")
-                .eq("user_id", user_id)
-                .eq("title", "WhatsApp Companion")
-                .order("created_at", desc=True)
-                .limit(1)
-                .execute()
-            )
-            rows = getattr(conv_res, "data", []) or []
-            if rows:
-                conv_id = rows[0]["id"]
-            else:
-                new_conv = (
-                    db.table("conversations")
-                    .insert(
-                        {
-                            "user_id": user_id,
-                            "title": "WhatsApp Companion",
-                            "preview": user_message[:120],
-                        }
-                    )
-                    .execute()
-                )
-                conv_id = (getattr(new_conv, "data", []) or [{}])[0].get("id")
-
-            if conv_id:
-                db.table("chat_messages").insert(
-                    [
-                        {
-                            "conversation_id": conv_id,
-                            "role": "user",
-                            "content": user_message,
-                        },
-                        {
-                            "conversation_id": conv_id,
-                            "role": "guru",
-                            "content": answer_text,
-                        },
-                    ]
-                ).execute()
-                logger.info(
-                    "Synced WhatsApp conversation turn into chat_messages for user %s", user_id
-                )
-        except Exception as e:
-            logger.warning("History sync note: %s", e)
-
-    # 6. DPDP-compliant second-brain memory writing (if user explicitly opted-in)
-    if memory_write and user_id and db:
-        try:
-            from services.memory.canonical_memory_service import CanonicalMemoryStore
-
-            # Check for personal spiritual practice / reflection keywords
-            mem_triggers = (
-                "remember",
-                "my practice",
-                "daily practice",
-                "i feel",
-                "struggling with",
-                "my intent",
-                "soul sync",
-            )
-            if any(t in user_message.lower() for t in mem_triggers):
-                store = CanonicalMemoryStore(db)
-                store.add_memory(
-                    user_id=user_id,
-                    fact=f"Shared via WhatsApp: {user_message[:280]}",
-                    category="reflection",
-                    source_turn=f"wa_turn_{session_id}",
-                )
-                logger.info(
-                    "Saved consented second-brain memory for user %s from WhatsApp", user_id
-                )
-        except Exception as e:
-            logger.debug("Memory write note: %s", e)
-
+    # History writes recheck consent transactionally; memory uses the shared MemoryStage.
+    if sent and sync_history:
+        db.rpc("sync_whatsapp_turn", {
+            "p_link_id": link["id"], "p_user_id": user_id,
+            "p_question": user_message, "p_answer": answer_text,
+        }).execute()
     return {
-        "status": "delivered" if sent else "delivery_failed",
+        "status": "accepted_by_provider" if sent else "delivery_failed",
         "phone": mask_phone(clean_p),
-        "linked": bool(user_id),
+        "linked": True,
     }
