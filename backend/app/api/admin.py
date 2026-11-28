@@ -80,6 +80,8 @@ async def fetch_telemetry_traces(
     prompt_version_id: Optional[str] = None,
     model: Optional[str] = None,
     min_judge_score: Optional[float] = Query(None, ge=0.0, le=1.0),
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Fetch recent traces for Admin UI. Requires admin authentication."""
@@ -89,6 +91,8 @@ async def fetch_telemetry_traces(
         prompt_version_id=prompt_version_id,
         model=model,
         min_judge_score=min_judge_score,
+        from_date=from_date,
+        to_date=to_date,
     )
     return [trace_summary(trace) for trace in traces]
 

@@ -118,3 +118,15 @@ A multi-video answer is faculty-testable only if its visible body is byte-equiva
 - **General RAG faithfulness:** the observed low-faithfulness/no-citation run was fail-closed in the generation/formatting path; no additional source leak was identified. This remains a separate general-RAG quality/latency concern, not evidence for first-person readiness.
 
 After the owner merges and deploys, capture the deployed commit again, run the faculty gate, inspect bounded `fp.rejected` reason counts and rate-limit health, and run the full acceptance battery before inviting faculty.
+
+
+## Latest code-only hardening pass (2026-11-29)
+
+- **Composer:** fixed a source-confirmed flex-layout defect in `ChatInterface.tsx`: the message scroll region lacked `min-h-0`, so its content minimum could push the shrink-protected composer below the viewport. Browser verification at 375/768/1280/1920 remains required because frontend dependencies and the supplied media are unavailable in this worktree.
+- **Telemetry:** recent model usage now receives the selected admin date range; backend trace projections already allowlist model, prompt/completion tokens, cost, latency, status, route, and bounded spans. The UI now shows loading and actionable retry/error state instead of silently presenting an empty table when traces fail.
+- **OKF/admin:** independent admin lookup, review-flow coverage, encoded review IDs, and safe backend error presentation are in place. No live approval was executed.
+- **Research:** current official Tailwind and PostgREST documentation findings are saved in `docs/research/FACULTY_READINESS_RESEARCH_2026-11-29.md`.
+
+### Approval boundary remains open
+
+This pass does not approve or fabricate answerability threshold changes, ambiguity clarification policy, crisis false-positive changes, native-speaker/clinician/rights/gold-label/speaker reviews, helpline verification, corpus top-up/re-ingest, production deployment, role migration proof, backup/restore evidence, uptime alerting, rollback rehearsal, or faculty acceptance. Therefore faculty readiness remains **UNPROVEN**, even though these code-level fixes are verified locally.

@@ -83,7 +83,15 @@ export async function fetchWithAuth<T = any>(path: string, options: RequestInit 
     if (response.status === 401 || response.status === 403) {
       throw new Error(response.status === 401 ? 'Session expired. Please sign in again.' : 'Admin access denied. Verify your role and MFA.');
     }
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
+    let detail = '';
+    try {
+      const payload = (await response.clone().json()) as { detail?: unknown; message?: unknown };
+      if (typeof payload.detail === 'string') detail = payload.detail;
+      else if (typeof payload.message === 'string') detail = payload.message;
+    } catch {
+      // Keep the status fallback for non-JSON proxy/server responses.
+    }
+    throw new Error(detail || `API error: ${response.status} ${response.statusText}`);
   }
 
   return (await response.json()) as T;
@@ -186,6 +194,8 @@ export async function listQueries(
       if (filters.promptVersionId) params.set('prompt_version_id', filters.promptVersionId);
       if (filters.model) params.set('model', filters.model);
       if (filters.minJudgeScore != null) params.set('min_judge_score', String(filters.minJudgeScore));
+      if (filters.from) params.set('from_date', filters.from.toISOString());
+      if (filters.to) params.set('to_date', filters.to.toISOString());
       return await fetchWithAuth(`/api/admin/traces?${params}`);
     },
     () => db.listQueries(filters) as Promise<ChatTrace[]>,
@@ -852,11 +862,11 @@ export async function listOkfReviewQueue(status = 'pending'): Promise<OkfReviewI
 }
 
 export async function approveOkfReview(reviewId: string): Promise<{ status: string; file: string }> {
-  return fetchWithAuth(`/api/admin/okf/review/${reviewId}/approve`, { method: 'POST' });
+  return fetchWithAuth(`/api/admin/okf/review/${encodeURIComponent(reviewId)}/approve`, { method: 'POST' });
 }
 
 export async function rejectOkfReview(reviewId: string, notes?: string): Promise<{ status: string }> {
-  return fetchWithAuth(`/api/admin/okf/review/${reviewId}/reject`, {
+  return fetchWithAuth(`/api/admin/okf/review/${encodeURIComponent(reviewId)}/reject`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reviewer_notes: notes }),

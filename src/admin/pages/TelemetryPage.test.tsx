@@ -4,6 +4,20 @@ import TelemetryPage from "./TelemetryPage";
 
 // Mock the hook from useAdminData
 vi.mock("@/admin/hooks/useAdminData", () => ({
+  useQueries: vi.fn().mockReturnValue({
+    data: [
+      {
+        id: "query-1",
+        model: "deepseek/deepseek-chat",
+        prompt_tokens: 100,
+        completion_tokens: 40,
+        cost_estimate: 0.0012,
+        latency_ms: 1250,
+        status: "ok",
+        created_at: "2026-06-19T12:00:00Z",
+      },
+    ],
+  }),
   useTelemetryEvents: vi.fn().mockReturnValue({
     data: {
       count: 2,
@@ -50,5 +64,14 @@ describe("TelemetryPage", () => {
     expect(screen.getByText("125ms")).toBeInTheDocument();
     expect(screen.getByText("token_usage")).toBeInTheDocument();
     expect(screen.getByText("450")).toBeInTheDocument();
+  });
+
+  it("renders per-turn model usage and cost fields", () => {
+    render(<TelemetryPage />);
+
+    expect(screen.getByText("Recent model usage")).toBeInTheDocument();
+    expect(screen.getByText("deepseek/deepseek-chat")).toBeInTheDocument();
+    expect(screen.getByText("$0.00120")).toBeInTheDocument();
+    expect(screen.getByText("1.25s")).toBeInTheDocument();
   });
 });

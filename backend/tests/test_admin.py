@@ -42,7 +42,31 @@ def test_fetch_telemetry_traces_success(mock_get_recent):
     assert len(data) == 1
     assert data[0]["id"] == "trace-1"
     mock_get_recent.assert_called_once_with(
-        10, search=None, prompt_version_id=None, model=None, min_judge_score=None
+        10,
+        search=None,
+        prompt_version_id=None,
+        model=None,
+        min_judge_score=None,
+        from_date=None,
+        to_date=None,
+    )
+
+
+@patch("app.api.admin.get_recent_traces")
+def test_fetch_telemetry_traces_passes_date_window(mock_get_recent):
+    mock_get_recent.return_value = []
+    response = client.get(
+        "/api/admin/traces?from_date=2026-11-01T00%3A00%3A00Z&to_date=2026-11-29T00%3A00%3A00Z"
+    )
+    assert response.status_code == 200
+    mock_get_recent.assert_called_once_with(
+        50,
+        search=None,
+        prompt_version_id=None,
+        model=None,
+        min_judge_score=None,
+        from_date="2026-11-01T00:00:00Z",
+        to_date="2026-11-29T00:00:00Z",
     )
 
 
@@ -68,6 +92,55 @@ def test_fetch_query_trace_not_found(mock_get_query_trace):
     mock_get_query_trace.return_value = None
     response = client.get("/api/admin/traces/trace-not-found")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+@patch("app.telemetry_db._get_client")
+async def test_get_admins_does_not_require_postgrest_relationship(mock_get_client):
+    """Admin listing must survive a schema cache without a user_roles FK relation."""
+    from app.telemetry_db import get_admins
+
+    supabase = MagicMock()
+    mock_get_client.return_value = supabase
+    roles_query = MagicMock()
+    roles_query.eq.return_value.limit.return_value.execute.return_value.data = [
+        {"user_id": "user-1", "role": "admin", "created_at": "2026-11-28T00:00:00Z"},
+        {"user_id": "user-missing", "role": "admin", "created_at": None},
+    ]
+    users_query = MagicMock()
+    users_query.in_.return_value.limit.return_value.execute.return_value.data = [
+        {"id": "user-1", "email": "faculty@example.com"}
+    ]
+
+    def table(name):
+        query = MagicMock()
+        if name == "user_roles":
+            query.select.return_value = roles_query
+        elif name == "auth_users":
+            query.select.return_value = users_query
+        else:  # pragma: no cover - protects this test from silently querying another table
+            raise AssertionError(f"unexpected table: {name}")
+        return query
+
+    supabase.table.side_effect = table
+
+    admins = await get_admins()
+
+    assert admins == [
+        {
+            "id": "user-1",
+            "email": "faculty@example.com",
+            "role": "admin",
+            "created_at": "2026-11-28T00:00:00Z",
+        },
+        {
+            "id": "user-missing",
+            "email": "Unknown",
+            "role": "admin",
+            "created_at": None,
+        },
+    ]
+    assert "auth_users:user_id(email)" not in str(supabase.table.call_args_list)
 
 
 @patch("app.api.admin.get_eval_runs")
