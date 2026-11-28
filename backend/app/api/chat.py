@@ -849,6 +849,7 @@ async def chat_endpoint(
     Add ?wait=true to block for result (backward compat).
     Delegates inline to ChatRequestOrchestrator when queue is disabled.
     """
+    _ingress_started = time.perf_counter()  # LOG_TURN_TRACE_ENABLED: handler entry to enqueue
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
 
     # ── Fast Intake Safety Preemption (Invariant X38, M1/M2 Audit) ────────
@@ -936,6 +937,9 @@ async def chat_endpoint(
             # fails; a successful job keeps it (commit on completion).
             "quota_reservation_id": quota.reservation_id,
         }
+        if settings.log_turn_trace_enabled:
+            # Trace only: the worker reads request_data by key, so an extra key is inert.
+            request_data["_ingress_ms"] = round((time.perf_counter() - _ingress_started) * 1000, 1)
         try:
             job_id, queue_pos = await container.job_queue.enqueue(
                 request_data, user.get("id", "anonymous"), is_stream=False
@@ -1186,6 +1190,7 @@ async def chat_stream_endpoint(
     orchestrator, which releases it in the SSE generator's finally
     (including client disconnect). Crisis-keyword requests bypass the cap.
     """
+    _ingress_started = time.perf_counter()  # LOG_TURN_TRACE_ENABLED: handler entry to enqueue
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
 
     # Crisis text is answered by InputGuardrailStage (FastSafetyKernel runs there with the
@@ -1277,6 +1282,10 @@ async def chat_stream_endpoint(
                 # fails; a successful job keeps it (commit on completion).
                 "quota_reservation_id": quota.reservation_id,
             }
+            if settings.log_turn_trace_enabled:
+                request_data["_ingress_ms"] = round(
+                    (time.perf_counter() - _ingress_started) * 1000, 1
+                )
             try:
                 job_id, queue_pos = await container.job_queue.enqueue(
                     request_data, user.get("id", "anonymous"), is_stream=True

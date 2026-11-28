@@ -116,6 +116,7 @@ from app.llm_tracing import (
 )
 from app.model_policy import OpenRouterModelPolicy
 from app.openrouter_budget import OpenRouterBudgetGuard
+from app.turn_trace import trace_active
 from rag.prompts import (
     BATCH_GRADE_PROMPT,
     COMBINED_VERIFICATION_PROMPT,
@@ -554,6 +555,39 @@ class OpenRouterService:
             / 1_000_000,
         )
 
+    @staticmethod
+    def _record_failed_call(
+        *,
+        operation: str,
+        model: str,
+        status: str,
+        started: float,
+        attempts: int,
+        limiter_ms: float,
+    ) -> None:
+        """Turn trace only: a timed-out, cancelled or refused call still reaches the turn
+        record (zero tokens, zero cost, so budget and CHAT_COST math are untouched)."""
+        if not trace_active():
+            return
+        try:
+            from services.cost_tracker import token_accumulator_var
+
+            acc = token_accumulator_var.get()
+            if acc is not None:
+                acc.record_call(
+                    prompt_id=operation,
+                    model=model,
+                    tokens_in=0,
+                    tokens_out=0,
+                    cost_usd=0.0,
+                    duration_ms=(time.perf_counter() - started) * 1000,
+                    attempts=attempts,
+                    limiter_wait_ms=limiter_ms,
+                    status=status,
+                )
+        except (ImportError, RuntimeError, ValueError, TypeError, AttributeError, KeyError):
+            return
+
     def _track_token_usage(
         self,
         *,
@@ -564,6 +598,9 @@ class OpenRouterService:
         cached_tokens: int = 0,
         cache_write_tokens: int = 0,
         cost_usd: float | None = None,
+        duration_ms: float | None = None,
+        attempts: int | None = None,
+        limiter_wait_ms: float | None = None,
     ) -> None:
         """Push provider cost or an explicit fallback estimate into accounting."""
         try:
@@ -605,6 +642,10 @@ class OpenRouterService:
                     tokens_in=tokens_in,
                     tokens_out=tokens_out,
                     cost_usd=cost_usd if cost_usd is not None else estimated_cost,
+                    duration_ms=duration_ms,
+                    attempts=attempts,
+                    limiter_wait_ms=limiter_wait_ms,
+                    status="ok" if duration_ms is not None else None,
                 )
             from app.runtime_metrics import (
                 observe_openrouter_accounting,
@@ -896,6 +937,15 @@ class OpenRouterService:
                 cached_tokens=cached_tokens,
                 cache_write_tokens=cache_write_tokens,
                 cost_usd=cost_usd,
+                **(
+                    {
+                        "duration_ms": (time.perf_counter() - call_started) * 1000,
+                        "attempts": attempt_count,
+                        "limiter_wait_ms": timing.limiter_ms,
+                    }
+                    if trace_active()
+                    else {}
+                ),
             )
             # Same values the OPENROUTER_CALL_TIMING log line below carries, but
             # as a queryable span (plus prompt/completion when LLM_TRACE_CONTENT
@@ -952,6 +1002,14 @@ class OpenRouterService:
             # timeouts during recovery wedge the breaker open forever with no
             # natural recovery (see test_cancelled_call_releases_half_open_reservation).
             self._circuit.release_reservation()
+            self._record_failed_call(
+                operation=operation,
+                model=model,
+                status="cancelled",
+                started=call_started,
+                attempts=attempt_count,
+                limiter_ms=timing.limiter_ms,
+            )
             # A cancelled call (caller's wait_for timeout) used to log nothing, which is how
             # slow verify/judge calls went missing from the timing logs.
             logger.info(
@@ -986,6 +1044,14 @@ class OpenRouterService:
             finally:
                 self._circuit.release_reservation()
             record_llm_error(current_llm_span(), refusal_exc)
+            self._record_failed_call(
+                operation=operation,
+                model=model,
+                status="refusal",
+                started=call_started,
+                attempts=attempt_count,
+                limiter_ms=timing.limiter_ms,
+            )
             logger.info(
                 "OPENROUTER_CALL_TIMING operation=%s model=%s total_ms=%.1f refusal=True %s",
                 operation,
@@ -996,6 +1062,16 @@ class OpenRouterService:
             raise
         except Exception as exc:
             record_llm_error(current_llm_span(), exc)
+            self._record_failed_call(
+                operation=operation,
+                model=model,
+                status="timeout"
+                if isinstance(exc, (httpx.TimeoutException, TimeoutError))
+                else "error",
+                started=locals().get("call_started", time.perf_counter()),
+                attempts=locals().get("attempt_count", 0),
+                limiter_ms=timing.limiter_ms,
+            )
             logger.warning(
                 "OPENROUTER_CALL_ERROR_TIMING operation=%s model=%s attempts=%d elapsed_ms=%.1f "
                 "error_type=%s %s",

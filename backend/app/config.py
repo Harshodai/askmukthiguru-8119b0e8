@@ -1362,6 +1362,11 @@ class Settings(BaseSettings):
     # level to Railway's debug/info/warn/error, and route uvicorn loggers through root.
     # Default False keeps today's output byte-identical; rollback = unset.
     log_json_stdout_enabled: bool = False
+    # Per-turn trace on the existing `answer_outcome` line: ids, timings (ingress, queue,
+    # dispatch, stages), the first-person gate counters and per-call LLM duration/status.
+    # Ids, counts, scores and durations only; never seeker, clip or LLM text. Default False:
+    # the record and its log line are byte-identical to before; rollback = unset.
+    log_turn_trace_enabled: bool = False
     # Gate Swagger/OpenAPI docs. Disabled in production to avoid exposing the full API schema.
     show_swagger: bool = False
     # Explicit opt-in for the X-Test-Key backdoor strategy. NEVER enable in production.

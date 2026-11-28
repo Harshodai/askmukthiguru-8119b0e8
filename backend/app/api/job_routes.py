@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.config import settings
 from app.dependencies import ServiceContainer, get_container_async
 from services.auth_service import get_optional_user, require_scoped_identity, resolve_anon_identity
 
@@ -43,7 +45,29 @@ async def get_job(
         from app.sanitization import sanitize_client_error
 
         job["error"] = sanitize_client_error(job["error"])
+    if settings.log_turn_trace_enabled and job.get("status") == "completed":
+        _log_result_fetched(job_id, job)
     return job
+
+
+def _log_result_fetched(job_id: str, job: dict) -> None:
+    """Server-visible part of poll quantization: result published -> this poll saw it.
+
+    Ids and durations only (no user id). The client stops polling once it sees
+    ``completed``, so this is about one line per question.
+    """
+    try:
+        now = time.time()
+        completed_at = job.get("completed_at")
+        created_at = job.get("created_at")
+        logger.info(
+            "JOB_RESULT_FETCHED job_id=%s fetch_lag_ms=%d since_created_ms=%d",
+            job_id,
+            round(max(0.0, now - float(completed_at)) * 1000) if completed_at else -1,
+            round(max(0.0, now - float(created_at)) * 1000) if created_at else -1,
+        )
+    except (TypeError, ValueError, OverflowError):
+        return
 
 
 @router.delete("/{job_id}")

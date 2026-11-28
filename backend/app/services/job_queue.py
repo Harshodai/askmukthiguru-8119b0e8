@@ -913,14 +913,16 @@ class JobQueueService:
                 },
             )
             worker_correlation_id = str(meta.get("correlation_id") or "-")[:128]
-            queue_token = queue_timing_var.set(
-                {
-                    "admitted_at": self._safe_float(meta.get("created_at")) or dispatch_started_at,
-                    "claimed_at": claimed_at,
-                    "dispatch_started_at": dispatch_started_at,
-                    "correlation_id": worker_correlation_id,
-                }
-            )
+            queue_timing = {
+                "admitted_at": self._safe_float(meta.get("created_at")) or dispatch_started_at,
+                "claimed_at": claimed_at,
+                "dispatch_started_at": dispatch_started_at,
+                "correlation_id": worker_correlation_id,
+            }
+            ingress_ms = self._safe_float(request_data.get("_ingress_ms"))
+            if ingress_ms:  # present only with LOG_TURN_TRACE_ENABLED; trace only
+                queue_timing["ingress_ms"] = ingress_ms
+            queue_token = queue_timing_var.set(queue_timing)
             # Logging only: worker log lines carry the enqueuing request's id.
             correlation_token = correlation_id_var.set(worker_correlation_id)
             # Token/cost accounting has to live HERE, not on the HTTP handler.

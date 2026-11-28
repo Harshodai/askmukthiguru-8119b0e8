@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional
 
+from app.turn_trace import fp_note, fp_score
+
 if TYPE_CHECKING:
     from services.first_person_pipeline import (
         FirstPersonPipelineResult,
@@ -547,6 +549,11 @@ class LegacyStoreServingMixin:
                 _ans_box["duration_ms"] = (time.monotonic() - ans_start) * 1000.0
             if (
                 bool(getattr(settings, "first_person_answerability_check_enabled", False))
+                and early_verdict is True
+            ):
+                fp_note(answerability="yes")
+            if (
+                bool(getattr(settings, "first_person_answerability_check_enabled", False))
                 and early_verdict is not True
                 and verified_clips
             ):
@@ -556,6 +563,7 @@ class LegacyStoreServingMixin:
                 # outcome. Label honestly: "no" for a firm NO, "indeterminate"
                 # otherwise (the Step 6 gate below agrees on both).
                 _is_firm_no = early_verdict is False
+                fp_note(answerability="no" if _is_firm_no else "indeterminate")
                 try:
                     early_confidence = (
                         _cosine_similarity(
@@ -986,6 +994,9 @@ class LegacyStoreServingMixin:
                     token_sink=fp_llm_tokens,
                     scores_out=rel_scores,
                 )
+            for _trace_score in rel_scores:
+                fp_score(_trace_score)
+            fp_note(min_score=int(getattr(settings, "first_person_relevance_min_score", 3)))
             if pick is None or pick == _RELEVANCE_INDETERMINATE:
                 t_scorer_ms = (time.monotonic() - t_scorer_start) * 1000.0
                 latency = (time.monotonic() - start_time) * 1000.0
@@ -1122,6 +1133,7 @@ class LegacyStoreServingMixin:
             # indeterminate mapping here rather than ever defaulting to YES.
             verdict = None if early_verdict is _ANSWERABILITY_UNSET else early_verdict
             answerability = {True: "yes", False: "no"}.get(verdict, "indeterminate")
+            fp_note(answerability=answerability)
             logger.info(
                 "[FirstPersonPipeline] Answerability verdict=%s direct_served=%s",
                 answerability,
@@ -1217,6 +1229,7 @@ class LegacyStoreServingMixin:
             return outcome.result
         raw_clips = outcome.raw_clips
         t_retrieval_ms = outcome.retrieval_ms
+        fp_note(n_retrieved=len(raw_clips or ()), retrieval_ms=round(t_retrieval_ms, 1))
         _ans_future = outcome.answerability_future
         early_verdict = outcome.early_verdict
         speculative_enabled = outcome.speculative_enabled

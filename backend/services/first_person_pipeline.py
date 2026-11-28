@@ -47,6 +47,7 @@ from app.metrics import (
     FIRST_PERSON_RELEVANCE_SCORE,
     FIRST_PERSON_REQUESTS_TOTAL,
 )
+from app.turn_trace import fp_note, fp_reject, fp_score
 from domain.first_person_context import EDGE_ANNOTATION_VERSION as _FP_EDGE_VERSION
 from domain.first_person_context import PARENT_VERSION as _FP_PARENT_VERSION
 from domain.first_person_context import SCHEMA_VERSION as _FP_CONTEXT_SCHEMA_VERSION
@@ -4746,6 +4747,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         ]
         if not passed:
             return None
+        fp_note(comparative_used=True)
         t0 = time.monotonic()
         # Candidates are the contexts already capped by retrieval / max_context_spans.
         # comparative_select_async never raises: every failure of the call comes back as
@@ -4817,6 +4819,13 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             n_quarantined,
             n_citations,
             max(0, int(llm_tokens)),
+        )
+        fp_note(
+            pipeline_status=status,
+            abstain_reason=reason,
+            pipeline_ms=round(latency_ms, 1),
+            n_served=n_citations,
+            n_quarantined=n_quarantined,
         )
 
     def _crisis_preemption(
@@ -5312,6 +5321,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 )
                 contexts = []
             t_ctx_ret_ms = (time.monotonic() - t_ctx_start) * 1000.0
+            fp_note(n_retrieved=len(contexts), retrieval_ms=round(t_ctx_ret_ms, 1))
 
             _try2_budget_s = float(
                 getattr(settings, "first_person_try2_budget_ceiling_s", 2.5) or 2.5
@@ -5347,6 +5357,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             "[FirstPersonPipeline] Try 2 adaptive expansion generated anchors on empty initial pool: n_anchors=%d",
                             len(expanded_anchors),
                         )
+                        fp_note(try2_used=True, n_anchors=len(expanded_anchors))
                         try2_concepts: list[str] = []
                         for anchor in expanded_anchors:
                             a_clean = anchor.strip().lower()
@@ -5417,6 +5428,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     _max_eval = int(
                         getattr(settings, "first_person_max_evaluated_contexts", 4) or 4
                     )
+                fp_note(sizing_k=_max_eval, sizing_ms=round(_sizing_ms, 1))
                 all_try1_contexts = list(contexts)
                 _top_context_score = float(getattr(all_try1_contexts[0], "score", 1.0) or 1.0)
                 t_ans_start = time.monotonic()
@@ -5450,6 +5462,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 t_ans_ms = (time.monotonic() - t_ans_start) * 1000.0
                 _ans_box["verdict"] = ans_verdict
                 _ans_box["duration_ms"] = t_ans_ms
+                fp_note(answerability=ans_str, answerability_ms=round(t_ans_ms, 1))
 
                 # A firm NO or an indeterminate answerability result is final
                 # before any harness worker, relevance scorer, or reranker can
@@ -5553,6 +5566,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 "max_context_spans=%s cannot reserve its predecessor",
                                 max_spans,
                             )
+                            fp_reject("antecedent")
                             return None, _local_tokens
                         try:
                             # Typed identity lookup is deliberately before decide:
@@ -5566,8 +5580,10 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 "[FirstPersonPipeline] Antecedent predecessor lookup refused: %s",
                                 type(exc).__name__,
                             )
+                            fp_reject("antecedent")
                             return None, _local_tokens
                         if not isinstance(candidate_edge, ValidatedCrossParentEdge):
+                            fp_reject("antecedent")
                             return None, _local_tokens
                         validated_predecessor = candidate_edge
 
@@ -5595,6 +5611,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         _allowed_decisions.add(HarnessDecision.SERVE_RELATED_NOT_DIRECT)
 
                     if decision.decision not in _allowed_decisions:
+                        fp_reject(f"decide_{decision.decision}")
                         return None, _local_tokens
 
                     t_asm_start = time.monotonic()
@@ -5613,12 +5630,14 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
                             len(decision.source_span_ids) - len(served_spans),
                         )
+                        fp_reject("unknown_span")
                         return None, _local_tokens
                     if not served_spans:
                         logger.warning(
                             "[FirstPersonPipeline] Context harness decision for parent %s served no spans; skipping this context",
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
                         )
+                        fp_reject("no_spans")
                         return None, _local_tokens
 
                     # The harness decision is final. Any antecedent or completion
@@ -5679,6 +5698,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             if is_multi_span
                             else self._boundary_guard_enabled,
                         ):
+                            fp_reject("integrity")
                             _span_failed_gate = True
                             break
                         # Single-span decisions must pass standalone content quality individually.
@@ -5693,10 +5713,12 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         ) and not _passes_content_quality_gate(
                             cit_dict, gate_enabled=self._content_quality_gate_enabled
                         ):
+                            fp_reject("content_quality")
                             _span_failed_gate = True
                             break
                         point_id = str(cit_dict.get("point_id") or "")
                         if _harness_allow is not None and point_id not in _harness_allow:
+                            fp_reject("allowlist")
                             _span_failed_gate = True
                             break
                         if _harness_blocked is not None:
@@ -5704,12 +5726,15 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 logger.warning(
                                     "[FirstPersonPipeline] Context harness span lacks point_id while quality blocklist is configured; failing closed",
                                 )
+                                fp_reject("blocklist")
                                 _span_failed_gate = True
                                 break
                             if point_id in _harness_blocked:
+                                fp_reject("blocklist")
                                 _span_failed_gate = True
                                 break
                         elif _harness_blocklist_configured:
+                            fp_reject("blocklist")
                             _span_failed_gate = True
                             break
                         citations.append(cit_dict)
@@ -5733,6 +5758,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             "[FirstPersonPipeline] Harness context rejected by shared policy: reasons=%s",
                             ",".join(assembled_safety.reason_codes),
                         )
+                        fp_reject("shared_policy")
                         return None, _local_tokens
                     if (
                         not _span_failed_gate
@@ -5760,6 +5786,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             "[FirstPersonPipeline] Assembled parent context %s failed content quality gate",
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
                         )
+                        fp_reject("content_quality")
                         _span_failed_gate = True
                     if (
                         not _span_failed_gate
@@ -5777,6 +5804,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
                                 ",".join(sorted(_asm_defects)),
                             )
+                            fp_reject("boundary")
                             _span_failed_gate = True
                     if _span_failed_gate:
                         FIRST_PERSON_QUARANTINED_TOTAL.inc()
@@ -5834,6 +5862,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 raw_idx,
                                 type(exc).__name__,
                             )
+                            fp_reject("prepare_error")
                             continue
                         if prep is not None:
                             eligible.append(prep)
@@ -5880,6 +5909,11 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             scores_out=_h_scores,
                             judge_meta_out=_h_judge_meta,
                             is_distress=is_distress,
+                        )
+                        for _trace_score in _h_scores:
+                            fp_score(_trace_score)
+                        fp_note(
+                            min_score=int(getattr(settings, "first_person_relevance_min_score", 3))
                         )
                         if _h_pick == _RELEVANCE_INDETERMINATE:
                             # Propagate indeterminate via a sentinel so the main
@@ -6048,6 +6082,13 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         ),
                         sum(1 for o in _outcomes if isinstance(o, _HarnessRelevanceIndeterminate)),
                         len(_judge_retries),
+                    )
+                    fp_note(
+                        judge_passed=sum(1 for r in _ctx_results if r is not None),
+                        judge_indeterminate=sum(
+                            1 for o in _outcomes if isinstance(o, _HarnessRelevanceIndeterminate)
+                        ),
+                        judge_retried=len(_judge_retries),
                     )
                     if _comparative_on:
                         _cmp_abstain = await self._comparative_narrow(
@@ -6304,6 +6345,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 "[FirstPersonPipeline] Try 2 adaptive expansion generated anchors: n_anchors=%d",
                                 len(expanded_anchors),
                             )
+                            fp_note(try2_used=True, n_anchors=len(expanded_anchors))
                             # Extract clean concept terms for Qdrant payload filtering
                             try2_concepts: list[str] = []
                             for anchor in expanded_anchors:
@@ -6408,6 +6450,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                     "[FirstPersonPipeline] Try 2 retrieved %d eligible secondary contexts; evaluating with judge",
                                     len(try2_prepared),
                                 )
+                                fp_note(n_try2=len(try2_prepared))
                                 _try2_parallel = (
                                     bool(
                                         getattr(

@@ -185,9 +185,22 @@ class JSONFormatter(logging.Formatter):
                 log_obj["request_id"] = cid
         except Exception as _e:
             logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
+        fields = getattr(record, "fields", None)
+        if isinstance(fields, dict):
+            # Structured record (the per-turn `answer_outcome`): merge its keys at top level so
+            # Railway can query `@outcome:abstained`. The message keeps only the event name,
+            # so the line is not doubled in size. Reserved keys are never overwritten. Ids stay
+            # unredacted (the phone regex would mangle ~2% of uuids); other strings are scrubbed.
+            log_obj["message"] = msg.split(" ", 1)[0]
+            for key, value in fields.items():
+                if key in ("timestamp", "level", "logger", "message", "correlation_id"):
+                    continue
+                if isinstance(value, str) and not key.endswith("_id"):
+                    value = PIIScanner.redact(value)
+                log_obj[key] = value
         if record.exc_info:
             log_obj["exception"] = self.formatException(record.exc_info)
-        return json.dumps(log_obj)
+        return json.dumps(log_obj, default=str)
 
 
 class PIIScrubber(logging.Filter):
@@ -233,6 +246,7 @@ def install_json_stdout_logging(root: logging.Logger | None = None) -> None:
 
 if settings.log_json_stdout_enabled:
     install_json_stdout_logging()
+
 # sentence-transformers prints a tqdm "Batches" bar on every encode/predict while its
 # logger is at INFO (L-04: 221 non-JSON lines in one graded run).
 logging.getLogger("sentence_transformers").setLevel(logging.WARNING)

@@ -28,13 +28,14 @@ import dataclasses
 import hashlib
 import json
 import logging
+import os
 import re
 import time
 import uuid
 from typing import Any
 
 from app.config import settings
-from app.context import queue_timing_var
+from app.context import correlation_id_var, queue_timing_var
 from app.dependencies import ServiceContainer
 from app.log_safe import q_digest
 from app.metrics import SEARCH_LATENCY_MS, observe_slo_latency
@@ -44,6 +45,7 @@ from app.pipeline.stages import PipelineContext, StageRunner, build_default_pipe
 from app.release_manifest import get_release_manifest
 from app.routing_primitives import is_deterministic_greeting
 from app.sanitization import pseudonymize_identity, sanitize_log_input
+from app.turn_trace import TurnTrace, turn_note, turn_trace_var
 from rag.memory import normalize_session_id
 from services.health_monitor import HealthMonitor
 from services.tenant_context import TenantContext
@@ -134,9 +136,59 @@ class PipelineCoordinator:
         timeout, crash) funnels through here, so the census is complete.
         Emission is failure-tolerant and carries no text or identity.
         """
-        result = await self._execute_stages(**kwargs)
-        self._emit_answer_outcome(result)
-        return result
+        # Opt-in per-turn trace (LOG_TURN_TRACE_ENABLED). Created once, never replaced;
+        # every hook only mutates it. With the flag off the var stays None, hooks no-op
+        # and the record is byte-identical to before.
+        trace_token = None
+        if settings.log_turn_trace_enabled and turn_trace_var.get() is None:
+            trace = TurnTrace()
+            trace_token = turn_trace_var.set(trace)
+            self._seed_turn_trace(trace, kwargs)
+        try:
+            result = await self._execute_stages(**kwargs)
+            self._emit_answer_outcome(result)
+            return result
+        finally:
+            if trace_token is not None:
+                try:
+                    turn_trace_var.reset(trace_token)
+                except ValueError:  # reset from another context: leave it, logging only
+                    pass
+
+    @staticmethod
+    def _note_queue_timing(timing: dict[str, Any], pipeline_start: float) -> None:
+        """Queue wait, worker dispatch and ingress durations for the turn trace (ms)."""
+        if turn_trace_var.get() is None:
+            return
+        try:
+            admitted = float(timing.get("admitted_at") or 0.0)
+            claimed = float(timing.get("claimed_at") or 0.0)
+            fields: dict[str, Any] = {}
+            if admitted and claimed:
+                fields["queue_wait_ms"] = round(max(0.0, claimed - admitted) * 1000, 1)
+            if claimed:
+                fields["dispatch_ms"] = round(max(0.0, pipeline_start - claimed) * 1000, 1)
+            if timing.get("ingress_ms") is not None:
+                fields["ingress_ms"] = float(timing["ingress_ms"])
+            turn_note(**fields)
+        except (RuntimeError, ValueError, TypeError, AttributeError, KeyError):
+            return
+
+    @staticmethod
+    def _seed_turn_trace(trace: TurnTrace, kwargs: dict[str, Any]) -> None:
+        """Ids and sizes only: never the message itself."""
+        try:
+            msg = kwargs.get("user_msg")
+            trace.note(
+                "turn",
+                q_len=len(msg) if isinstance(msg, str) else None,
+                lang=str(kwargs.get("preferred_lang") or "")[:8],
+                job_id=str(kwargs.get("job_id") or "")[:40],
+                correlation_id=str(correlation_id_var.get() or "")[:40],
+                pid=os.getpid(),
+            )
+        except (RuntimeError, ValueError, TypeError, AttributeError, KeyError):
+            return
 
     @staticmethod
     def _emit_answer_outcome(result: PipelineResult) -> None:
@@ -154,6 +206,7 @@ class PipelineCoordinator:
 
             emit_answer_outcome(
                 build_answer_outcome(
+                    trace=turn_trace_var.get(),
                     request_id=result.trace_id or None,
                     route_decision=result.route_decision,
                     route_reason=trace.get("routing_reason"),
@@ -200,6 +253,7 @@ class PipelineCoordinator:
         inherited_queue_timing = dict(queue_timing or queue_timing_var.get() or {})
         if inherited_queue_timing:
             inherited_queue_timing["pipeline_start_at"] = start_time
+            self._note_queue_timing(inherited_queue_timing, start_time)
         chat_body_messages = (
             [m.model_dump() for m in chat_body.messages] if hasattr(chat_body, "messages") else []
         )

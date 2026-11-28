@@ -48,6 +48,7 @@ from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
 from app.route_taxonomy import RoutingProvenance, record_routing_decision
+from app.turn_trace import fp_note
 from rag.resolve_followup import (
     FollowupResolution,
     _get_last_user_message,
@@ -1377,8 +1378,10 @@ class FirstPersonBridgeStage(Stage):
 
         # Always embed the original query first — this vector is used for
         # calibrated cosine confidence scoring and must not be replaced by HyDE.
+        _t_embed = time.perf_counter()
         try:
             original_encoded = await container.embedding.encode_single_full_async(retrieval_query)
+            fp_note(embed_ms=round((time.perf_counter() - _t_embed) * 1000, 1), embed_calls=1)
         except Exception as exc:
             # Embedding is bridge infrastructure, not chat infrastructure:
             # GraphStage performs its own retrieval embedding, so a failure
@@ -1419,13 +1422,19 @@ class FirstPersonBridgeStage(Stage):
             norm = sum(x * x for x in blended) ** 0.5
             return [x / norm for x in blended] if norm > 0.0 else orig
 
+        # Turn-trace only (hyde_state is a closed vocabulary): off | non_latin | cache_hit |
+        # no_provider | generated | failed.
+        _hyde_state = "off" if not _hyde_enabled else "non_latin"
+        _t_hyde = time.perf_counter()
         if _hyde_enabled and _is_en:
+            _hyde_state = "failed"
             _q_norm = retrieval_query.strip().lower()
             _q_hash = hashlib.sha256(_q_norm.encode("utf-8")).hexdigest()
             _cached = _get_cached_hyde(_q_hash)
             if _cached is not None:
                 _, cached_vec = _cached
                 retrieval_dense = _blend_hyde_vec(dense, cached_vec)
+                _hyde_state = "cache_hit"
                 logger.info(
                     "[FirstPersonBridge] HyDE cache hit for query %s; using deterministic cached vector.",
                     q_tag(_q_norm),
@@ -1436,6 +1445,7 @@ class FirstPersonBridgeStage(Stage):
 
                     _llm = _hyde_provider(container)
                     if _llm is None:
+                        _hyde_state = "no_provider"
                         # Not silent: the old code checked one attribute and skipped HyDE
                         # without a trace when it was absent.
                         if not _HYDE_PROVIDER_WARNED["said"]:
@@ -1463,6 +1473,7 @@ class FirstPersonBridgeStage(Stage):
                             if _hyde_dense is not None:
                                 _set_cached_hyde(_q_hash, hyde_text.strip(), _hyde_dense)
                                 retrieval_dense = _blend_hyde_vec(dense, _hyde_dense)
+                                _hyde_state = "generated"
                                 logger.info(
                                     "[FirstPersonBridge] HyDE hypothetical generated (%d chars); "
                                     "cached and applied HyDE embedding for retrieval only.",
@@ -1474,6 +1485,7 @@ class FirstPersonBridgeStage(Stage):
                         "[FirstPersonBridge] HyDE generation skipped (fail-open): %s",
                         type(_hyde_exc).__name__,
                     )
+        fp_note(hyde_state=_hyde_state, hyde_ms=round((time.perf_counter() - _t_hyde) * 1000, 1))
 
         user_lang = str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en")
 
@@ -2084,6 +2096,7 @@ class FirstPersonBridgeStage(Stage):
             float(getattr(result, "latency_ms", 0.0) or 0.0),
             bool(getattr(result, "cached", False)),
         )
+        fp_note(cached=bool(getattr(result, "cached", False)), is_direct=bool(is_direct))
         editorial_set = _public_editorial_set_metadata(getattr(result, "editorial_set", None))
         evidence_set_supported = (
             editorial_set.get("status") == "supported" if editorial_set is not None else is_direct
@@ -2371,6 +2384,7 @@ class FirstPersonBridgeStage(Stage):
             cause,
             _log_code(answerability),
         )
+        fp_note(abstain_cause=cause)
         return PipelineResult(
             final_answer=answer,
             intent="QUERY",
