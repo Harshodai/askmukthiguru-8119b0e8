@@ -43,6 +43,8 @@ def _client(monkeypatch, tmp_path, *, user, fail=False, supabase=True):
         _Table(rows, fail) if name == "feedback_events" else None
     )
     monkeypatch.setattr(feedback_service, "_get_client", lambda: client if supabase else None)
+    # Thumbs-down calls get_container(); never build the real one (loads BGE-M3, hangs CI).
+    monkeypatch.setattr("app.dependencies.get_container", lambda: MagicMock(telemetry_sink=None))
     jsonl = tmp_path / "reports.jsonl"
     monkeypatch.setattr(feedback_api.settings, "feedback_clip_reports_path", str(jsonl))
 
