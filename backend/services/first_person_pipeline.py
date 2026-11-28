@@ -1027,7 +1027,7 @@ _RELEVANCE_RUBRIC_CORE = (
     "clip on this fixed scale. "
     "3 = directly answers the question or directly guides the seeker through an expressed state of sorrow, depression, or suffering in the teacher's own words: the clip names the specific "
     "mechanism, practice, or realisation the seeker asked for and stands alone as a coherent "
-    "thought. "
+    "thought. If verbatim spans from one or more videos have been deterministically joined, judge the final joined body as one answer: it must remain grammatically coherent, readable at every span boundary, and free of an orphan opener, dangling conjunction, abrupt contradiction, or mid-sentence break. "
     "2 = foundational or parabolic answer: the clip does not restate the question but "
     "illuminates its root cause, underlying spiritual law, or inner state (for example, "
     "explaining attachment to answer grief, or inner stillness to answer anger or sadness). A parable, "
@@ -3745,7 +3745,23 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
 
         citations = [citation for result in selected_results for citation in result.citations]
         audio_clips = [clip for result in selected_results for clip in result.audio_playback_clips]
-        answer_text = "\n\n".join(result.answer_text.strip() for result in selected_results)
+        # The public route's source-only contract is citation reconstruction,
+        # not presentation whitespace between result bodies. Rebuild from the
+        # immutable citations so editorial joining cannot create a body that
+        # the API boundary must later reject.
+        answer_text = reconstruct_verbatim_answer(citations)
+        if answer_text is None:
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                answerability=answerability,
+                abstain_reason="reconstruction_failed",
+                stage_timings=stage_timings,
+                editorial_set=editorial_set,
+            )
         is_direct = (
             all(result.is_direct_answer for result in selected_results)
             and decision.status == "supported"
@@ -3764,6 +3780,102 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             fp_served=bool(citations),
             editorial_set=editorial_set,
         )
+
+    async def _evaluate_editorial_join_async(
+        self,
+        query: str,
+        result: FirstPersonPipelineResult,
+        *,
+        token_sink: Optional[list[int]] = None,
+        is_distress: bool = False,
+    ) -> FirstPersonPipelineResult:
+        """Evaluate final editorial joins without rewriting source text.
+
+        Each parent result has already passed its own gates. A cross-video
+        editorial set still needs one evaluator pass over the *final joined
+        body*: individually complete spans can form a poor answer when
+        juxtaposed. The evaluator returns only a score/decision; it cannot
+        author or edit teaching text. Any disabled, missing, malformed,
+        rejected, or indeterminate evaluation fails closed so callers may fall
+        back to one already-gated parent result.
+        """
+        if result.status == "abstained" or len(result.citations) <= 1:
+            return result
+        expected = reconstruct_verbatim_answer(result.citations)
+        if expected is None or result.answer_text != expected:
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=result.latency_ms,
+                answerability=result.answerability,
+                abstain_reason="reconstruction_failed",
+                stage_timings=dict(result.stage_timings),
+                editorial_set=result.editorial_set,
+            )
+        if not getattr(settings, "first_person_relevance_gate_enabled", True):
+            logger.info("[FirstPersonPipeline] Editorial join rejected: post-join evaluator disabled")
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=result.latency_ms,
+                answerability=result.answerability,
+                abstain_reason="joined_quality_indeterminate",
+                stage_timings=dict(result.stage_timings),
+                editorial_set=result.editorial_set,
+            )
+
+        scores: list[int] = []
+        started = time.monotonic()
+        try:
+            pick = await _acall(
+                _relevance_select,
+                query,
+                [{"verbatim_text": expected}],
+                self._llm_service,
+                self._llm_loop,
+                token_sink=token_sink,
+                scores_out=scores,
+                is_distress=is_distress,
+            )
+        except Exception as exc:  # noqa: BLE001 - a broken evaluator fails closed
+            logger.info(
+                "[FirstPersonPipeline] Editorial post-join evaluator failed: %s",
+                type(exc).__name__,
+            )
+            pick = _RELEVANCE_INDETERMINATE
+        elapsed_ms = (time.monotonic() - started) * 1000.0
+        stage_timings = dict(result.stage_timings)
+        stage_timings["joined_quality_evaluator_ms"] = round(elapsed_ms, 2)
+        minimum = int(getattr(settings, "first_person_relevance_min_score", 3))
+        if pick == _RELEVANCE_INDETERMINATE or pick != 0 or not scores or scores[0] < minimum:
+            logger.info(
+                "[FirstPersonPipeline] Editorial join rejected by post-join evaluator "
+                "(pick=%s score=%s minimum=%s)",
+                pick,
+                scores[0] if scores else None,
+                minimum,
+            )
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=result.latency_ms,
+                answerability=result.answerability,
+                abstain_reason=(
+                    "joined_quality_indeterminate"
+                    if pick == _RELEVANCE_INDETERMINATE
+                    else "joined_quality_rejected"
+                ),
+                stage_timings=stage_timings,
+                editorial_set=result.editorial_set,
+            )
+        result.stage_timings = stage_timings
+        return result
 
     @staticmethod
     def _build_context_citation(
@@ -6333,14 +6445,19 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         ]
                         if _editorial_pairs:
                             _active_facets = editorial_facets or get_default_planner().plan(query)
-                            _editorial_res = self._build_editorial_set_result(
+                            _editorial_res = await self._evaluate_editorial_join_async(
                                 retrieval_query or query,
-                                _editorial_pairs,
-                                facets=_active_facets,
-                                max_clips=max_clips,
-                                start_time=start_time,
-                                retrieval_ms=t_ctx_ret_ms,
-                                answerability=public_context_answerability,
+                                self._build_editorial_set_result(
+                                    retrieval_query or query,
+                                    _editorial_pairs,
+                                    facets=_active_facets,
+                                    max_clips=max_clips,
+                                    start_time=start_time,
+                                    retrieval_ms=t_ctx_ret_ms,
+                                    answerability=public_context_answerability,
+                                ),
+                                token_sink=fp_llm_tokens,
+                                is_distress=is_distress,
                             )
                             # A6 graceful fallback: when the editorial set builder
                             # abstains (e.g. open-ended "general" intent with no
@@ -6480,14 +6597,19 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             return _seq_res
                     if editorial_set_enabled and _editorial_pairs_seq:
                         _seq_active_facets = editorial_facets or get_default_planner().plan(query)
-                        _editorial_res = self._build_editorial_set_result(
+                        _editorial_res = await self._evaluate_editorial_join_async(
                             retrieval_query or query,
-                            _editorial_pairs_seq,
-                            facets=_seq_active_facets,
-                            max_clips=max_clips,
-                            start_time=start_time,
-                            retrieval_ms=t_ctx_ret_ms,
-                            answerability=public_context_answerability,
+                            self._build_editorial_set_result(
+                                retrieval_query or query,
+                                _editorial_pairs_seq,
+                                facets=_seq_active_facets,
+                                max_clips=max_clips,
+                                start_time=start_time,
+                                retrieval_ms=t_ctx_ret_ms,
+                                answerability=public_context_answerability,
+                            ),
+                            token_sink=fp_llm_tokens,
+                            is_distress=is_distress,
                         )
                         # A6 graceful fallback: editorial abstain → first passing harness result.
                         if _editorial_res.status == "abstained" and _editorial_pairs_seq:

@@ -1,5 +1,11 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
+## Nov 29, 2026 — Cross-video first-person joins require a final source-only quality gate
+### L-POST-JOIN-EVALUATOR-1 (2026-11-29). Individually valid clips are not enough: a composite answer must be checked after deterministic assembly.
+- **What:** the editorial path joined already-gated multi-video citations, but its final body had no post-assembly grammar/coherence/relevance decision and could diverge from the citation contract at the join boundary.
+- **Rule:** reconstruct the visible body exactly as `" ".join(citation["verbatim_text"].strip() ...)`; run a metadata-only evaluator over that final body; never let the evaluator rewrite, paraphrase, translate, or add connective teaching prose. A reconstruction mismatch, disabled gate, malformed response, rejection, timeout, or unexpected evaluator exception must abstain or fall back to one already-gated result.
+- **Verification:** the PR tests cover passing exact reconstruction, generated-body rejection, below-minimum rejection, evaluator indeterminacy, and disabled-gate abstention. Railway evidence remains unproven until PR #127 is merged and the deployed commit is checked.
+
 
 ## Nov 28, 2026 (evening) — Faculty-readiness live eval: what the logs and the eval exposed
 

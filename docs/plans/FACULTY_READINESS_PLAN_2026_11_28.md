@@ -82,3 +82,30 @@ The post-merge acceptance battery must include one known direct teaching, one co
 - Ruff import checks passed for all changed Python files; the isolated new faculty-gate contract test passed **4/4** with `pytest --noconftest`.
 - The full focused pytest invocation was attempted from `backend/`, the repository-required dependency path, but the host interpreter is Python 3.9 while the checked-in backend code requires Python 3.12 (`str | Sequence[str]` fails during import). No dependency installation or source workaround was made; the dependency-complete focused suite remains a CI/container gate.
 - The earlier repo-root pytest attempt was correctly rejected by the repository’s splitter-shadowing guard; it was not treated as test evidence.
+
+## PR #127 post-join audit and faculty-readiness matrix (2026-11-29)
+
+The cross-video editorial path had a real quality gap: each parent context was gated independently, but the final multi-video body was assembled with a separator that did not match the public citation reconstruction contract, and no final grammar/coherence/relevance evaluator inspected that joined body. PR #127 now reconstructs the body deterministically from the exact citation texts, evaluates the final source-only body through the existing relevance scorer, records bounded evaluator timing, and fails closed on mismatch, disabled evaluation, malformed output, rejection, timeout, or unexpected evaluator failure. The evaluator can return only metadata; it cannot rewrite teaching text. If the composite is rejected or indeterminate, the serving path may fall back only to an already-gated single result, never to an unchecked composite.
+
+| Gate or evidence | Status | Ruthless interpretation |
+|---|---|---|
+| Exact source-only body at pipeline and API boundaries | **PASS (code/tests)** | Visible teaching must equal the space-joined citation `verbatim_text`; generated gloss fields are rejected. |
+| Same-parent contiguous multi-span stitching | **PASS (code/tests)** | Ordered spans are deterministically joined and re-run through the serve-time gates. |
+| Cross-video deterministic selection and exact reconstruction | **PASS (code/tests)** | Distinct verified citations are joined only from already-gated results; no LLM-authored body is permitted. |
+| Final cross-video grammar/coherence/relevance evaluation | **PASS (code/tests)** | The evaluator sees the final joined body and may only accept/reject/score metadata. |
+| Evaluator rejection, indeterminacy, disabled gate, or exception | **PASS (code/tests)** | Composite serving fails closed or falls back to one already-gated result; no composite leak. |
+| Railway deployment of PR #127 | **UNPROVEN** | Railway was not linked and no fresh logs were obtained; the prior live deployment was not PR #127. |
+| Production latency, reason distribution, and post-redeploy smoke battery | **UNPROVEN** | Must be measured after merge and deployment, not inferred from local tests. |
+| RLS cross-user end-to-end workflow | **UNPROVEN** | No fresh production/test-environment evidence. |
+| Supabase backup secret, successful backup, and restore drill | **UNPROVEN** | Operational evidence is absent. |
+| Role migration applied and faculty admin access verified | **UNPROVEN** | Migration application/proof is absent. |
+| Native-speaker, clinician, helpline, rights, gold-label, and speaker human gates | **HUMAN-PENDING** | Empty or unsigned review packets are not approvals and must remain open. |
+| Monitoring, rollback rehearsal, and corpus top-up/re-ingest | **OWNER-PENDING** | No unattended production change is authorized by this PR. |
+
+### Acceptance criteria for the joined-answer evaluator
+
+A multi-video answer is faculty-testable only if its visible body is byte-equivalent after the repository’s whitespace normalization to the ordered citation reconstruction, every citation remains verified and licensed, and the final joined body passes the configured minimum metadata-only relevance/coherence score. The test battery must include a passing join, a below-minimum join, an evaluator transport/exception path, a disabled-gate path, and a deliberately generated/reformatted body. Any failed or indeterminate case must return zero composite citations or a single independently gated fallback; it must never expose an LLM-generated teaching sentence.
+
+### Railway status
+
+**UNPROVEN — no project was linked and no Railway logs were retrieved in this audit.** Do not treat the older deployment’s logs as evidence for PR #127. After the owner merges and deploys, capture the deployed commit, run the faculty gate, inspect bounded `fp.rejected` reason counts, and run the full acceptance battery before inviting faculty.
